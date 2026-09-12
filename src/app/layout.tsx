@@ -1,7 +1,5 @@
 import type { Metadata } from "next";
 import { Archivo_Black, Work_Sans } from "next/font/google";
-import Header from "@/components/Header";
-import Footer from "@/components/Footer";
 import "./globals.css";
 
 const workSans = Work_Sans({
@@ -28,9 +26,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       className={`${workSans.variable} ${archivoBlack.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col bg-[#f6ede1] text-[#17181a]">
-        <Header />
         {children}
-        <Footer />
       </body>
     </html>
   );
