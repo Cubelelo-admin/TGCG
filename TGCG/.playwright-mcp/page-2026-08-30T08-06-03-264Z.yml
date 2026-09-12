@@ -1,0 +1,516 @@
+- generic [ref=f5e6]:
+  - generic [ref=f5e7]:
+    - navigation [ref=f5e8]:
+      - generic [ref=f5e10]:
+        - link [ref=f5e12] [cursor=pointer]:
+          - /url: /in/online
+          - img "Townscript Event Ticketing Logo" [ref=f5e13]
+        - text: 󰍎 󰅂
+        - generic [ref=f5e16]:
+          - generic [ref=f5e17]:
+            - generic [ref=f5e18] [cursor=pointer]: 󰍉
+            - textbox "Search for events, interests or activities" [ref=f5e19]
+          - generic [ref=f5e20] [cursor=pointer]:
+            - generic "india" [ref=f5e21]: 󰍎
+            - generic [ref=f5e24]: 󰍝
+        - generic [ref=f5e26] [cursor=pointer]:
+          - generic [ref=f5e27]: 󰀉
+          - generic [ref=f5e28]: Login | Signup
+        - text: 󰍉
+    - navigation [ref=f5e29]
+  - generic [ref=f5e32]:
+    - generic [ref=f5e38]:
+      - generic [ref=f5e39] [cursor=pointer]
+      - generic [ref=f5e40] [cursor=pointer]:
+        - generic [ref=f5e41]: 󰔘
+        - generic [ref=f5e42]: Event Information
+      - generic [ref=f5e43] [cursor=pointer]:
+        - generic [ref=f5e44]: 󰍎
+        - generic [ref=f5e45]: Venue
+      - generic [ref=f5e46] [cursor=pointer]:
+        - generic [ref=f5e47]: 󰚓
+        - generic [ref=f5e48]: Gallery
+      - generic [ref=f5e49] [cursor=pointer]:
+        - generic [ref=f5e50]: 󰇗
+        - generic [ref=f5e51]: Organizer
+    - generic [ref=f5e52]:
+      - text: 󰁍 󰒗 󰇙
+      - generic [ref=f5e54]:
+        - img "LetsRun TGCG 2026 | Event in Atal Nagar-Nava Raipur | Townscript"
+      - generic [ref=f5e59]:
+        - generic [ref=f5e60]:
+          - heading "LetsRun TGCG 2026" [level=1] [ref=f5e62]
+          - generic [ref=f5e65]:
+            - generic [ref=f5e66] [cursor=pointer]: 󰒗
+            - generic [ref=f5e69]: 󰇙
+        - generic [ref=f5e72]:
+          - generic [ref=f5e73]:
+            - generic [ref=f5e74]: 󰃭
+            - generic [ref=f5e75]: Dec 20 | 04:00 AM
+            - generic [ref=f5e76]: (IST)
+          - generic [ref=f5e77]:
+            - generic [ref=f5e78]: 󰍎
+            - link "Atal Nagar-Nava Raipur" [ref=f5e79] [cursor=pointer]:
+              - /url: /atal-nagar-nava-raipur
+      - generic [ref=f5e80]:
+        - generic [ref=f5e83]:
+          - heading "Event Information" [level=2] [ref=f5e85]
+          - generic [ref=f5e86]:
+            - generic [ref=f5e88]:
+              - paragraph [ref=f5e89]
+              - paragraph [ref=f5e91]
+              - paragraph [ref=f5e92]:
+                - generic [ref=f5e93]: The registration process is in beta stage. The final version will be available by 5th Sept 2026. All registrations in this period will be valid and will be taken. Only the documentation will change on this website
+              - paragraph [ref=f5e94]
+              - paragraph [ref=f5e95]
+              - paragraph [ref=f5e96]:
+                - generic [ref=f5e97]: "Runners we have revised the following:"
+              - paragraph [ref=f5e98]:
+                - generic [ref=f5e99]: हमारे निमय और कायदे एवम इनाम व उनकी श्रेणी में बदलाव हुआ है कृपया पढ़ लें
+              - paragraph [ref=f5e100]:
+                - link "Race Details website / दौड़ की जानकारी" [ref=f5e101] [cursor=pointer]:
+                  - /url: http://www.tgcg.run
+                - generic [ref=f5e103]: <= click to follow the link
+              - paragraph [ref=f5e104]:
+                - link "Rules & Regulations / निमय और कायदे" [ref=f5e105] [cursor=pointer]:
+                  - /url: https://pdfhost.io/v/gfSlbjc5C_TGCG_Rules_Regulations_FAQ_2024
+                - generic [ref=f5e107]: <= click to follow the link
+              - paragraph [ref=f5e108]:
+                - link "Race information Prize money & Catagories details/ इनाम व उनकी श्रेणी" [ref=f5e109] [cursor=pointer]:
+                  - /url: https://pdfhost.io/v/HmN2MgXrH_Race_Information_2024
+                - generic [ref=f5e110]: <= click to follow the link
+              - paragraph [ref=f5e111]:
+                - generic [ref=f5e112]: you are requested to read it before registering
+              - paragraph [ref=f5e113]
+              - paragraph [ref=f5e114]: T-Shirt Sizes for your reference, please select from this, changing t-shirt sizes later wont be possible
+              - paragraph [ref=f5e115]
+              - paragraph [ref=f5e118]
+              - paragraph [ref=f5e119]: LetsRun Presents
+              - paragraph [ref=f5e120]: The Great Chhattisgarh Run - TGCG
+              - paragraph [ref=f5e121]: 9th Edition Qualifier Run (RFID Timer certificate)
+              - paragraph [ref=f5e122]: First Run of Central India to be certified by Association of International Marathons and Distance Races (AIMS) by International Association of Athletic Federations (IAAF) Coach
+              - paragraph [ref=f5e123]: "Email: letsrunteam@gmail.com"
+              - paragraph [ref=f5e124]: "WhatsApp Helpline: 830-5387786 (830-letsrun)"
+              - paragraph [ref=f5e125]: Last Date of Online registration (named bibs) is --------- evening 5:00 PM
+              - paragraph [ref=f5e126]: Last Date of Offline registration (non named bibs) is --------- evening 5:00 PM
+              - paragraph [ref=f5e127]: "BIB collection: ------------------ the bib will be distributed in the presence of tracking officials on showing the registration receipt mail. Kindly ensure BIB collection on the above-mentioned dates else we won’t be able to help you. Time and place will be communicated by e-mail / sms"
+              - paragraph [ref=f5e128]: Salient Points of Marathon
+              - paragraph [ref=f5e129]: First Run of CGthat qualifies the runner for events globally, we are using technology from India's best "Sports Timing Solutions" - they power 60% of runs including TMM.
+              - paragraph [ref=f5e130]: First in CG to use "Tyvek paper Running BIBS" to give runners best of experience.
+              - paragraph [ref=f5e131]: Cash Prizes for 1st and 2nd & 3rd positions in 42KM, 10KM & 21KM categories worth more than INR ---------Lakh* there is a special Cash prize for Women’s Category. Runners running for Cash Prizes will have to provide Govt ID and bank details during the registration process and has a separate category.
+              - paragraph [ref=f5e132]: One track for all the runs
+              - paragraph [ref=f5e133]: Downloadable E certificate
+              - paragraph [ref=f5e134]: Event Medal
+              - paragraph [ref=f5e135]: Post run refreshments
+              - paragraph [ref=f5e136]: DryFit Event T Shirt for All Paid Runners
+              - paragraph [ref=f5e137]: दौड़ में भाग लेने के इक्षुक प्रतिभागी निचे दिए गए प्रपत्र भरें
+              - paragraph [ref=f5e138]: नगद पुरस्कार हेतु दौड़ रहे प्रतिस्पर्धी - Competitive श्रेणी में पंजीकरण करें
+              - paragraph [ref=f5e139]: प्रपत्र अंग्रेजी में है - किसी की सहायता ले कर समझ के भरें, सभी खण्डों का भरना अनिवार्य है, सरे नियम और कानून (Rules and Regulations ) / FAQ को भी ध्यान से पढ़ कर समझ लें
+              - paragraph [ref=f5e140]: Please fill form below to register for run
+              - paragraph [ref=f5e141]: If you are running for prize money please register in a competitive category
+              - paragraph [ref=f5e142]: please read and understand the Rules and regulations
+              - paragraph [ref=f5e143]
+              - paragraph [ref=f5e144]
+              - paragraph [ref=f5e145]
+              - paragraph
+              - paragraph
+              - paragraph
+              - paragraph
+              - paragraph
+              - paragraph
+              - paragraph
+              - paragraph
+              - paragraph
+              - paragraph
+              - paragraph
+              - paragraph
+              - paragraph
+              - paragraph
+              - paragraph
+            - button "Read More" [ref=f5e148] [cursor=pointer]
+        - generic [ref=f5e151]:
+          - heading "Venue" [level=2] [ref=f5e153]
+          - generic [ref=f5e155]:
+            - generic [ref=f5e156]:
+              - generic [ref=f5e157]: Ekatma Path Park
+              - generic [ref=f5e158]: Ekatma path, Sector 21, Atal Nagar-Nava Raipur, India
+            - link "󰍍 View on Maps" [ref=f5e160] [cursor=pointer]:
+              - /url: https://www.google.com/maps/search/?api=1&query=21.1680365,81.7651486
+              - generic [ref=f5e161]:
+                - generic [ref=f5e162]: 󰍍
+                - generic [ref=f5e163]: View on Maps
+        - generic [ref=f5e166]:
+          - heading "Gallery" [level=2] [ref=f5e168]
+          - generic [ref=f5e173]:
+            - iframe [ref=f5e176] [cursor=pointer]:
+              - generic [ref=f6e1]:
+                - generic "YouTube Video Player" [ref=f6e3]
+                - generic [ref=f6e5]:
+                  - generic:
+                    - generic:
+                      - generic [ref=f6e6] [cursor=pointer]
+                      - button "Play video" [ref=f6e10] [cursor=pointer]
+                      - button "Hide player controls" [ref=f6e12] [cursor=pointer]
+                      - generic [ref=f6e14]:
+                        - generic [ref=f6e19]:
+                          - generic [ref=f6e20]:
+                            - link "TGCG.run 2023" [ref=f6e21] [cursor=pointer]:
+                              - /url: https://www.youtube.com/watch?v=d7iIxBuqxXY
+                            - link "LetsRun Team" [ref=f6e22] [cursor=pointer]:
+                              - /url: /channel/UCPD-Qfd_DkQpDTQyi48GnsA
+                          - generic [ref=f6e24]:
+                            - button [ref=f6e25] [cursor=pointer]
+                            - generic [ref=f6e27]:
+                              - generic: LetsRun Team
+                              - generic: 169 subscribers
+                        - generic [ref=f6e28]:
+                          - button "Copy link" [ref=f6e31] [cursor=pointer]
+                          - link "Watch on YouTube" [ref=f6e42] [cursor=pointer]:
+                            - /url: https://www.youtube.com/watch?v=d7iIxBuqxXY
+                            - generic [ref=f6e43]: Watch on
+            - iframe [ref=f5e179] [cursor=pointer]:
+              - generic [ref=f7e1]:
+                - generic "YouTube Video Player" [ref=f7e3]
+                - generic [ref=f7e5]:
+                  - generic:
+                    - generic:
+                      - generic [ref=f7e6] [cursor=pointer]
+                      - button "Play video" [ref=f7e10] [cursor=pointer]
+                      - button "Hide player controls" [ref=f7e12] [cursor=pointer]
+                      - generic [ref=f7e14]:
+                        - generic [ref=f7e19]:
+                          - generic [ref=f7e20]:
+                            - link "Film of TGCG.run 2022" [ref=f7e21] [cursor=pointer]:
+                              - /url: https://www.youtube.com/watch?v=swm8nJZSOlo
+                            - link "LetsRun Team" [ref=f7e22] [cursor=pointer]:
+                              - /url: /channel/UCPD-Qfd_DkQpDTQyi48GnsA
+                          - generic [ref=f7e24]:
+                            - button [ref=f7e25] [cursor=pointer]
+                            - generic [ref=f7e27]:
+                              - generic: LetsRun Team
+                              - generic: 169 subscribers
+                        - generic [ref=f7e28]:
+                          - button "Copy link" [ref=f7e31] [cursor=pointer]
+                          - link "Watch on YouTube" [ref=f7e42] [cursor=pointer]:
+                            - /url: https://www.youtube.com/watch?v=swm8nJZSOlo
+                            - generic [ref=f7e43]: Watch on
+            - iframe [ref=f5e182] [cursor=pointer]:
+              - generic [ref=f8e1]:
+                - generic "YouTube Video Player" [ref=f8e3]
+                - generic [ref=f8e5]:
+                  - generic:
+                    - generic:
+                      - generic [ref=f8e6] [cursor=pointer]
+                      - button "Play video" [ref=f8e10] [cursor=pointer]
+                      - button "Hide player controls" [ref=f8e12] [cursor=pointer]
+                      - generic [ref=f8e14]:
+                        - generic [ref=f8e19]:
+                          - generic [ref=f8e20]:
+                            - link "TGCG 2021" [ref=f8e21] [cursor=pointer]:
+                              - /url: https://www.youtube.com/watch?v=danL7Q5fsXY
+                            - link "LetsRun Team" [ref=f8e22] [cursor=pointer]:
+                              - /url: /channel/UCPD-Qfd_DkQpDTQyi48GnsA
+                          - generic [ref=f8e24]:
+                            - button [ref=f8e25] [cursor=pointer]
+                            - generic [ref=f8e27]:
+                              - generic: LetsRun Team
+                              - generic: 169 subscribers
+                        - generic [ref=f8e28]:
+                          - button "Copy link" [ref=f8e31] [cursor=pointer]
+                          - link "Watch on YouTube" [ref=f8e42] [cursor=pointer]:
+                            - /url: https://www.youtube.com/watch?v=danL7Q5fsXY
+                            - generic [ref=f8e43]: Watch on
+            - iframe [ref=f5e185] [cursor=pointer]:
+              - generic [ref=f9e1]:
+                - generic "YouTube Video Player" [ref=f9e3]
+                - generic [ref=f9e5]:
+                  - generic:
+                    - generic:
+                      - generic [ref=f9e6] [cursor=pointer]
+                      - button "Play video" [ref=f9e10] [cursor=pointer]
+                      - button "Hide player controls" [ref=f9e12] [cursor=pointer]
+                      - generic [ref=f9e14]:
+                        - generic [ref=f9e19]:
+                          - generic [ref=f9e20]:
+                            - link "TGCG 2020" [ref=f9e21] [cursor=pointer]:
+                              - /url: https://www.youtube.com/watch?v=O0OGxkx0yVg
+                            - link "LetsRun Team" [ref=f9e22] [cursor=pointer]:
+                              - /url: /channel/UCPD-Qfd_DkQpDTQyi48GnsA
+                          - generic [ref=f9e24]:
+                            - button [ref=f9e25] [cursor=pointer]
+                            - generic [ref=f9e27]:
+                              - generic: LetsRun Team
+                              - generic: 169 subscribers
+                        - generic [ref=f9e28]:
+                          - button "Copy link" [ref=f9e31] [cursor=pointer]
+                          - link "Watch on YouTube" [ref=f9e42] [cursor=pointer]:
+                            - /url: https://www.youtube.com/watch?v=O0OGxkx0yVg
+                            - generic [ref=f9e43]: Watch on
+            - iframe [ref=f5e188] [cursor=pointer]:
+              - generic [ref=f10e1]:
+                - generic "YouTube Video Player" [ref=f10e3]
+                - generic [ref=f10e5]:
+                  - generic:
+                    - generic:
+                      - generic [ref=f10e6] [cursor=pointer]
+                      - button "Play video" [ref=f10e10] [cursor=pointer]
+                      - button "Hide player controls" [ref=f10e12] [cursor=pointer]
+                      - generic [ref=f10e14]:
+                        - generic [ref=f10e19]:
+                          - generic [ref=f10e20]:
+                            - link "TGCG.run 2025" [ref=f10e21] [cursor=pointer]:
+                              - /url: https://www.youtube.com/watch?v=W-ekY87Mds8
+                            - link "LetsRun Team" [ref=f10e22] [cursor=pointer]:
+                              - /url: /channel/UCPD-Qfd_DkQpDTQyi48GnsA
+                          - generic [ref=f10e24]:
+                            - button [ref=f10e25] [cursor=pointer]
+                            - generic [ref=f10e27]:
+                              - generic: LetsRun Team
+                              - generic: 169 subscribers
+                        - generic [ref=f10e28]:
+                          - button "Copy link" [ref=f10e31] [cursor=pointer]
+                          - link "Watch on YouTube" [ref=f10e42] [cursor=pointer]:
+                            - /url: https://www.youtube.com/watch?v=W-ekY87Mds8
+                            - generic [ref=f10e43]: Watch on
+        - generic [ref=f5e192]:
+          - generic [ref=f5e193]:
+            - generic [ref=f5e195]:
+              - img "LetsRun cover image"
+            - img "LetsRun profile image" [ref=f5e197]
+          - generic [ref=f5e198]:
+            - generic [ref=f5e199]:
+              - generic [ref=f5e200]:
+                - link "LetsRun" [ref=f5e201] [cursor=pointer]:
+                  - /url: /o/vinay-tiwary-401043
+                - generic [ref=f5e203]: Joined on Aug 16, 2018
+              - generic [ref=f5e204]: 󰊌
+            - generic [ref=f5e208]:
+              - generic [ref=f5e209]:
+                - generic [ref=f5e210]: "16"
+                - generic [ref=f5e211]: Events Organised
+              - generic [ref=f5e212]:
+                - generic [ref=f5e213]: "20"
+                - generic [ref=f5e214]: Followers
+            - generic [ref=f5e215]:
+              - generic [ref=f5e216]: Find Us
+              - link "󰈌" [ref=f5e218] [cursor=pointer]:
+                - /url: https://www.facebook.com/letsrun.us/
+    - generic [ref=f5e222]:
+      - generic [ref=f5e225]:
+        - generic [ref=f5e228]:
+          - generic [ref=f5e229]:
+            - generic [ref=f5e230]: ₹1,205/-
+            - generic [ref=f5e231]: onwards
+          - generic [ref=f5e232]: "*Exclusive of Taxes"
+        - generic [ref=f5e235] [cursor=pointer]:
+          - generic [ref=f5e236]: BOOK NOW
+          - generic [ref=f5e237]: 󰁔
+      - generic [ref=f5e241]:
+        - generic [ref=f5e242]:
+          - generic [ref=f5e243]:
+            - generic [ref=f5e244]: Have a question?
+            - generic [ref=f5e245]: Send your queries to the event organizer
+          - img "LetsRun profile image" [ref=f5e247]
+        - generic [ref=f5e248]: CONTACT ORGANIZER
+      - link "Host Virtual Events with Townhall Learn More TsLive Learn more" [ref=f5e250] [cursor=pointer]:
+        - /url: https://townhall.co?utm_source=event-page&utm_medium=townscript-website&utm_campaign=townhall
+        - generic [ref=f5e251]:
+          - generic [ref=f5e252]: Host Virtual Events withTownhall
+          - generic [ref=f5e253]: Learn More
+          - img "TsLive Learn more"
+  - contentinfo [ref=f5e257]:
+    - generic [ref=f5e258]:
+      - generic [ref=f5e260]:
+        - generic [ref=f5e261]:
+          - img "Townscript Event Ticketing Logo" [ref=f5e262]
+          - generic [ref=f5e263]: Copyright@2026
+        - link "View Your Bookings 󰏌" [ref=f5e265] [cursor=pointer]:
+          - /url: /dashboard/mybookings
+          - generic [ref=f5e266]:
+            - text: View Your Bookings
+            - generic [ref=f5e267]: 󰏌
+        - generic [ref=f5e268]:
+          - heading "Organizer App" [level=5] [ref=f5e269]
+          - list [ref=f5e270]:
+            - listitem [ref=f5e271]:
+              - link "󰊼" [ref=f5e272] [cursor=pointer]:
+                - /url: //play.google.com/store/apps/details?id=com.townhall.organizerapp&hl=en_IN
+            - listitem [ref=f5e275]:
+              - link "󰀵" [ref=f5e276] [cursor=pointer]:
+                - /url: //itunes.apple.com/in/app/townscript-event-manager/id1441088900?mt=8
+        - generic [ref=f5e279]:
+          - heading "Follow us on" [level=5] [ref=f5e280]
+          - list [ref=f5e281]:
+            - listitem [ref=f5e282]:
+              - link "Find Us On Facebook" [ref=f5e283] [cursor=pointer]:
+                - /url: https://www.facebook.com/townscript
+                - generic [ref=f5e284]: 󰈌
+            - listitem [ref=f5e285]:
+              - link "Find Us On LinkedIn" [ref=f5e286] [cursor=pointer]:
+                - /url: https://twitter.com/townscript
+                - generic [ref=f5e287]: 󰕄
+            - listitem [ref=f5e288]:
+              - link "Find Us On Instagram" [ref=f5e289] [cursor=pointer]:
+                - /url: https://www.instagram.com/townscript.in/
+                - generic [ref=f5e290]: 󰋾
+            - listitem [ref=f5e291]:
+              - link "Find Us On LinkedIn" [ref=f5e292] [cursor=pointer]:
+                - /url: https://www.linkedin.com/company/townscript
+                - generic [ref=f5e293]: 󰌻
+      - generic [ref=f5e294]:
+        - generic [ref=f5e295]:
+          - generic [ref=f5e296]:
+            - generic [ref=f5e297]:
+              - generic [ref=f5e298]:
+                - heading "Learn More" [level=5] [ref=f5e299]
+                - list [ref=f5e300]:
+                  - listitem [ref=f5e301]:
+                    - link "Pricing" [ref=f5e302] [cursor=pointer]:
+                      - /url: /pricing
+                  - listitem [ref=f5e303]:
+                    - link "How it works" [ref=f5e304] [cursor=pointer]:
+                      - /url: /how-it-works
+                  - listitem [ref=f5e305]:
+                    - link "Policies" [ref=f5e306] [cursor=pointer]:
+                      - /url: /terms-and-conditions
+                  - listitem [ref=f5e307]:
+                    - link "Privacy" [ref=f5e308] [cursor=pointer]:
+                      - /url: /privacy-policy
+                  - listitem [ref=f5e309]:
+                    - link "APIs for Developers" [ref=f5e310] [cursor=pointer]:
+                      - /url: //townscript-api.readme.io/
+                  - listitem [ref=f5e311]:
+                    - link "Support / FAQs" [ref=f5e312] [cursor=pointer]:
+                      - /url: http://support.townscript.com/support/home
+              - generic [ref=f5e313]:
+                - heading "About" [level=5] [ref=f5e314]
+                - list [ref=f5e315]:
+                  - listitem [ref=f5e316]:
+                    - link "About us" [ref=f5e317] [cursor=pointer]:
+                      - /url: /about-us
+                  - listitem [ref=f5e318]:
+                    - link "Contact us" [ref=f5e319] [cursor=pointer]:
+                      - /url: /contact-us
+                  - listitem [ref=f5e320]:
+                    - link "Blog" [ref=f5e321] [cursor=pointer]:
+                      - /url: http://blog.townscript.com
+                  - listitem [ref=f5e322]:
+                    - link "Product Diary" [ref=f5e323] [cursor=pointer]:
+                      - /url: https://productblog.townscript.com/
+                  - listitem [ref=f5e324]:
+                    - link "Sitemap" [ref=f5e325] [cursor=pointer]:
+                      - /url: /sitemap
+              - generic [ref=f5e326]:
+                - heading "Organize Events" [level=5] [ref=f5e327]
+                - list [ref=f5e328]:
+                  - listitem [ref=f5e329]:
+                    - link "Conferences" [ref=f5e330] [cursor=pointer]:
+                      - /url: /i/conference-registration
+                  - listitem [ref=f5e331]:
+                    - link "Workshops and Trainings" [ref=f5e332] [cursor=pointer]:
+                      - /url: /i/workshops-and-trainings
+                  - listitem [ref=f5e333]:
+                    - link "Sports and Fitness Events" [ref=f5e334] [cursor=pointer]:
+                      - /url: /i/marathon-cycling-trips-treks-registration
+                  - listitem [ref=f5e335]:
+                    - link "Entertainment Events" [ref=f5e336] [cursor=pointer]:
+                      - /url: /i/entertainment-events-ticketing
+                  - listitem [ref=f5e337]:
+                    - link "Treks and Trips" [ref=f5e338] [cursor=pointer]:
+                      - /url: /i/treks-trips-registration
+            - generic [ref=f5e339]:
+              - heading "Popular Searches" [level=5] [ref=f5e340]
+              - list [ref=f5e341]:
+                - listitem [ref=f5e342]:
+                  - link "Countries supported by Townscript" [ref=f5e343] [cursor=pointer]:
+                    - /url: http://support.townscript.com/support/solutions/articles/1000265220-list-of-countries-supported-by-townscript-
+                - listitem [ref=f5e344]:
+                  - link "Sell Event Tickets Online" [ref=f5e345] [cursor=pointer]:
+                    - /url: /i/sell-event-tickets-online
+                - listitem [ref=f5e346]:
+                  - link "Event Management Software" [ref=f5e347] [cursor=pointer]:
+                    - /url: /i/event-management-software
+                - listitem [ref=f5e348]:
+                  - link "Event Registration Software" [ref=f5e349] [cursor=pointer]:
+                    - /url: /i/event-registration-software
+                - listitem [ref=f5e350]:
+                  - link "Conference management System" [ref=f5e351] [cursor=pointer]:
+                    - /url: /i/conference-management-system
+                - listitem [ref=f5e352]:
+                  - link "Event Planning Software" [ref=f5e353] [cursor=pointer]:
+                    - /url: /i/event-planning-software
+          - generic [ref=f5e355]:
+            - heading "Popular Cities" [level=5] [ref=f5e356]
+            - list [ref=f5e357]:
+              - listitem [ref=f5e358]:
+                - link "Singapore" [ref=f5e360] [cursor=pointer]:
+                  - /url: /sg/singapore
+              - listitem [ref=f5e361]:
+                - link "Ahmedabad" [ref=f5e363] [cursor=pointer]:
+                  - /url: /in/ahmedabad
+              - listitem [ref=f5e364]:
+                - link "Bengaluru" [ref=f5e366] [cursor=pointer]:
+                  - /url: /in/bengaluru
+              - listitem [ref=f5e367]:
+                - link "Chandigarh" [ref=f5e369] [cursor=pointer]:
+                  - /url: /in/chandigarh
+              - listitem [ref=f5e370]:
+                - link "Chennai" [ref=f5e372] [cursor=pointer]:
+                  - /url: /in/chennai
+              - listitem [ref=f5e373]:
+                - link "Delhi" [ref=f5e375] [cursor=pointer]:
+                  - /url: /in/delhi
+              - listitem [ref=f5e376]:
+                - link "Hyderabad" [ref=f5e378] [cursor=pointer]:
+                  - /url: /in/hyderabad
+              - listitem [ref=f5e379]:
+                - link "Indore" [ref=f5e381] [cursor=pointer]:
+                  - /url: /in/indore
+              - listitem [ref=f5e382]:
+                - link "Jaipur" [ref=f5e384] [cursor=pointer]:
+                  - /url: /in/jaipur
+              - listitem [ref=f5e385]:
+                - link "Kochi" [ref=f5e387] [cursor=pointer]:
+                  - /url: /in/kochi
+              - listitem [ref=f5e388]:
+                - link "Kolkata" [ref=f5e390] [cursor=pointer]:
+                  - /url: /in/kolkata
+              - listitem [ref=f5e391]:
+                - link "Mumbai" [ref=f5e393] [cursor=pointer]:
+                  - /url: /in/mumbai
+              - listitem [ref=f5e394]:
+                - link "Pune" [ref=f5e396] [cursor=pointer]:
+                  - /url: /in/pune
+        - generic [ref=f5e397]:
+          - heading "Compare Us" [level=5] [ref=f5e398]
+          - list [ref=f5e399]:
+            - listitem [ref=f5e400]:
+              - link "Eventbrite" [ref=f5e402] [cursor=pointer]:
+                - /url: https://townscript.com/organize/best-eventbrite-alternative
+            - listitem [ref=f5e403]:
+              - link "Peatix" [ref=f5e405] [cursor=pointer]:
+                - /url: https://www.townscript.com/organize/peatix-alternative-why-townscript-is-better-than-peatix
+            - listitem [ref=f5e406]:
+              - link "Zoom" [ref=f5e408] [cursor=pointer]:
+                - /url: https://www.townscript.com/organize/zoom-alternatives
+            - listitem [ref=f5e409]:
+              - link "Skype" [ref=f5e411] [cursor=pointer]:
+                - /url: https://www.townscript.com/organize/best-skype-alternative
+            - listitem [ref=f5e412]:
+              - link "Go To Meeting" [ref=f5e414] [cursor=pointer]:
+                - /url: https://www.townscript.com/organize/Best-gotomeeting-alternative
+            - listitem [ref=f5e415]:
+              - link "Google Meet Alternative" [ref=f5e417] [cursor=pointer]:
+                - /url: https://www.townscript.com/organize/google-meet-alternative-for-events
+            - listitem [ref=f5e418]:
+              - link "WebEx Alternative" [ref=f5e420] [cursor=pointer]:
+                - /url: https://www.townscript.com/organize/best-webex-alternative-for-online-events
+            - listitem [ref=f5e421]:
+              - link "GoToWebinar Alternative" [ref=f5e423] [cursor=pointer]:
+                - /url: "https://www.townscript.com/organize/best-gotowebinar-alternative "
+          - link [ref=f5e427] [cursor=pointer]:
+            - /url: https://www.g2crowd.com/products/townscript/reviews
+            - generic [ref=f5e428]:
+              - img "G2Crowd Townscript Reviews" [ref=f5e429]
+              - img "AICPA SOC2 Type2" [ref=f5e430]
+              - img "GDPR Ready" [ref=f5e431]

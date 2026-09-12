@@ -1,0 +1,207 @@
+- generic [ref=f21e1]:
+  - generic [ref=f21e659]:
+    - generic [ref=f21e662]:
+      - img "TS Logo" [ref=f21e663]
+      - generic [ref=f21e664]: SAFE CHECKOUT
+    - generic [ref=f21e668]:
+      - generic "Back" [ref=f21e670] [cursor=pointer]: 󰁍
+      - generic [ref=f21e671]:
+        - generic [ref=f21e672]: Attendee Details
+        - generic [ref=f21e673]: LetsRun TGCG 2026
+    - generic [ref=f21e676]:
+      - generic [ref=f21e679]:
+        - generic [ref=f21e680]: 42 KM Marathon Competitive (नकद पुरस्कार श्रेणी)
+        - generic [ref=f21e681]:
+          - generic [ref=f21e683]:
+            - generic [ref=f21e684]: 󰚼
+            - generic [ref=f21e685]: Attendee Details
+          - generic [ref=f21e690]:
+            - generic [ref=f21e691]:
+              - generic [ref=f21e692]:
+                - generic [ref=f21e693]:
+                  - text: Full Name
+                  - generic [ref=f21e694]: "*"
+                - textbox [ref=f21e700]: Test Runner
+              - generic [ref=f21e701]:
+                - generic [ref=f21e702]:
+                  - generic [ref=f21e703]: Email (Tickets will be sent to this email)
+                  - generic [ref=f21e704]: "*"
+                - textbox [ref=f21e710]: test.runner@example.com
+              - generic [ref=f21e711]:
+                - generic [ref=f21e712]:
+                  - generic [ref=f21e713]: Confirm Email (Should match with email provided above)
+                  - generic [ref=f21e714]: "*"
+                - generic [ref=f21e718]:
+                  - textbox [ref=f21e720]: test.runner@example.com
+                  - img "checked" [ref=f21e982]
+              - generic [ref=f21e722]:
+                - generic [ref=f21e724]:
+                  - generic [ref=f21e725]:
+                    - text: Contact Number
+                    - generic [ref=f21e726]: "*"
+                  - generic [ref=f21e732]:
+                    - 'combobox "India (भारत): +91" [ref=f21e734]'
+                    - textbox "081234 56789" [ref=f21e737]: "9999999999"
+                - generic [ref=f21e739]:
+                  - generic [ref=f21e740]:
+                    - text: Gender
+                    - generic [ref=f21e741]: "*"
+                  - radiogroup [ref=f21e743]:
+                    - generic [ref=f21e745] [cursor=pointer]:
+                      - radio "Male" [checked] [ref=f21e749]
+                      - generic [ref=f21e750]: Male
+                    - generic [ref=f21e752] [cursor=pointer]:
+                      - radio "Female" [ref=f21e756]
+                      - generic [ref=f21e757]: Female
+                    - generic [ref=f21e759] [cursor=pointer]:
+                      - radio "Others" [ref=f21e763]
+                      - generic [ref=f21e764]: Others
+                - generic [ref=f21e766]:
+                  - generic [ref=f21e767]:
+                    - text: City
+                    - generic [ref=f21e768]: "*"
+                  - textbox [ref=f21e774]: Raipur
+                - generic [ref=f21e776]:
+                  - generic [ref=f21e777]: Organization
+                  - textbox [ref=f21e783]
+                - generic [ref=f21e785]:
+                  - generic [ref=f21e786]: If you are part of Running community please name it
+                  - textbox [ref=f21e792]
+                - generic [ref=f21e794]:
+                  - generic [ref=f21e795]:
+                    - text: Date Of Birth
+                    - generic [ref=f21e796]: "*"
+                  - generic [ref=f21e799]:
+                    - generic [ref=f21e800]:
+                      - textbox [active] [invalid] [ref=f21e802]:
+                        - generic [ref=f21e983]:
+                          - generic [ref=f21e986]:
+                            - button "Choose date" [ref=f21e987] [cursor=pointer]:
+                              - generic [ref=f21e988]: 2016 – 2039
+                            - button "Previous 20 years" [ref=f21e991] [cursor=pointer]
+                            - button "Next 20 years" [ref=f21e992] [cursor=pointer]
+                          - grid [ref=f21e995]:
+                            - row [ref=f21e996]:
+                              - gridcell "2016" [ref=f21e997] [cursor=pointer]
+                              - gridcell "2017" [ref=f21e999] [cursor=pointer]
+                              - gridcell "2018" [ref=f21e1001] [cursor=pointer]
+                              - gridcell "2019" [ref=f21e1003] [cursor=pointer]
+                            - row [ref=f21e1005]:
+                              - gridcell "2020" [ref=f21e1006] [cursor=pointer]
+                              - gridcell "2021" [ref=f21e1008] [cursor=pointer]
+                              - gridcell "2022" [ref=f21e1010] [cursor=pointer]
+                              - gridcell "2023" [ref=f21e1012] [cursor=pointer]
+                            - row [ref=f21e1014]:
+                              - gridcell "2024" [ref=f21e1015] [cursor=pointer]
+                              - gridcell "2025" [ref=f21e1017] [cursor=pointer]
+                              - gridcell "2026" [ref=f21e1019] [cursor=pointer]
+                              - gridcell "2027" [ref=f21e1021] [cursor=pointer]
+                            - row [ref=f21e1023]:
+                              - gridcell "2028" [ref=f21e1024] [cursor=pointer]
+                              - gridcell "2029" [ref=f21e1026] [cursor=pointer]
+                              - gridcell "2030" [ref=f21e1028] [cursor=pointer]
+                              - gridcell "2031" [ref=f21e1030] [cursor=pointer]
+                            - row [ref=f21e1032]:
+                              - gridcell "2032" [ref=f21e1033] [cursor=pointer]
+                              - gridcell "2033" [ref=f21e1035] [cursor=pointer]
+                              - gridcell "2034" [ref=f21e1037] [cursor=pointer]
+                              - gridcell "2035" [ref=f21e1039] [cursor=pointer]
+                            - row [ref=f21e1041]:
+                              - gridcell "2036" [ref=f21e1042] [cursor=pointer]
+                              - gridcell "2037" [ref=f21e1044] [cursor=pointer]
+                              - gridcell "2038" [ref=f21e1046] [cursor=pointer]
+                              - gridcell "2039" [ref=f21e1048] [cursor=pointer]
+                      - button "Open calendar" [ref=f21e805] [cursor=pointer]
+                    - alert [ref=f21e1051]: Fill date in DD / MM / YYYY
+                - generic [ref=f21e814]:
+                  - generic [ref=f21e815]:
+                    - text: Unisex T Shirt Size (Sub. to availability 1st come 1st Serve)
+                    - generic [ref=f21e816]: "*"
+                  - listbox [ref=f21e822] [cursor=pointer]
+                - generic [ref=f21e829]:
+                  - generic [ref=f21e830]:
+                    - text: Emergency Contact Number
+                    - generic [ref=f21e831]: "*"
+                  - generic [ref=f21e837]:
+                    - 'combobox "India (भारत): +91" [ref=f21e839]'
+                    - textbox "081234 56789" [ref=f21e842]: "8888888888"
+                - generic [ref=f21e844]:
+                  - generic [ref=f21e845]:
+                    - text: Aadhar Card Number (Any Govt ID)
+                    - generic [ref=f21e846]: "*"
+                  - textbox [ref=f21e852]: "123456789012"
+                - generic [ref=f21e854]:
+                  - generic [ref=f21e855]:
+                    - text: Upload Govt ID proof
+                    - generic [ref=f21e856]: "*"
+                  - generic [ref=f21e857]: Upload File
+                - generic [ref=f21e862]:
+                  - generic [ref=f21e863]:
+                    - text: Bank Name and Location (for prize money please provide)
+                    - generic [ref=f21e864]: "*"
+                  - textbox [ref=f21e870]: SBI, Raipur
+                - generic [ref=f21e872]:
+                  - generic [ref=f21e873]:
+                    - text: Bank Account Number (for prize money please provide)
+                    - generic [ref=f21e874]: "*"
+                  - textbox [ref=f21e880]: "1234567890123"
+                - generic [ref=f21e882]:
+                  - generic [ref=f21e883]:
+                    - text: Bank IFSC code (for prize money please provide)
+                    - generic [ref=f21e884]: "*"
+                  - textbox [ref=f21e890]: SBIN0001234
+                - generic [ref=f21e892]:
+                  - generic [ref=f21e893]: PAN Card Number (for prize money please provide)
+                  - textbox [ref=f21e899]: ABCDE1234F
+                - generic [ref=f21e901]:
+                  - generic [ref=f21e902]:
+                    - text: Please agree to below terms
+                    - generic [ref=f21e903]: "*"
+                  - generic [ref=f21e907] [cursor=pointer]:
+                    - checkbox "Accident Waiver & Swachh Bharat Abhiyan" [ref=f21e909]
+                    - generic [ref=f21e910]: Accident Waiver & Swachh Bharat Abhiyan
+                - generic [ref=f21e912]:
+                  - generic [ref=f21e913]:
+                    - text: Please accept
+                    - generic [ref=f21e914]: "*"
+                  - generic [ref=f21e918] [cursor=pointer]:
+                    - checkbox "I have read and understood all rules and regulations and agree to it." [ref=f21e920]
+                    - generic [ref=f21e921]: I have read and understood all rules and regulations and agree to it.
+            - generic [ref=f21e923]:
+              - generic [ref=f21e924]:
+                - generic [ref=f21e925]: 󰃅
+                - text: ADD ONS
+              - generic [ref=f21e928]:
+                - generic [ref=f21e930]:
+                  - text: Non Runner Friend
+                  - generic [ref=f21e934]:
+                    - generic [ref=f21e935]: ₹
+                    - generic [ref=f21e936]: "650"
+                  - generic [ref=f21e937]: Accompanying Guest Pass This ticket is for non-running friends, drivers, assistants, or parents accompanying a participant. It provides a non-timed bib and access to the holding area, allowing them to be part of the event safely and comfortably.
+                - generic [ref=f21e938]: SALE ENDED
+              - generic [ref=f21e943]:
+                - generic [ref=f21e945]:
+                  - text: Accompanying Child (up to 10 years)
+                  - generic [ref=f21e949]:
+                    - generic [ref=f21e950]: ₹
+                    - generic [ref=f21e951]: "600"
+                  - generic [ref=f21e952]: Child Runner Pass This ticket is for children accompanying a registered runner. It provides a non-timed bib and access to the holding area, allowing them to safely participate and enjoy the event experience.
+                - generic [ref=f21e953]: SALE ENDED
+            - button "SAVE" [ref=f21e960] [cursor=pointer]
+      - generic [ref=f21e964]:
+        - generic [ref=f21e965]:
+          - generic [ref=f21e966]: Summary
+          - generic [ref=f21e967]:
+            - generic [ref=f21e968]: Price (1 item)
+            - generic [ref=f21e970]:
+              - generic [ref=f21e971]: ₹
+              - generic [ref=f21e972]: "1454"
+        - generic [ref=f21e973]:
+          - generic [ref=f21e974]:
+            - generic [ref=f21e975]: Total Amount
+            - generic [ref=f21e977]:
+              - generic [ref=f21e978]: ₹
+              - generic [ref=f21e979]: "1454"
+          - generic [ref=f21e980]: Prices are excluding GST and Booking Fees
+  - generic [ref=f21e442]: 2016 – 2039
+  - dialog [ref=f21e1053]

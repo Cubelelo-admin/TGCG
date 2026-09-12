@@ -1,0 +1,9 @@
+[    6099ms] [LOG] Init frontend @ https://in.x.taplink.st/s/js/frontend.js?1.2.10558:27
+[    6160ms] [LOG] Init metrics:  undefined @ https://in.x.taplink.st/s/js/frontend.js?1.2.10558:1
+[    6164ms] [LOG] Init metrika:  44929738 {id: undefined, simple: undefined, __ob__: Fe} @ https://in.x.taplink.st/s/js/frontend.js?1.2.10558:1
+[    6172ms] [LOG] stat navigate @ https://in.x.taplink.st/s/js/frontend.js?1.2.10558:1
+[    6338ms] [WARNING] [vue-hammer] panstart should not have directions @ https://in.x.taplink.st/s/js/frontend.js?1.2.10558:1
+[    6341ms] [WARNING] [vue-hammer] panend should not have directions @ https://in.x.taplink.st/s/js/frontend.js?1.2.10558:1
+[    6341ms] [WARNING] [vue-hammer] pancancel should not have directions @ https://in.x.taplink.st/s/js/frontend.js?1.2.10558:1
+[   13361ms] [INFO] Slow network is detected. See https://www.chromestatus.com/feature/5636954674692096 for more details. Fallback font will be used while loading: https://fonts.gstatic.com/s/roboto/v48/KFO7CnqEu92Fr1ME7kSn66aGLdTylUAMa3yUBA.woff2 @ https://www.youtube.com/embed/CvWD1hgjuMk?showinfo=0&rel=0&playsinline=0&autoplay=1&autohide=1:0
+[   16502ms] [WARNING] The powerPreference option is currently ignored when calling requestAdapter() on Windows. See https://crbug.com/369219127 @ :0

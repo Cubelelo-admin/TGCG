@@ -1,0 +1,7 @@
+[     224ms] [LOG] Init frontend @ https://in.x.taplink.st/s/js/frontend.js?1.2.10558:27
+[     267ms] [LOG] Init metrics:  undefined @ https://in.x.taplink.st/s/js/frontend.js?1.2.10558:1
+[     267ms] [LOG] Init metrika:  44929738 {id: undefined, simple: undefined, __ob__: Fe} @ https://in.x.taplink.st/s/js/frontend.js?1.2.10558:1
+[     268ms] [LOG] stat navigate @ https://in.x.taplink.st/s/js/frontend.js?1.2.10558:1
+[     819ms] [WARNING] <link rel=preload> must have a valid `as` value @ https://www.townscript.com/v2/widget/letsrun-tgcg-2026/booking:16
+[    2118ms] [LOG] Paytm hide @ :0
+[   30560ms] [WARNING] It's possible that you are loading beacon script multiple times. Please, check your code. @ https://cdn.sift.com/s.js:55
