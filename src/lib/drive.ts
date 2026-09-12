@@ -12,25 +12,25 @@ export async function uploadKycFileToDrive(params: {
   mimeType: string;
   buffer: Buffer;
 }): Promise<{ fileId: string } | null> {
-  const keyBase64 = process.env.GOOGLE_SERVICE_ACCOUNT_KEY_BASE64;
+  const clientId = process.env.GOOGLE_OAUTH_CLIENT_ID;
+  const clientSecret = process.env.GOOGLE_OAUTH_CLIENT_SECRET;
+  const refreshToken = process.env.GOOGLE_OAUTH_REFRESH_TOKEN;
   const folderId = process.env.GOOGLE_DRIVE_KYC_FOLDER_ID;
 
-  if (!keyBase64 || !folderId) {
+  if (!clientId || !clientSecret || !refreshToken || !folderId) {
     console.warn(
-      "GOOGLE_SERVICE_ACCOUNT_KEY_BASE64/GOOGLE_DRIVE_KYC_FOLDER_ID not set — skipping Drive mirror"
+      "GOOGLE_OAUTH_CLIENT_ID/GOOGLE_OAUTH_CLIENT_SECRET/GOOGLE_OAUTH_REFRESH_TOKEN/GOOGLE_DRIVE_KYC_FOLDER_ID not set — skipping Drive mirror"
     );
     return null;
   }
 
   try {
-    const credentials = JSON.parse(
-      Buffer.from(keyBase64, "base64").toString("utf-8")
-    );
-
-    const auth = new google.auth.GoogleAuth({
-      credentials,
-      scopes: ["https://www.googleapis.com/auth/drive"],
-    });
+    // Service accounts have no storage quota on a personal (non-Workspace)
+    // Google account and can't create Shared Drives there, so this mirrors
+    // as the real Drive-folder-owning account via a stored OAuth refresh
+    // token instead of a service account key.
+    const auth = new google.auth.OAuth2(clientId, clientSecret);
+    auth.setCredentials({ refresh_token: refreshToken });
 
     const drive = google.drive({ version: "v3", auth });
 
