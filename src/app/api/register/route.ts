@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
 import { getRazorpayClient } from "@/lib/razorpay";
+import { uploadKycFileToDrive } from "@/lib/drive";
 import {
   registrationSchema,
   validateKycRequired,
@@ -173,6 +174,13 @@ export async function POST(request: Request) {
         .from("registrations")
         .update({ govt_id_file_path: govtIdFilePath })
         .eq("id", registration.id);
+
+      const buffer = Buffer.from(await govtIdFile.arrayBuffer());
+      await uploadKycFileToDrive({
+        filename: `${data.fullName} — ${registration.id}.${ext}`,
+        mimeType: govtIdFile.type || "application/octet-stream",
+        buffer,
+      });
     } else {
       console.error("govt id upload failed", uploadError);
     }
