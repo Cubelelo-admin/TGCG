@@ -1,131 +1,138 @@
-import Image from "next/image";
 import Link from "next/link";
 import { getEvent, getTicketCategories } from "@/lib/catalog";
+import { PrimaryButton, SecondaryButton } from "@/components/Buttons";
+import { EVENT } from "@/lib/site-content";
+import type { TicketCategory } from "@/lib/types";
 
 export default async function HomePage() {
   const event = await getEvent();
   const categories = event ? await getTicketCategories(event.id) : [];
-
-  const eventDate = event
-    ? new Date(event.event_date).toLocaleDateString("en-IN", {
-        day: "numeric",
-        month: "long",
-        year: "numeric",
-      })
-    : null;
-
   const competitive = categories.filter((c) => c.group === "competitive");
   const nonCompetitive = categories.filter((c) => c.group === "non_competitive");
+  const nonCompetitiveFrom = nonCompetitive.length
+    ? Math.min(...nonCompetitive.map((c) => Number(c.price_inr)))
+    : null;
 
   return (
-    <main className="flex-1 bg-neutral-950 text-neutral-50">
+    <main className="flex-1">
       {/* Hero */}
-      <section className="relative overflow-hidden border-b border-white/10 bg-gradient-to-b from-emerald-900 via-neutral-950 to-neutral-950">
-        <div className="mx-auto max-w-5xl px-6 py-20 sm:py-28 text-center">
-          <Image
-            src="/logo.png"
-            alt="LetsRun"
-            width={300}
-            height={300}
-            priority
-            className="mx-auto h-20 w-20 sm:h-24 sm:w-24"
-          />
-          <p className="mt-5 text-sm font-semibold uppercase tracking-[0.2em] text-emerald-400">
-            Let&apos;s Run presents
-          </p>
-          <h1 className="mt-4 text-4xl sm:text-6xl font-extrabold tracking-tight">
-            {event?.name ?? "LetsRun TGCG 2026"}
+      <section className="relative overflow-hidden">
+        {/* faint topographic contour lines */}
+        <svg
+          className="pointer-events-none absolute inset-x-0 top-0 h-[620px] w-full opacity-[0.35]"
+          viewBox="0 0 1200 620"
+          preserveAspectRatio="none"
+          aria-hidden
+        >
+          <path d="M-50,120 C200,50 350,190 600,120 C850,50 1000,190 1250,120" fill="none" stroke="#2f6f6b" strokeWidth="1.4" />
+          <path d="M-50,165 C200,95 350,235 600,165 C850,95 1000,235 1250,165" fill="none" stroke="#2f6f6b" strokeWidth="1.4" />
+          <path d="M-50,210 C200,140 350,280 600,210 C850,140 1000,280 1250,210" fill="none" stroke="#2f6f6b" strokeWidth="1.4" />
+        </svg>
+
+        <div className="relative mx-auto max-w-5xl px-6 pt-10 sm:pt-16">
+          <div className="text-xs font-semibold uppercase tracking-[0.1em] text-[#8a5a3a]">
+            {EVENT.tagline}
+          </div>
+
+          <div className="mt-6 h-[3px] w-full bg-gradient-to-r from-[#b9541f] to-transparent" />
+
+          <h1 className="font-display mt-8 break-words text-[32px] leading-[0.98] uppercase tracking-[-0.01em] sm:text-6xl lg:text-[80px]">
+            The Great Chhattisgarh <span className="text-[#2f6f6b]">Run</span>
           </h1>
-          {event?.description && (
-            <p className="mt-5 text-lg text-neutral-300 max-w-2xl mx-auto">
-              {event.description}
-            </p>
-          )}
-          <div className="mt-8 flex flex-wrap items-center justify-center gap-x-8 gap-y-2 text-neutral-200">
-            {eventDate && (
-              <span className="inline-flex items-center gap-2">
-                <CalendarIcon /> {eventDate}
-                {event?.starts_at_text ? ` · ${event.starts_at_text}` : ""}
-              </span>
-            )}
-            {event?.venue && (
-              <span className="inline-flex items-center gap-2">
-                <PinIcon /> {event.venue}
-              </span>
-            )}
-          </div>
-          <div className="mt-10">
-            <Link
-              href="/register"
-              className="inline-flex items-center justify-center rounded-full bg-emerald-500 px-8 py-3.5 text-base font-semibold text-neutral-950 shadow-lg shadow-emerald-500/20 transition hover:bg-emerald-400"
-            >
+
+          <p className="mt-6 max-w-xl text-lg font-medium text-[#5c564a]">
+            {event?.name ?? EVENT.shortName} · {EVENT.edition} — {EVENT.dateLabel}, {EVENT.venueName},
+            Raipur. {EVENT.theme}.
+          </p>
+
+          <div className="mt-9 flex flex-wrap items-center gap-4">
+            <PrimaryButton href="/register" size="lg">
               Register Now
-            </Link>
+            </PrimaryButton>
+            <SecondaryButton href="/race-information" size="lg">
+              Race Information
+            </SecondaryButton>
           </div>
+
+          <div className="relative z-10 mt-16 h-[3px] w-full bg-gradient-to-r from-transparent via-[#b9541f] to-transparent" />
         </div>
       </section>
 
       {/* Ticket categories */}
-      <section className="mx-auto max-w-5xl px-6 py-16">
+      <section className="mx-auto max-w-5xl px-6 pt-10 pb-20">
         {competitive.length > 0 && (
-          <TicketGroup
+          <TicketList
             title="Competitive Categories"
-            subtitle="नकद पुरस्कार श्रेणी — compete for cash prizes"
+            subtitle="Cash prizes for top 3, all age groups"
             categories={competitive}
           />
         )}
-        {nonCompetitive.length > 0 && (
-          <TicketGroup
-            title="Non-Competitive Categories"
-            subtitle="Run for the experience, fitness, and joy of running"
-            categories={nonCompetitive}
-            className="mt-14"
-          />
+
+        {nonCompetitiveFrom !== null && (
+          <p className="mt-5 text-sm text-[#6d6656]">
+            Non-competitive entries also open, from ₹{nonCompetitiveFrom.toLocaleString("en-IN")} ·{" "}
+            {nonCompetitive.map((c) => c.name).join(" · ")}
+          </p>
         )}
+
         {categories.length === 0 && (
-          <p className="text-center text-neutral-400">
+          <p className="text-center text-[#6d6656]">
             Ticket categories will be published here shortly.
           </p>
         )}
+      </section>
+
+      {/* Explore links */}
+      <section className="border-t border-[#17181a]/10 bg-[#fbf7ee]">
+        <div className="mx-auto max-w-5xl px-6 py-16 grid gap-4 sm:grid-cols-3">
+          <ExploreCard
+            href="/gallery"
+            title="Gallery"
+            description="Relive past editions — recap films and race-day photos."
+          />
+          <ExploreCard
+            href="/rules"
+            title="Rules & Regulations"
+            description="Eligibility, BIB collection, cut-offs, and prize policy."
+          />
+          <ExploreCard
+            href="/faq"
+            title="FAQ"
+            description="Answers to the questions runners ask most."
+          />
+        </div>
       </section>
     </main>
   );
 }
 
-function TicketGroup({
+function TicketList({
   title,
   subtitle,
   categories,
-  className = "",
 }: {
   title: string;
   subtitle: string;
-  categories: Awaited<ReturnType<typeof getTicketCategories>>;
-  className?: string;
+  categories: TicketCategory[];
 }) {
   return (
-    <div className={className}>
-      <h2 className="text-2xl font-bold">{title}</h2>
-      <p className="text-sm text-neutral-400 mt-1">{subtitle}</p>
-      <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+    <div>
+      <h2 className="font-display text-2xl uppercase tracking-[-0.01em]">{title}</h2>
+      <p className="mt-1 text-sm text-[#6d6656]">{subtitle}</p>
+      <div className="mt-6 flex flex-col">
         {categories.map((c) => (
           <Link
             key={c.id}
             href={`/register?category=${c.id}`}
-            className="group rounded-2xl border border-white/10 bg-white/[0.03] p-6 transition hover:border-emerald-400/50 hover:bg-white/[0.06]"
+            className="group flex items-baseline justify-between gap-4 border-b-2 border-[#17181a] py-5"
           >
-            <h3 className="font-semibold text-lg">{c.name}</h3>
-            <p className="mt-2 text-2xl font-bold text-emerald-400">
+            <div className="font-semibold text-lg">{c.name}</div>
+            <div className="hidden flex-1 text-sm text-[#6d6656] sm:block">
+              {c.min_age ? `Age eligibility: ${c.min_age}+ years` : c.description}
+            </div>
+            <div className="font-display shrink-0 text-2xl text-[#b9541f] group-hover:underline">
               ₹{Number(c.price_inr).toLocaleString("en-IN")}
-            </p>
-            {c.min_age && (
-              <p className="mt-1 text-xs text-neutral-400">
-                Age eligibility: {c.min_age}+ years
-              </p>
-            )}
-            <span className="mt-4 inline-block text-sm font-medium text-emerald-400 group-hover:underline">
-              Register &rarr;
-            </span>
+            </div>
           </Link>
         ))}
       </div>
@@ -133,20 +140,25 @@ function TicketGroup({
   );
 }
 
-function CalendarIcon() {
+function ExploreCard({
+  href,
+  title,
+  description,
+}: {
+  href: string;
+  title: string;
+  description: string;
+}) {
   return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-      <rect x="3" y="4" width="18" height="18" rx="2" />
-      <path d="M16 2v4M8 2v4M3 10h18" />
-    </svg>
-  );
-}
-
-function PinIcon() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-      <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 1 1 16 0Z" />
-      <circle cx="12" cy="10" r="3" />
-    </svg>
+    <Link
+      href={href}
+      className="group rounded-2xl border border-[#17181a]/10 bg-[#f6ede1] p-6 transition hover:border-[#2f6f6b]/40"
+    >
+      <h3 className="font-display text-lg uppercase tracking-[-0.01em]">{title}</h3>
+      <p className="mt-2 text-sm text-[#6d6656]">{description}</p>
+      <span className="mt-4 inline-block text-sm font-medium text-[#2f6f6b] group-hover:underline">
+        Explore &rarr;
+      </span>
+    </Link>
   );
 }

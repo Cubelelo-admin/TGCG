@@ -110,7 +110,7 @@ export default function RegisterFlow({
         description: selectedCategory.name,
         order_id: json.orderId,
         prefill: { name: data.fullName, email: data.email, contact: data.phone },
-        theme: { color: "#10b981" },
+        theme: { color: "#b9541f" },
         handler: async (response) => {
           try {
             await fetch("/api/razorpay/verify", {
@@ -147,10 +147,10 @@ export default function RegisterFlow({
           onSelectCategory={setCategoryId}
           onToggleAddon={toggleAddon}
         />
-        <div className="mt-8 flex items-center justify-between rounded-xl border border-white/10 bg-white/[0.03] p-5">
+        <div className="mt-8 flex items-center justify-between rounded-xl border border-[#17181a]/10 bg-[#fbf7ee] p-5">
           <div>
-            <p className="text-sm text-neutral-400">Total</p>
-            <p className="text-2xl font-bold text-emerald-400">
+            <p className="text-sm text-[#6d6656]">Total</p>
+            <p className="font-display text-2xl text-[#b9541f]">
               ₹{total.toLocaleString("en-IN")}
             </p>
           </div>
@@ -158,7 +158,7 @@ export default function RegisterFlow({
             type="button"
             disabled={!categoryId}
             onClick={() => setStep("details")}
-            className="rounded-full bg-emerald-500 px-8 py-3 font-semibold text-neutral-950 transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-40"
+            className="rounded-full bg-gradient-to-br from-[#f97316] to-[#b91c1c] px-8 py-3 font-semibold text-white shadow-[0_14px_32px_-10px_rgba(185,28,28,0.55)] transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-40"
           >
             Continue
           </button>
@@ -172,12 +172,12 @@ export default function RegisterFlow({
       <button
         type="button"
         onClick={() => setStep("select")}
-        className="text-sm text-neutral-400 hover:text-neutral-200"
+        className="text-sm text-[#6d6656] hover:text-[#17181a]"
       >
         &larr; Back to ticket selection
       </button>
 
-      <p className="text-sm text-neutral-400">
+      <p className="text-sm text-[#6d6656]">
         {selectedCategory?.name} · ₹{total.toLocaleString("en-IN")}
       </p>
 
@@ -257,7 +257,7 @@ export default function RegisterFlow({
               type="file"
               accept="image/*,.pdf"
               onChange={(e) => setGovtIdFile(e.target.files?.[0] ?? null)}
-              className="block w-full text-sm text-neutral-300 file:mr-4 file:rounded-full file:border-0 file:bg-emerald-500 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-neutral-950"
+              className="block w-full text-sm text-[#5c564a] file:mr-4 file:rounded-full file:border-0 file:bg-gradient-to-br file:from-[#f97316] file:to-[#b91c1c] file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white"
             />
           </Field>
           <Field label="Bank Name and Location" error={errors.bankNameLocation?.message}>
@@ -292,7 +292,7 @@ export default function RegisterFlow({
       </FormSection>
 
       {serverError && (
-        <p className="rounded-lg bg-red-500/10 px-4 py-3 text-sm text-red-400">
+        <p className="rounded-lg bg-red-500/10 px-4 py-3 text-sm text-red-700">
           {serverError}
         </p>
       )}
@@ -300,7 +300,7 @@ export default function RegisterFlow({
       <button
         type="submit"
         disabled={submitting}
-        className="w-full rounded-full bg-emerald-500 px-8 py-4 text-base font-semibold text-neutral-950 transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-50"
+        className="w-full rounded-full bg-gradient-to-br from-[#f97316] to-[#b91c1c] px-8 py-4 text-base font-semibold text-white shadow-[0_14px_32px_-10px_rgba(185,28,28,0.55)] transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-50"
       >
         {submitting ? "Processing..." : `Pay ₹${total.toLocaleString("en-IN")}`}
       </button>
@@ -342,8 +342,8 @@ function TicketPicker({
                   key={c.id}
                   className={`flex cursor-pointer items-start justify-between rounded-xl border p-4 transition ${
                     categoryId === c.id
-                      ? "border-emerald-400 bg-emerald-400/10"
-                      : "border-white/10 bg-white/[0.02] hover:border-white/20"
+                      ? "border-[#2f6f6b] bg-[#2f6f6b]/10"
+                      : "border-[#17181a]/10 bg-[#fbf7ee] hover:border-[#17181a]/25"
                   }`}
                 >
                   <div className="flex items-start gap-3">
@@ -357,16 +357,16 @@ function TicketPicker({
                     <div>
                       <p className="font-medium">{c.name}</p>
                       {c.description && (
-                        <p className="mt-1 text-sm text-neutral-400">{c.description}</p>
+                        <p className="mt-1 text-sm text-[#6d6656]">{c.description}</p>
                       )}
                       {c.min_age && (
-                        <p className="mt-1 text-xs text-neutral-500">
+                        <p className="mt-1 text-xs text-[#6d6656]/80">
                           Age eligibility: {c.min_age}+ years
                         </p>
                       )}
                     </div>
                   </div>
-                  <p className="font-semibold text-emerald-400 whitespace-nowrap">
+                  <p className="font-semibold text-[#b9541f] whitespace-nowrap">
                     ₹{Number(c.price_inr).toLocaleString("en-IN")}
                   </p>
                 </label>
@@ -383,7 +383,7 @@ function TicketPicker({
             {addons.map((a) => (
               <label
                 key={a.id}
-                className="flex cursor-pointer items-start justify-between rounded-xl border border-white/10 bg-white/[0.02] p-4 hover:border-white/20"
+                className="flex cursor-pointer items-start justify-between rounded-xl border border-[#17181a]/10 bg-[#fbf7ee] p-4 hover:border-[#17181a]/25"
               >
                 <div className="flex items-start gap-3">
                   <input
@@ -395,11 +395,11 @@ function TicketPicker({
                   <div>
                     <p className="font-medium">{a.name}</p>
                     {a.description && (
-                      <p className="mt-1 text-sm text-neutral-400">{a.description}</p>
+                      <p className="mt-1 text-sm text-[#6d6656]">{a.description}</p>
                     )}
                   </div>
                 </div>
-                <p className="font-semibold text-emerald-400 whitespace-nowrap">
+                <p className="font-semibold text-[#b9541f] whitespace-nowrap">
                   ₹{Number(a.price_inr).toLocaleString("en-IN")}
                 </p>
               </label>
@@ -421,10 +421,10 @@ function FormSection({
   children: ReactNode;
 }) {
   return (
-    <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-6 space-y-5">
+    <div className="rounded-2xl border border-[#17181a]/10 bg-[#fbf7ee] p-6 space-y-5">
       <div>
         <h2 className="font-semibold text-lg">{title}</h2>
-        {subtitle && <p className="mt-1 text-sm text-neutral-400">{subtitle}</p>}
+        {subtitle && <p className="mt-1 text-sm text-[#6d6656]">{subtitle}</p>}
       </div>
       {children}
     </div>
@@ -442,7 +442,7 @@ function Field({
 }) {
   return (
     <label className="block">
-      <span className="mb-1.5 block text-sm text-neutral-300">{label}</span>
+      <span className="mb-1.5 block text-sm text-[#6d6656]">{label}</span>
       {children}
       {error && <p className={errorClass}>{error}</p>}
     </label>
@@ -450,5 +450,5 @@ function Field({
 }
 
 const inputClass =
-  "w-full rounded-lg border border-white/10 bg-white/[0.04] px-3.5 py-2.5 text-sm text-neutral-50 placeholder:text-neutral-500 focus:border-emerald-400 focus:outline-none";
-const errorClass = "mt-1 text-xs text-red-400";
+  "w-full rounded-lg border border-[#17181a]/15 bg-white px-3.5 py-2.5 text-sm text-[#17181a] placeholder:text-[#6d6656]/60 focus:border-[#2f6f6b] focus:outline-none";
+const errorClass = "mt-1 text-xs text-red-600";

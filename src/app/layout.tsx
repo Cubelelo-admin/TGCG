@@ -1,30 +1,37 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Archivo_Black, Work_Sans } from "next/font/google";
+import Header from "@/components/Header";
+import Footer from "@/components/Footer";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const workSans = Work_Sans({
+  variable: "--font-sans",
   subsets: ["latin"],
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+const archivoBlack = Archivo_Black({
+  variable: "--font-display",
+  weight: "400",
   subsets: ["latin"],
 });
 
 export const metadata: Metadata = {
-  title: "LetsRun TGCG 2026",
+  title: "LetsRun TGCG 2026 — The Great Chhattisgarh Run",
   description:
-    "LetsRun TGCG 2026 — 20 Dec 2026, Ekatma Path Park, Raipur. Register for the marathon, half marathon, and dream run.",
+    "LetsRun TGCG 2026 — 20 December 2026, Ekatma Path Park, Raipur. Register for the marathon, half marathon, 10K and dream run.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${workSans.variable} ${archivoBlack.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col bg-[#f6ede1] text-[#17181a]">
+        <Header />
+        {children}
+        <Footer />
+      </body>
     </html>
   );
 }

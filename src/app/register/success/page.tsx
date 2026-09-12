@@ -10,27 +10,27 @@ export default async function RegisterSuccessPage({
   const registration = reg ? await getSummary(reg) : null;
 
   return (
-    <main className="flex-1 bg-neutral-950 text-neutral-50 px-6 py-24">
+    <main className="flex-1 px-6 py-24">
       <div className="mx-auto max-w-lg text-center">
         {registration?.payment_status === "paid" ? (
           <>
-            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-emerald-500/15 text-emerald-400">
+            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-[#2f6f6b]/15 text-[#2f6f6b]">
               <CheckIcon />
             </div>
-            <h1 className="mt-6 text-2xl font-bold">You&apos;re registered!</h1>
-            <p className="mt-2 text-neutral-400">
+            <h1 className="font-display mt-6 text-2xl uppercase tracking-[-0.01em]">You&apos;re registered!</h1>
+            <p className="mt-2 text-[#6d6656]">
               {registration.ticket_categories?.name} · ₹
               {Number(registration.amount_inr).toLocaleString("en-IN")}
             </p>
-            <p className="mt-4 text-sm text-neutral-500">
+            <p className="mt-4 text-sm text-[#6d6656]/80">
               A confirmation has been sent to {registration.email} and via WhatsApp
               to your registered number.
             </p>
           </>
         ) : registration ? (
           <>
-            <h1 className="text-2xl font-bold">Payment processing</h1>
-            <p className="mt-2 text-neutral-400">
+            <h1 className="font-display text-2xl uppercase tracking-[-0.01em]">Payment processing</h1>
+            <p className="mt-2 text-[#6d6656]">
               We&apos;re confirming your payment — this can take a minute. If your
               payment was deducted, your spot is secured; refresh this page shortly
               or check your email.
@@ -38,8 +38,8 @@ export default async function RegisterSuccessPage({
           </>
         ) : (
           <>
-            <h1 className="text-2xl font-bold">Registration not found</h1>
-            <p className="mt-2 text-neutral-400">
+            <h1 className="font-display text-2xl uppercase tracking-[-0.01em]">Registration not found</h1>
+            <p className="mt-2 text-[#6d6656]">
               If you completed a payment, check your email for confirmation.
             </p>
           </>
@@ -47,7 +47,7 @@ export default async function RegisterSuccessPage({
 
         <Link
           href="/"
-          className="mt-10 inline-block rounded-full border border-white/20 px-6 py-2.5 text-sm font-medium hover:border-white/40"
+          className="mt-10 inline-block rounded-full border border-[#17181a]/20 px-6 py-2.5 text-sm font-medium hover:border-[#17181a]/40"
         >
           Back to event page
         </Link>
