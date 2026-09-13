@@ -1,5 +1,6 @@
-import Link from "next/link";
 import { createServiceClient } from "@/lib/supabase/server";
+
+const ACCENT = "#5b3fa0";
 
 export default async function RegisterSuccessPage({
   searchParams,
@@ -10,27 +11,30 @@ export default async function RegisterSuccessPage({
   const registration = reg ? await getSummary(reg) : null;
 
   return (
-    <main className="flex-1 px-6 py-24">
+    <main className="min-h-screen flex-1 bg-white px-6 py-24">
       <div className="mx-auto max-w-lg text-center">
         {registration?.payment_status === "paid" ? (
           <>
-            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-[#2f6f6b]/15 text-[#2f6f6b]">
+            <div
+              className="mx-auto flex h-16 w-16 items-center justify-center rounded-full"
+              style={{ backgroundColor: `${ACCENT}1a`, color: ACCENT }}
+            >
               <CheckIcon />
             </div>
-            <h1 className="font-display mt-6 text-2xl uppercase tracking-[-0.01em]">You&apos;re registered!</h1>
-            <p className="mt-2 text-[#6d6656]">
+            <h1 className="mt-6 text-2xl font-bold text-[#111827]">You&apos;re registered!</h1>
+            <p className="mt-2 text-[#6b7280]">
               {registration.ticket_categories?.name} · ₹
               {Number(registration.amount_inr).toLocaleString("en-IN")}
             </p>
-            <p className="mt-4 text-sm text-[#6d6656]/80">
+            <p className="mt-4 text-sm text-[#9ca3af]">
               A confirmation has been sent to {registration.email} and via WhatsApp
               to your registered number.
             </p>
           </>
         ) : registration ? (
           <>
-            <h1 className="font-display text-2xl uppercase tracking-[-0.01em]">Payment processing</h1>
-            <p className="mt-2 text-[#6d6656]">
+            <h1 className="text-2xl font-bold text-[#111827]">Payment processing</h1>
+            <p className="mt-2 text-[#6b7280]">
               We&apos;re confirming your payment — this can take a minute. If your
               payment was deducted, your spot is secured; refresh this page shortly
               or check your email.
@@ -38,19 +42,12 @@ export default async function RegisterSuccessPage({
           </>
         ) : (
           <>
-            <h1 className="font-display text-2xl uppercase tracking-[-0.01em]">Registration not found</h1>
-            <p className="mt-2 text-[#6d6656]">
+            <h1 className="text-2xl font-bold text-[#111827]">Registration not found</h1>
+            <p className="mt-2 text-[#6b7280]">
               If you completed a payment, check your email for confirmation.
             </p>
           </>
         )}
-
-        <Link
-          href="/"
-          className="mt-10 inline-block rounded-full border border-[#17181a]/20 px-6 py-2.5 text-sm font-medium hover:border-[#17181a]/40"
-        >
-          Back to event page
-        </Link>
       </div>
     </main>
   );
