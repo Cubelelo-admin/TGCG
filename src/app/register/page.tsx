@@ -1,4 +1,3 @@
-import Image from "next/image";
 import { getAddons, getEvent, getTicketCategories } from "@/lib/catalog";
 import RegisterFlow from "./RegisterFlow";
 
@@ -26,21 +25,6 @@ export default async function RegisterPage({
   return (
     <main className="min-h-screen flex-1 bg-white px-4 py-6 sm:px-8 sm:py-8">
       <div className="mx-auto max-w-5xl">
-        <div className="flex items-center gap-3">
-          <Image src="/logo.png" alt="LetsRun" width={64} height={64} className="h-8 w-8" />
-          <div>
-            <h1 className="text-lg font-bold text-[#111827]">{event.name}</h1>
-            <p className="text-sm text-[#6b7280]">
-              {new Date(event.event_date).toLocaleDateString("en-IN", {
-                day: "numeric",
-                month: "short",
-                year: "numeric",
-              })}
-              {event.starts_at_text ? ` | ${event.starts_at_text}` : ""}
-              {event.venue ? ` | ${event.venue}` : ""}
-            </p>
-          </div>
-        </div>
         <RegisterFlow
           categories={categories}
           addons={addons}

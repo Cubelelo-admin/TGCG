@@ -11,9 +11,12 @@ export interface RegistrationRow {
   tshirt_size: string;
   payment_status: string;
   amount_inr: number;
+  registration_code: string | null;
   bib_number: string | null;
   checked_in: boolean;
   created_at: string;
+  group_id: string | null;
+  registration_groups: { attendee_count: number; organizer_email: string } | null;
   ticket_categories: { name: string; group: string } | null;
 }
 
@@ -55,6 +58,7 @@ export async function listRegistrations(params: {
   eventId: string;
   search?: string;
   status?: string;
+  groupId?: string;
   page?: number;
   pageSize?: number;
 }) {
@@ -67,7 +71,7 @@ export async function listRegistrations(params: {
   let query = supabase
     .from("registrations")
     .select(
-      "id, full_name, email, phone, city, gender, tshirt_size, payment_status, amount_inr, bib_number, checked_in, created_at, ticket_categories(name, group)",
+      "id, full_name, email, phone, city, gender, tshirt_size, payment_status, amount_inr, registration_code, bib_number, checked_in, created_at, group_id, registration_groups(attendee_count, organizer_email), ticket_categories(name, group)",
       { count: "exact" }
     )
     .eq("event_id", params.eventId)
@@ -77,10 +81,13 @@ export async function listRegistrations(params: {
   if (params.status) {
     query = query.eq("payment_status", params.status);
   }
+  if (params.groupId) {
+    query = query.eq("group_id", params.groupId);
+  }
   if (params.search) {
     const term = params.search.trim();
     query = query.or(
-      `full_name.ilike.%${term}%,email.ilike.%${term}%,phone.ilike.%${term}%`
+      `full_name.ilike.%${term}%,email.ilike.%${term}%,phone.ilike.%${term}%,registration_code.ilike.%${term}%`
     );
   }
 

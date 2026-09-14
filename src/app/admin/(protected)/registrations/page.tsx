@@ -8,9 +8,9 @@ const STATUSES = ["pending", "paid", "failed", "refunded", "cancelled"] as const
 export default async function AdminRegistrationsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; status?: string; page?: string }>;
+  searchParams: Promise<{ q?: string; status?: string; group?: string; page?: string }>;
 }) {
-  const { q, status, page } = await searchParams;
+  const { q, status, group: groupId, page } = await searchParams;
   const event = await getEvent();
   if (!event) return <p className="text-neutral-400">No active event found.</p>;
 
@@ -19,6 +19,7 @@ export default async function AdminRegistrationsPage({
     eventId: event.id,
     search: q,
     status,
+    groupId,
     page: pageNum,
   });
 
@@ -40,12 +41,21 @@ export default async function AdminRegistrationsPage({
         </a>
       </div>
 
+      {groupId && (
+        <div className="mt-4 flex items-center gap-3 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-4 py-2 text-sm text-emerald-300">
+          Filtered to one group booking.
+          <Link href="/admin/registrations" className="underline">
+            Clear
+          </Link>
+        </div>
+      )}
+
       <form className="mt-6 flex flex-wrap gap-3" method="get">
         <input
           type="text"
           name="q"
           defaultValue={q}
-          placeholder="Search name, email, phone"
+          placeholder="Search name, email, phone, registration ID"
           className="rounded-lg border border-white/10 bg-white/[0.04] px-3.5 py-2 text-sm focus:border-emerald-400 focus:outline-none"
         />
         <select
@@ -69,6 +79,7 @@ export default async function AdminRegistrationsPage({
         <table className="w-full text-sm">
           <thead className="bg-white/[0.04] text-left text-neutral-400">
             <tr>
+              <th className="px-4 py-3 font-medium">Reg. ID</th>
               <th className="px-4 py-3 font-medium">Name</th>
               <th className="px-4 py-3 font-medium">Category</th>
               <th className="px-4 py-3 font-medium">Contact</th>
@@ -81,7 +92,18 @@ export default async function AdminRegistrationsPage({
           <tbody>
             {rows.map((r) => (
               <tr key={r.id} className="border-t border-white/10">
-                <td className="px-4 py-3">{r.full_name}</td>
+                <td className="px-4 py-3 font-mono text-neutral-300">{r.registration_code ?? "—"}</td>
+                <td className="px-4 py-3">
+                  {r.full_name}
+                  {r.group_id && r.registration_groups && r.registration_groups.attendee_count > 1 && (
+                    <Link
+                      href={{ pathname: "/admin/registrations", query: { group: r.group_id } }}
+                      className="ml-2 rounded-full bg-white/10 px-2 py-0.5 text-xs text-neutral-300 hover:bg-white/20"
+                    >
+                      Group ×{r.registration_groups.attendee_count}
+                    </Link>
+                  )}
+                </td>
                 <td className="px-4 py-3">{r.ticket_categories?.name}</td>
                 <td className="px-4 py-3">
                   <div>{r.email}</div>
@@ -101,7 +123,7 @@ export default async function AdminRegistrationsPage({
             ))}
             {rows.length === 0 && (
               <tr>
-                <td colSpan={7} className="px-4 py-8 text-center text-neutral-500">
+                <td colSpan={8} className="px-4 py-8 text-center text-neutral-500">
                   No registrations found.
                 </td>
               </tr>

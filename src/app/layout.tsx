@@ -16,7 +16,7 @@ const archivoBlack = Archivo_Black({
 export const metadata: Metadata = {
   title: "LetsRun TGCG 2026 — The Great Chhattisgarh Run",
   description:
-    "LetsRun TGCG 2026 — 20 December 2026, Ekatma Path Park, Raipur. Register for the marathon, half marathon, 10K and dream run.",
+    "LetsRun TGCG 2026 — 20 December 2026, CBD Square, Naya Raipur. Register for the marathon, half marathon, 10K and dream run.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

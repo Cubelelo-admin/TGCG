@@ -8,9 +8,11 @@ export const EVENT = {
   edition: "9th Edition",
   dateLabel: "Sunday, 20 December 2026",
   regDeadlineLabel: "10 December 2026",
-  venueName: "Ekatma Path Park",
-  venueAddress:
-    "Ekatma Path (road towards Mantralaya), Sector 21, Atal Nagar–Nava Raipur, CG 492001",
+  venueName: "CBD Square",
+  // TODO: full street address + map coordinates still point at the old venue
+  // (Ekatma Path Park) — ask the organizer for the exact CBD Square address
+  // and pin before this goes live; venueMapUrl below is stale.
+  venueAddress: "CBD Square, Naya Raipur, CG",
   venueMapUrl: "https://maps.google.com/?q=21.1663205,81.77265215&z=15",
   tagline: "Run With The Flow",
   theme: "Rivers Run Through Us — Run for Cleaner Greener Rivers",

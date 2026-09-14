@@ -6,6 +6,8 @@ import { getEvent } from "@/lib/catalog";
 export const runtime = "nodejs";
 
 const COLUMNS = [
+  "registration_code",
+  "group_id",
   "full_name",
   "email",
   "phone",
@@ -56,7 +58,7 @@ export async function GET(request: Request) {
   let query = supabase
     .from("registrations")
     .select(
-      "full_name, email, phone, gender, city, organization, running_community, date_of_birth, tshirt_size, emergency_phone, aadhar_number, bank_name_location, bank_account_number, bank_ifsc, pan_number, payment_status, amount_inr, bib_number, checked_in, created_at, ticket_categories(name)"
+      "registration_code, group_id, full_name, email, phone, gender, city, organization, running_community, date_of_birth, tshirt_size, emergency_phone, aadhar_number, bank_name_location, bank_account_number, bank_ifsc, pan_number, payment_status, amount_inr, bib_number, checked_in, created_at, ticket_categories(name)"
     )
     .eq("event_id", event.id)
     .order("created_at", { ascending: false });

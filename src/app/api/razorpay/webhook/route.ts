@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
 import { verifyWebhookSignature } from "@/lib/razorpay";
-import { notifyRegistrationPaid } from "@/lib/notify";
+import { markOrderPaidAndNotify } from "@/lib/payment-fulfillment";
 
 export const runtime = "nodejs";
 
@@ -30,35 +30,14 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: true }); // irrelevant event type, ack anyway
   }
 
-  const { data: registration } = await supabase
-    .from("registrations")
-    .select("id, payment_status")
-    .eq("razorpay_order_id", orderId)
-    .maybeSingle();
-
-  if (!registration) {
-    return NextResponse.json({ ok: true });
-  }
-
   if (event.event === "payment.captured") {
-    if (registration.payment_status !== "paid") {
-      await supabase
-        .from("registrations")
-        .update({
-          payment_status: "paid",
-          razorpay_payment_id: paymentId ?? null,
-        })
-        .eq("id", registration.id);
-
-      await notifyRegistrationPaid(registration.id);
-    }
+    await markOrderPaidAndNotify(supabase, orderId, paymentId ?? null, null);
   } else if (event.event === "payment.failed") {
-    if (registration.payment_status === "pending") {
-      await supabase
-        .from("registrations")
-        .update({ payment_status: "failed" })
-        .eq("id", registration.id);
-    }
+    await supabase
+      .from("registrations")
+      .update({ payment_status: "failed" })
+      .eq("razorpay_order_id", orderId)
+      .eq("payment_status", "pending");
   }
 
   return NextResponse.json({ ok: true });

@@ -16,6 +16,12 @@ export async function sendWhatsAppTemplate(params: {
   destinationPhoneE164: string; // e.g. "+919999999999"
   userName: string;
   templateParams: string[];
+  /**
+   * Fill values for the template's own buttons (e.g. a dynamic-URL button's
+   * {{1}} suffix), in AiSensy's raw button-object shape. Omit for templates
+   * with no buttons, or whose buttons are fully static.
+   */
+  buttons?: Record<string, unknown>[];
 }) {
   const apiKey = process.env.AISENSY_API_KEY;
   if (!apiKey) {
@@ -31,6 +37,7 @@ export async function sendWhatsAppTemplate(params: {
       destination: params.destinationPhoneE164,
       userName: params.userName,
       templateParams: params.templateParams,
+      ...(params.buttons ? { buttons: params.buttons } : {}),
     }),
   });
 
