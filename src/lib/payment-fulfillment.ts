@@ -41,8 +41,19 @@ export async function markOrderPaidAndNotify(
     if (groupId) {
       // Assigns the shared Booking ID (idempotent/race-safe — see
       // 0011_booking_code.sql) before notifying, so every notification can
-      // link to the group's ticket page.
-      await supabase.rpc("assign_booking_code", { p_group_id: groupId });
+      // link to the group's ticket page. Logged explicitly on failure —
+      // this previously errored silently (e.g. a schema-cache race right
+      // after the migration first ran) and left booking_code null with no
+      // trace anywhere, breaking every WhatsApp/email ticket link for that
+      // group. It's still best-effort: notify.ts already omits the link
+      // gracefully when booking_code is null, so a failure here shouldn't
+      // block the rest of the notification.
+      const { error: bookingCodeError } = await supabase.rpc("assign_booking_code", {
+        p_group_id: groupId,
+      });
+      if (bookingCodeError) {
+        console.error("assign_booking_code RPC failed", groupId, bookingCodeError);
+      }
       await notifyGroupPaid(groupId);
     } else {
       await notifyRegistrationPaid(updated[0].id);
