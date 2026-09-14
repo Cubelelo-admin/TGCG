@@ -1,7 +1,10 @@
 import QRCode from "qrcode";
 import { createServiceClient } from "@/lib/supabase/server";
+import TicketView, { type TicketData } from "./TicketView";
 
 const ACCENT = "#5b3fa0";
+const EVENT_TITLE = "HIRA TGCG 2026";
+const EVENT_DATE_LINE = "Sun, 20 Dec 2026 · CBD Square, Naya Raipur";
 
 export default async function RegisterSuccessPage({
   searchParams,
@@ -43,68 +46,52 @@ export default async function RegisterSuccessPage({
 
 async function GroupTicket({ group }: { group: GroupSummary }) {
   const total = group.attendees.reduce((sum, a) => sum + Number(a.amount_inr), 0);
-  const tickets = await Promise.all(
-    group.attendees.map(async (attendee) => ({
-      attendee,
-      qrDataUrl: attendee.registration_code
-        ? await QRCode.toDataURL(attendee.registration_code, {
-            margin: 1,
-            width: 220,
-            color: { dark: "#111827", light: "#ffffff" },
-          })
-        : null,
-    }))
+  const tickets: TicketData[] = await Promise.all(
+    group.attendees
+      .filter((a): a is AttendeeSummary & { registration_code: string } => Boolean(a.registration_code))
+      .map(async (attendee) => ({
+        fullName: attendee.full_name,
+        categoryName: attendee.ticket_categories?.name ?? "TGCG 2026",
+        registrationCode: attendee.registration_code,
+        qrDataUrl: await QRCode.toDataURL(attendee.registration_code, {
+          margin: 1,
+          width: 220,
+          color: { dark: "#111827", light: "#ffffff" },
+        }),
+      }))
   );
 
   return (
-    <div className="text-center">
-      <div
-        className="mx-auto flex h-16 w-16 items-center justify-center rounded-full"
-        style={{ backgroundColor: `${ACCENT}1a`, color: ACCENT }}
-      >
-        <CheckIcon />
-      </div>
-      <h1 className="mt-6 text-2xl font-bold text-[#111827]">You&apos;re registered!</h1>
-      <p className="mt-2 text-[#6b7280]">
-        {group.attendees.length} attendee{group.attendees.length === 1 ? "" : "s"} · ₹
-        {total.toLocaleString("en-IN")}
-      </p>
-
-      <div className="mt-8 space-y-4">
-        {tickets.map(({ attendee, qrDataUrl }) => (
-          <div
-            key={attendee.registration_code ?? attendee.full_name}
-            className="flex items-center gap-5 rounded-md border border-[#e5e7eb] p-5 text-left"
-          >
-            {qrDataUrl && (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={qrDataUrl} alt="Registration QR code" className="h-28 w-28 shrink-0 rounded-sm" />
-            )}
-            <div className="min-w-0">
-              <p className="text-xs font-bold uppercase tracking-wide text-[#9ca3af]">
-                Registration ID
-              </p>
-              <p className="text-xl font-bold" style={{ color: ACCENT }}>
-                {attendee.registration_code ?? "—"}
-              </p>
-              <p className="mt-1 truncate text-sm font-semibold text-[#111827]">
-                {attendee.full_name}
-              </p>
-              <p className="text-sm text-[#6b7280]">{attendee.ticket_categories?.name}</p>
-              <span className="mt-2 inline-block rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-semibold text-green-700">
-                Confirmed
-              </span>
-            </div>
-          </div>
-        ))}
+    <div>
+      <div className="flex items-center gap-3">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/logo.png" alt="LetsRun" className="h-10 w-10 shrink-0 object-contain" />
+        <div>
+          <p className="text-base font-bold text-[#111827]">{EVENT_TITLE}</p>
+          <p className="text-xs text-[#6b7280]">{EVENT_DATE_LINE}</p>
+        </div>
       </div>
 
-      <p className="mt-6 text-sm font-semibold text-[#111827]">
-        Show the relevant QR code at the reception desk / BIB collection counter on race day.
-      </p>
-      <p className="mt-4 text-sm text-[#9ca3af]">
-        A confirmation for each attendee has been sent via WhatsApp where possible; a
-        summary has been emailed to {group.organizer_email}.
+      <div className="mt-8 text-center">
+        <div
+          className="mx-auto flex h-16 w-16 items-center justify-center rounded-full"
+          style={{ backgroundColor: `${ACCENT}1a`, color: ACCENT }}
+        >
+          <CheckIcon />
+        </div>
+        <h1 className="mt-6 text-2xl font-bold text-[#111827]">You&apos;re registered!</h1>
+        <p className="mt-2 text-[#6b7280]">
+          {group.attendees.length} attendee{group.attendees.length === 1 ? "" : "s"} · ₹
+          {total.toLocaleString("en-IN")}
+        </p>
+      </div>
+
+      <div className="mt-8">
+        <TicketView tickets={tickets} />
+      </div>
+
+      <p className="mt-6 text-center text-sm font-semibold text-[#111827]">
+        Show this at the time of BIB collection.
       </p>
     </div>
   );
