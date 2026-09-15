@@ -7,6 +7,13 @@ const aadharRegex = /^\d{12}$/;
 
 export const MAX_GROUP_SIZE = 10;
 
+/** Organizer's contact email — plain input, not identity-verified. */
+export const organizerEmailSchema = z
+  .string()
+  .trim()
+  .toLowerCase()
+  .email("Enter a valid email address");
+
 /** One attendee's personal details — everyone in a group booking fills their own. */
 const attendeePersonalSchema = z.object({
   fullName: z.string().trim().min(2, "Full name is required").max(120),
@@ -51,12 +58,12 @@ const attendeeCoreSchema = attendeePersonalSchema.extend({
 export type AttendeeCoreInput = z.infer<typeof attendeeCoreSchema>;
 
 /**
- * Full payload the server validates: one Google-verified organizer plus 1..10
+ * Full payload the server validates: one organizer email plus 1..10
  * attendees, each with their own ticket selection and details.
  */
 export const groupRegistrationSchema = z
   .object({
-    organizerGoogleIdToken: z.string().min(1, "Please sign in with Google to continue"),
+    organizerEmail: organizerEmailSchema,
     attendees: z
       .array(attendeeCoreSchema)
       .min(1, "Add at least one attendee")

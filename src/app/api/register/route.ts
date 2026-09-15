@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
 import { getRazorpayClient } from "@/lib/razorpay";
 import { uploadKycFileToDrive } from "@/lib/drive";
-import { verifyGoogleIdToken } from "@/lib/google-auth";
 import { OTP_VERIFIED_FRESHNESS_MINUTES } from "@/lib/otp";
 import {
   groupRegistrationSchema,
@@ -39,7 +38,7 @@ export async function POST(request: Request) {
   }
 
   const parsed = groupRegistrationSchema.safeParse({
-    organizerGoogleIdToken: toStringOrUndefined(formData.get("organizerGoogleIdToken")),
+    organizerEmail: toStringOrUndefined(formData.get("organizerEmail")),
     attendees: rawAttendees,
   });
 
@@ -50,17 +49,7 @@ export async function POST(request: Request) {
     );
   }
 
-  const { attendees, organizerGoogleIdToken } = parsed.data;
-
-  // Never trust a client-sent email — the verified Google account is the
-  // only source of truth for the organizer's contact email.
-  const organizer = await verifyGoogleIdToken(organizerGoogleIdToken);
-  if (!organizer) {
-    return NextResponse.json(
-      { error: "Could not verify your Google sign-in. Please sign in again." },
-      { status: 401 }
-    );
-  }
+  const { attendees, organizerEmail } = parsed.data;
 
   const supabase = createServiceClient();
 
@@ -194,9 +183,8 @@ export async function POST(request: Request) {
     .from("registration_groups")
     .insert({
       event_id: eventId,
-      organizer_full_name: organizer.name,
-      organizer_email: organizer.email,
-      organizer_google_sub: organizer.sub,
+      organizer_full_name: attendees[0].fullName,
+      organizer_email: organizerEmail,
       attendee_count: priced.length,
       amount_total_inr: amountTotalInr,
     })
@@ -225,7 +213,7 @@ export async function POST(request: Request) {
         amount_inr: amountInr,
         payment_status: "pending",
         full_name: attendee.fullName,
-        email: organizer.email,
+        email: organizerEmail,
         phone: attendee.phone,
         gender: attendee.gender,
         city: attendee.city,

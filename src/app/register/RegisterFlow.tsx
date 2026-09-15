@@ -1,13 +1,13 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from "react";
+import { useMemo, useRef, useState, type ReactNode, type RefObject } from "react";
 import { useRouter } from "next/navigation";
-import Script from "next/script";
 import { useForm, type FieldErrors, type UseFormRegister } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
   attendeeFieldsSchema,
   MAX_GROUP_SIZE,
+  organizerEmailSchema,
   phoneRegex as PHONE_REGEX,
   type AttendeeFieldsInput,
 } from "@/lib/registration-schema";
@@ -16,22 +16,6 @@ import type {} from "@/types/razorpay";
 
 const TSHIRT_SIZES = ["XS", "S", "M", "L", "XL", "XXL", "XXXL"] as const;
 const ACCENT = "#5b3fa0";
-
-/** Decodes a JWT payload for display only — never trusted; the server independently verifies the token's signature. */
-function decodeJwtPayload(token: string): { email?: string } {
-  try {
-    const base64 = token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/");
-    const json = decodeURIComponent(
-      atob(base64)
-        .split("")
-        .map((c) => "%" + c.charCodeAt(0).toString(16).padStart(2, "0"))
-        .join("")
-    );
-    return JSON.parse(json);
-  } catch {
-    return {};
-  }
-}
 
 function loadRazorpayScript(): Promise<boolean> {
   return new Promise((resolve) => {
@@ -234,41 +218,23 @@ export default function RegisterFlow({
     formTopRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
-  const googleButtonRef = useRef<HTMLDivElement>(null);
-  const [googleScriptLoaded, setGoogleScriptLoaded] = useState(false);
-  const [organizerEmail, setOrganizerEmail] = useState<string | null>(null);
-  const [organizerGoogleIdToken, setOrganizerGoogleIdToken] = useState("");
+  const [organizerEmail, setOrganizerEmail] = useState("");
+  const [organizerEmailDraft, setOrganizerEmailDraft] = useState("");
+  const [organizerEmailError, setOrganizerEmailError] = useState<string | null>(null);
 
-  useEffect(() => {
-    const clientId = process.env.NEXT_PUBLIC_GOOGLE_SIGNIN_CLIENT_ID;
-    if (
-      !googleScriptLoaded ||
-      !googleButtonRef.current ||
-      !clientId ||
-      !window.google ||
-      organizerGoogleIdToken
-    )
+  function handleContinueFromEmail() {
+    const result = organizerEmailSchema.safeParse(organizerEmailDraft);
+    if (!result.success) {
+      setOrganizerEmailError(result.error.issues[0]?.message ?? "Enter a valid email address");
       return;
+    }
+    setOrganizerEmailError(null);
+    setOrganizerEmail(result.data);
+  }
 
-    window.google.accounts.id.initialize({
-      client_id: clientId,
-      callback: (response) => {
-        const payload = decodeJwtPayload(response.credential);
-        setOrganizerEmail(payload.email ?? null);
-        setOrganizerGoogleIdToken(response.credential);
-      },
-    });
-    window.google.accounts.id.renderButton(googleButtonRef.current, {
-      theme: "outline",
-      size: "large",
-      width: 320,
-    });
-  }, [googleScriptLoaded, organizerGoogleIdToken]);
-
-  function handleChangeGoogleAccount() {
-    window.google?.accounts.id.disableAutoSelect();
-    setOrganizerEmail(null);
-    setOrganizerGoogleIdToken("");
+  function handleChangeOrganizerEmail() {
+    setOrganizerEmailDraft(organizerEmail);
+    setOrganizerEmail("");
   }
 
   function toggleGroup(key: string) {
@@ -395,14 +361,14 @@ export default function RegisterFlow({
   }
 
   async function proceedToCheckout(finalAttendees: AttendeeCartItem[]) {
-    if (!organizerGoogleIdToken) return;
+    if (!organizerEmail) return;
 
     setServerError(null);
     setSubmitting(true);
 
     try {
       const formData = new FormData();
-      formData.set("organizerGoogleIdToken", organizerGoogleIdToken);
+      formData.set("organizerEmail", organizerEmail);
 
       const payload = finalAttendees.map((item) => ({
         ...toPersonalFields(item),
@@ -439,7 +405,7 @@ export default function RegisterFlow({
         order_id: json.orderId,
         prefill: {
           name: finalAttendees[0]?.fullName,
-          email: organizerEmail ?? undefined,
+          email: organizerEmail,
           contact: finalAttendees[0]?.phone,
         },
         theme: { color: ACCENT },
@@ -483,17 +449,16 @@ export default function RegisterFlow({
 
   return (
     <div className="mt-6">
-      <Script
-        src="https://accounts.google.com/gsi/client"
-        strategy="afterInteractive"
-        onLoad={() => setGoogleScriptLoaded(true)}
-      />
-
-      {!organizerGoogleIdToken ? (
-        <SignInGate googleButtonRef={googleButtonRef} />
+      {!organizerEmail ? (
+        <EmailGate
+          value={organizerEmailDraft}
+          onChange={setOrganizerEmailDraft}
+          onContinue={handleContinueFromEmail}
+          error={organizerEmailError}
+        />
       ) : (
         <>
-          <OrganizerBar email={organizerEmail} onChange={handleChangeGoogleAccount} />
+          <OrganizerBar email={organizerEmail} onChange={handleChangeOrganizerEmail} />
           <AttendeeStep
             eventName={eventName}
             categories={categories}
@@ -549,26 +514,57 @@ export default function RegisterFlow({
   );
 }
 
-function SignInGate({ googleButtonRef }: { googleButtonRef: RefObject<HTMLDivElement | null> }) {
+function EmailGate({
+  value,
+  onChange,
+  onContinue,
+  error,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  onContinue: () => void;
+  error: string | null;
+}) {
   return (
     <div className="mx-auto max-w-md rounded-md border border-[#e5e7eb] p-8 text-center">
-      <h2 className="text-lg font-bold text-[#111827]">Sign in to register</h2>
+      <h2 className="text-lg font-bold text-[#111827]">Register</h2>
       <p className="mt-2 text-sm text-[#6b7280]">
-        Sign in with Google to verify your email, then add up to {MAX_GROUP_SIZE} attendees in
-        one booking and pay once.
+        Enter your email to get started, then add up to {MAX_GROUP_SIZE} attendees in one
+        booking and pay once.
       </p>
-      <div className="mt-6 flex justify-center">
-        <div ref={googleButtonRef} />
-      </div>
+      <form
+        className="mt-6 text-left"
+        onSubmit={(e) => {
+          e.preventDefault();
+          onContinue();
+        }}
+      >
+        <input
+          type="email"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder="you@example.com"
+          autoFocus
+          className={inputClass}
+        />
+        {error && <p className={errorClass}>{error}</p>}
+        <button
+          type="submit"
+          className="mt-6 w-full rounded-md py-3 text-sm font-semibold text-white transition"
+          style={{ backgroundColor: ACCENT }}
+        >
+          Continue
+        </button>
+      </form>
     </div>
   );
 }
 
-function OrganizerBar({ email, onChange }: { email: string | null; onChange: () => void }) {
+function OrganizerBar({ email, onChange }: { email: string; onChange: () => void }) {
   return (
     <div className="mb-4 flex items-center gap-2 text-sm text-[#6b7280]">
       <CheckIcon />
-      <span>Signed in as {email}</span>
+      <span>Registering as {email}</span>
       <button
         type="button"
         onClick={onChange}
