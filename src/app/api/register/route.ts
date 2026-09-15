@@ -184,7 +184,7 @@ export async function POST(request: Request) {
     .insert({
       event_id: eventId,
       organizer_full_name: attendees[0].fullName,
-      organizer_email: organizerEmail,
+      organizer_email: organizerEmail ?? null,
       attendee_count: priced.length,
       amount_total_inr: amountTotalInr,
     })
@@ -213,7 +213,7 @@ export async function POST(request: Request) {
         amount_inr: amountInr,
         payment_status: "pending",
         full_name: attendee.fullName,
-        email: organizerEmail,
+        email: organizerEmail ?? null,
         phone: attendee.phone,
         gender: attendee.gender,
         city: attendee.city,

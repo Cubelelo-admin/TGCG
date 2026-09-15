@@ -7,7 +7,6 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import {
   attendeeFieldsSchema,
   MAX_GROUP_SIZE,
-  organizerEmailSchema,
   phoneRegex as PHONE_REGEX,
   type AttendeeFieldsInput,
 } from "@/lib/registration-schema";
@@ -218,25 +217,6 @@ export default function RegisterFlow({
     formTopRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
-  const [organizerEmail, setOrganizerEmail] = useState("");
-  const [organizerEmailDraft, setOrganizerEmailDraft] = useState("");
-  const [organizerEmailError, setOrganizerEmailError] = useState<string | null>(null);
-
-  function handleContinueFromEmail() {
-    const result = organizerEmailSchema.safeParse(organizerEmailDraft);
-    if (!result.success) {
-      setOrganizerEmailError(result.error.issues[0]?.message ?? "Enter a valid email address");
-      return;
-    }
-    setOrganizerEmailError(null);
-    setOrganizerEmail(result.data);
-  }
-
-  function handleChangeOrganizerEmail() {
-    setOrganizerEmailDraft(organizerEmail);
-    setOrganizerEmail("");
-  }
-
   function toggleGroup(key: string) {
     setOpenGroups((prev) => ({ ...prev, [key]: !prev[key] }));
   }
@@ -361,14 +341,11 @@ export default function RegisterFlow({
   }
 
   async function proceedToCheckout(finalAttendees: AttendeeCartItem[]) {
-    if (!organizerEmail) return;
-
     setServerError(null);
     setSubmitting(true);
 
     try {
       const formData = new FormData();
-      formData.set("organizerEmail", organizerEmail);
 
       const payload = finalAttendees.map((item) => ({
         ...toPersonalFields(item),
@@ -405,7 +382,6 @@ export default function RegisterFlow({
         order_id: json.orderId,
         prefill: {
           name: finalAttendees[0]?.fullName,
-          email: organizerEmail,
           contact: finalAttendees[0]?.phone,
         },
         theme: { color: ACCENT },
@@ -449,130 +425,55 @@ export default function RegisterFlow({
 
   return (
     <div className="mt-6">
-      {!organizerEmail ? (
-        <EmailGate
-          value={organizerEmailDraft}
-          onChange={setOrganizerEmailDraft}
-          onContinue={handleContinueFromEmail}
-          error={organizerEmailError}
-        />
-      ) : (
-        <>
-          <OrganizerBar email={organizerEmail} onChange={handleChangeOrganizerEmail} />
-          <AttendeeStep
-            eventName={eventName}
-            categories={categories}
-            addons={addons}
-            draftCategoryId={draftCategoryId}
-            draftCategory={draftCategory}
-            categoryError={categoryError}
-            openGroups={openGroups}
-            onToggleGroup={toggleGroup}
-            onSelectCategory={(id) => {
-              setDraftCategoryId(id);
-              if (id) setCategoryError(null);
-            }}
-            addonIds={draftAddonIds}
-            onToggleAddon={toggleDraftAddon}
-            govtIdFile={draftGovtIdFile}
-            onGovtIdFile={setDraftGovtIdFile}
-            register={register}
-            errors={errors}
-            isEditing={editingIndex !== null}
-            showForm={showForm}
-            canCancel={attendees.length > 0}
-            onSave={handleSaveClick}
-            onCancelDraft={cancelDraft}
-            onAddParticipant={startAddParticipant}
-            onCheckout={handleCheckoutClick}
-            formTopRef={formTopRef}
-            addDisabled={attendees.length >= MAX_GROUP_SIZE}
-            submitting={submitting}
-            isPrimaryAttendee={isPrimaryAttendee}
-            phoneValue={phoneValue}
-            onPhoneChange={setPhoneValue}
-            isPhoneVerified={isPhoneVerified}
-            showOtpCodeInput={showOtpCodeInput}
-            otpCode={otpCode}
-            onOtpCodeChange={setOtpCode}
-            otpSending={otpSending}
-            otpVerifying={otpVerifying}
-            otpError={otpError}
-            onSendOtp={() => void handleSendOtp()}
-            onVerifyOtp={() => void handleVerifyOtp()}
-            primaryPhoneVerified={primaryPhoneVerified}
-            serverError={serverError}
-            summaryTitle={summaryItems.length > 0 ? "So Far" : "Summary"}
-            summaryItems={summaryItems}
-            projectedTotal={projectedTotal}
-            projectedCount={projectedCount}
-            checkoutLabel={submitting ? "Processing..." : `Checkout — Pay ₹${projectedTotal.toLocaleString("en-IN")}`}
-          />
-        </>
-      )}
-    </div>
-  );
-}
-
-function EmailGate({
-  value,
-  onChange,
-  onContinue,
-  error,
-}: {
-  value: string;
-  onChange: (value: string) => void;
-  onContinue: () => void;
-  error: string | null;
-}) {
-  return (
-    <div className="mx-auto max-w-md rounded-md border border-[#e5e7eb] p-8 text-center">
-      <h2 className="text-lg font-bold text-[#111827]">Register</h2>
-      <p className="mt-2 text-sm text-[#6b7280]">
-        Enter your email to get started, then add up to {MAX_GROUP_SIZE} attendees in one
-        booking and pay once.
-      </p>
-      <form
-        className="mt-6 text-left"
-        onSubmit={(e) => {
-          e.preventDefault();
-          onContinue();
+      <AttendeeStep
+        eventName={eventName}
+        categories={categories}
+        addons={addons}
+        draftCategoryId={draftCategoryId}
+        draftCategory={draftCategory}
+        categoryError={categoryError}
+        openGroups={openGroups}
+        onToggleGroup={toggleGroup}
+        onSelectCategory={(id) => {
+          setDraftCategoryId(id);
+          if (id) setCategoryError(null);
         }}
-      >
-        <input
-          type="email"
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          placeholder="you@example.com"
-          autoFocus
-          className={inputClass}
-        />
-        {error && <p className={errorClass}>{error}</p>}
-        <button
-          type="submit"
-          className="mt-6 w-full rounded-md py-3 text-sm font-semibold text-white transition"
-          style={{ backgroundColor: ACCENT }}
-        >
-          Continue
-        </button>
-      </form>
-    </div>
-  );
-}
-
-function OrganizerBar({ email, onChange }: { email: string; onChange: () => void }) {
-  return (
-    <div className="mb-4 flex items-center gap-2 text-sm text-[#6b7280]">
-      <CheckIcon />
-      <span>Registering as {email}</span>
-      <button
-        type="button"
-        onClick={onChange}
-        className="text-xs font-medium underline"
-        style={{ color: ACCENT }}
-      >
-        Change
-      </button>
+        addonIds={draftAddonIds}
+        onToggleAddon={toggleDraftAddon}
+        govtIdFile={draftGovtIdFile}
+        onGovtIdFile={setDraftGovtIdFile}
+        register={register}
+        errors={errors}
+        isEditing={editingIndex !== null}
+        showForm={showForm}
+        canCancel={attendees.length > 0}
+        onSave={handleSaveClick}
+        onCancelDraft={cancelDraft}
+        onAddParticipant={startAddParticipant}
+        onCheckout={handleCheckoutClick}
+        formTopRef={formTopRef}
+        addDisabled={attendees.length >= MAX_GROUP_SIZE}
+        submitting={submitting}
+        isPrimaryAttendee={isPrimaryAttendee}
+        phoneValue={phoneValue}
+        onPhoneChange={setPhoneValue}
+        isPhoneVerified={isPhoneVerified}
+        showOtpCodeInput={showOtpCodeInput}
+        otpCode={otpCode}
+        onOtpCodeChange={setOtpCode}
+        otpSending={otpSending}
+        otpVerifying={otpVerifying}
+        otpError={otpError}
+        onSendOtp={() => void handleSendOtp()}
+        onVerifyOtp={() => void handleVerifyOtp()}
+        primaryPhoneVerified={primaryPhoneVerified}
+        serverError={serverError}
+        summaryTitle={summaryItems.length > 0 ? "So Far" : "Summary"}
+        summaryItems={summaryItems}
+        projectedTotal={projectedTotal}
+        projectedCount={projectedCount}
+        checkoutLabel={submitting ? "Processing..." : `Checkout — Pay ₹${projectedTotal.toLocaleString("en-IN")}`}
+      />
     </div>
   );
 }

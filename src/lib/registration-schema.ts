@@ -7,12 +7,13 @@ const aadharRegex = /^\d{12}$/;
 
 export const MAX_GROUP_SIZE = 10;
 
-/** Organizer's contact email — plain input, not identity-verified. */
+/** Organizer's contact email — no longer collected in the flow; kept optional for any legacy callers. */
 export const organizerEmailSchema = z
   .string()
   .trim()
   .toLowerCase()
-  .email("Enter a valid email address");
+  .email("Enter a valid email address")
+  .optional();
 
 /** One attendee's personal details — everyone in a group booking fills their own. */
 const attendeePersonalSchema = z.object({
@@ -58,8 +59,8 @@ const attendeeCoreSchema = attendeePersonalSchema.extend({
 export type AttendeeCoreInput = z.infer<typeof attendeeCoreSchema>;
 
 /**
- * Full payload the server validates: one organizer email plus 1..10
- * attendees, each with their own ticket selection and details.
+ * Full payload the server validates: 1..10 attendees, each with their own
+ * ticket selection and details. No organizer identity is collected.
  */
 export const groupRegistrationSchema = z
   .object({

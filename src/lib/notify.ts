@@ -6,7 +6,7 @@ import { sendEmail } from "@/lib/email";
 type RegistrationForNotify = {
   id: string;
   full_name: string;
-  email: string;
+  email: string | null;
   phone: string;
   phone_country_code: string;
   amount_inr: number;
@@ -60,7 +60,7 @@ export async function notifyRegistrationPaid(registrationId: string) {
 type GroupForNotify = {
   id: string;
   organizer_full_name: string | null;
-  organizer_email: string;
+  organizer_email: string | null;
   booking_code: string | null;
 };
 
@@ -179,6 +179,7 @@ async function sendAttendeeFallbackEmail(
   attendee: RegistrationForNotify
 ) {
   if (!process.env.GMAIL_USER || !process.env.GMAIL_APP_PASSWORD) return;
+  if (!group.organizer_email) return;
 
   const ticketName = attendee.ticket_categories?.name ?? "TGCG 2026";
   const amount = Number(attendee.amount_inr).toLocaleString("en-IN");
@@ -231,6 +232,7 @@ async function sendGroupSummaryEmail(
     console.warn("GMAIL_USER/GMAIL_APP_PASSWORD not set — skipping group summary email");
     return;
   }
+  if (!group.organizer_email) return;
 
   const total = attendees.reduce((sum, a) => sum + Number(a.amount_inr), 0);
   const link = ticketUrl(group.booking_code);
@@ -359,6 +361,7 @@ async function sendEmailConfirmation(
     console.warn("GMAIL_USER/GMAIL_APP_PASSWORD not set — skipping confirmation email");
     return;
   }
+  if (!registration.email) return;
 
   const ticketName = registration.ticket_categories?.name ?? "TGCG 2026";
   const amount = Number(registration.amount_inr).toLocaleString("en-IN");

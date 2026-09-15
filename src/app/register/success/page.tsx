@@ -106,7 +106,7 @@ type AttendeeSummary = {
 };
 
 type GroupSummary = {
-  organizer_email: string;
+  organizer_email: string | null;
   attendees: AttendeeSummary[];
 };
 
