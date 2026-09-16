@@ -2,9 +2,22 @@
 
 import { useEffect, useState } from "react";
 
-const ACCENT = "#5b3fa0";
+const FLOW_1 = "#0f3a4d";
+const FLOW_2 = "#1a6e66";
+const FLOW_3 = "#2f8f82";
+const GOLD = "#c9a869";
+const GOLD_LIGHT = "#f0d9a8";
+const GOLD_DEEP = "#a9803e";
+const PAPER = "#f3e4ca";
+const RACE_BOX_BG = "#eadab5";
+const INK = "#1a2422";
+
 const EVENT_TITLE = "HIRA TGCG 2026";
-const EVENT_DATE_LINE = "Sun, 20 Dec 2026 · CBD Square, Naya Raipur";
+const TAGLINE = "Run With The Flow";
+const DATE_LINE_1 = "SUN 20 DEC 2026";
+const DATE_LINE_2 = "CBD SQUARE, NAYA RAIPUR";
+const FOOTER_TEXT = "Show this at the time of BIB collection.";
+const CHILD_FOOTER_TEXT = "Accompanying child — show at check-in.";
 
 export type TicketData = {
   fullName: string;
@@ -12,6 +25,7 @@ export type TicketData = {
   registrationCode: string;
   qrDataUrl: string;
   isChildRunner: boolean;
+  bibNumber: string | null;
 };
 
 /**
@@ -81,12 +95,47 @@ export default function TicketView({ tickets }: { tickets: TicketData[] }) {
           onClick={handleSaveAll}
           disabled={savingAll}
           className="w-full rounded-md border py-3 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-50"
-          style={{ borderColor: ACCENT, color: ACCENT }}
+          style={{ borderColor: FLOW_1, color: FLOW_1 }}
         >
           {savingAll ? "Saving all tickets..." : "Save All Tickets"}
         </button>
       )}
     </div>
+  );
+}
+
+function BibBadge({ ticket }: { ticket: TicketData }) {
+  if (ticket.isChildRunner) {
+    return (
+      <span
+        className="inline-flex items-center rounded-full px-3.5 py-1.5 text-[10px] font-bold uppercase tracking-wide"
+        style={{ background: "rgba(26,36,34,.06)", border: "1.4px solid rgba(26,36,34,.18)", color: "rgba(26,36,34,.7)" }}
+      >
+        No BIB Entry
+      </span>
+    );
+  }
+  if (ticket.bibNumber) {
+    return (
+      <span
+        className="inline-flex items-center rounded-full px-3.5 py-1.5 text-[11.5px] font-bold tracking-wide"
+        style={{
+          background: `linear-gradient(135deg, ${GOLD}, ${GOLD_DEEP})`,
+          color: "#241c0a",
+          boxShadow: "0 4px 10px -3px rgba(169,128,62,.6)",
+        }}
+      >
+        BIB #{ticket.bibNumber}
+      </span>
+    );
+  }
+  return (
+    <span
+      className="inline-flex items-center rounded-full px-3.5 py-1.5 text-[10px] font-bold uppercase tracking-wide"
+      style={{ border: "1.4px dashed rgba(26,36,34,.35)", color: "rgba(26,36,34,.65)" }}
+    >
+      BIB To Be Allotted
+    </span>
   );
 }
 
@@ -100,41 +149,103 @@ function TicketCard({
   saving: boolean;
 }) {
   return (
-    <div className="overflow-hidden rounded-lg border border-[#e5e7eb] bg-white text-left">
-      <div className="flex items-center gap-5 p-5">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={ticket.qrDataUrl} alt="Registration QR code" className="h-36 w-36 shrink-0 rounded-sm" />
-        <div className="min-w-0">
-          <p className="text-xs font-bold uppercase tracking-wide text-[#9ca3af]">Registration ID</p>
-          <p className="text-2xl font-bold" style={{ color: ACCENT }}>
-            {ticket.registrationCode}
-          </p>
-          <p className="mt-1 truncate text-sm font-semibold text-[#111827]">{ticket.fullName}</p>
-          <p className="truncate text-sm text-[#6b7280]">{ticket.categoryName}</p>
-          <span className="mt-2 inline-block rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-semibold text-green-700">
-            Confirmed
-          </span>
+    <div className="overflow-hidden rounded-[20px] text-left shadow-xl" style={{ background: PAPER, color: INK }}>
+      <div
+        className="relative overflow-hidden px-5 pt-[18px]"
+        style={{ height: 180, background: `linear-gradient(150deg, ${FLOW_1} 0%, ${FLOW_2} 55%, ${FLOW_3} 100%)` }}
+      >
+        <svg className="pointer-events-none absolute inset-0 h-full w-full" viewBox="0 0 346 156" preserveAspectRatio="none">
+          <path d="M-20,110 C60,80 110,130 180,100 C250,72 290,118 366,88 L366,0 L-20,0 Z" fill="rgba(255,255,255,.07)" />
+          <path d="M-20,130 C60,102 120,148 190,120 C260,95 300,135 366,108 L366,0 L-20,0 Z" fill="rgba(255,255,255,.05)" />
+          <path
+            d="M-20,84 C70,60 120,96 190,72 C255,50 300,82 366,58"
+            fill="none"
+            stroke="rgba(201,168,105,.55)"
+            strokeWidth="1.4"
+          />
+        </svg>
+
+        <div className="relative z-10 mx-auto flex w-fit flex-col items-end">
+          <div className="flex items-center gap-2">
+            <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-white">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/logo.png" alt="" className="h-[19px] w-[19px] object-contain" />
+            </div>
+            <div
+              className="font-display text-[21px] text-white"
+              style={{ textShadow: "0 1px 3px rgba(0,0,0,.4)" }}
+            >
+              {EVENT_TITLE}
+            </div>
+          </div>
+          <div
+            className="mt-[7px] font-mono text-[9px] font-bold uppercase tracking-[0.16em]"
+            style={{ color: GOLD_LIGHT, textShadow: "0 1px 2px rgba(0,0,0,.45)" }}
+          >
+            {TAGLINE}
+          </div>
+        </div>
+
+        <div
+          className="relative z-10 mt-4 text-center text-[13px] font-bold leading-snug text-white"
+          style={{ textShadow: "0 1px 3px rgba(0,0,0,.4)" }}
+        >
+          <div>{DATE_LINE_1}</div>
+          <div>{DATE_LINE_2}</div>
         </div>
       </div>
 
-      {ticket.isChildRunner ? (
-        <div className="px-5 pb-5">
-          <InfoBox label="Accompanying Child" value="No BIB / race entry" hint="Not part of the timed race" />
+      <div className="relative z-20 mx-auto -mt-[58px] w-[136px]">
+        <div className="rounded-[14px] p-3 shadow-lg" style={{ background: "#fbf7ec" }}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={ticket.qrDataUrl} alt="Registration QR code" className="block w-full" />
         </div>
-      ) : (
-        <div className="grid grid-cols-2 gap-3 px-5 pb-5">
-          <InfoBox label="BIB Details" value="To be updated" hint="Details to follow" />
-          <InfoBox label="Race Details" value="To be updated" hint="Details to follow" />
-        </div>
-      )}
+      </div>
 
-      <div className="border-t border-[#e5e7eb] py-3 text-center">
+      <div className="px-6 pb-[18px] pt-[14px] text-center">
+        <p className="text-[17px] font-bold">{ticket.fullName}</p>
+        <p className="mb-3 text-xs opacity-60">{ticket.categoryName}</p>
+        <BibBadge ticket={ticket} />
+        <p className="mt-3.5 font-mono text-xs font-semibold opacity-55">{ticket.registrationCode}</p>
+      </div>
+
+      <div className="mx-6 mb-1">
+        {ticket.isChildRunner ? (
+          <InfoBox
+            label="Accompanying Child"
+            value="No BIB / race entry"
+            hint="Not part of the timed race"
+            bg={RACE_BOX_BG}
+          />
+        ) : (
+          <InfoBox label="Race Details" value="To be updated" hint="Details to follow" bg={RACE_BOX_BG} />
+        )}
+      </div>
+
+      <div className="relative mt-1.5 h-[150px] overflow-hidden" style={{ background: PAPER }}>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="/finish-line.jpg"
+          alt="Runners crossing the finish line at HIRA TGCG"
+          className="block h-full w-full object-cover"
+          style={{ objectPosition: "center 42%" }}
+        />
+        <div
+          className="pointer-events-none absolute inset-x-0 bottom-0 h-16"
+          style={{ background: `linear-gradient(180deg, rgba(243,228,202,0) 0%, ${PAPER} 92%)` }}
+        />
+      </div>
+      <p className="px-6 pb-5 pt-0.5 text-center text-[11px] font-semibold" style={{ color: FLOW_1 }}>
+        {ticket.isChildRunner ? CHILD_FOOTER_TEXT : FOOTER_TEXT}
+      </p>
+
+      <div className="border-t py-3 text-center" style={{ borderColor: "rgba(26,36,34,.12)" }}>
         <button
           type="button"
           onClick={onSave}
           disabled={saving}
           className="text-sm font-semibold underline disabled:cursor-not-allowed disabled:opacity-50"
-          style={{ color: ACCENT }}
+          style={{ color: FLOW_1 }}
         >
           {saving ? "Saving..." : "Save QR to device"}
         </button>
@@ -143,22 +254,22 @@ function TicketCard({
   );
 }
 
-function InfoBox({ label, value, hint }: { label: string; value: string; hint: string }) {
+function InfoBox({ label, value, hint, bg }: { label: string; value: string; hint: string; bg: string }) {
   return (
-    <div className="rounded-md border border-[#e5e7eb] bg-[#f9fafb] p-3">
-      <p className="text-[10px] font-bold uppercase tracking-wide text-[#9ca3af]">{label}</p>
-      <p className="mt-1 text-sm font-bold text-[#111827]">{value}</p>
-      <p className="text-xs text-[#9ca3af]">{hint}</p>
+    <div className="rounded-md p-3 text-left" style={{ background: bg }}>
+      <p className="text-[10px] font-bold uppercase tracking-wide opacity-60">{label}</p>
+      <p className="mt-1 text-sm font-bold">{value}</p>
+      <p className="text-xs opacity-55">{hint}</p>
     </div>
   );
 }
 
 // ---------------------------------------------------------------------
-// Canvas rendering — produces a self-contained ticket image (event header,
-// QR, details, BIB/Race placeholders, footer line) for the "Save" buttons.
-// Uses plain web-safe fonts rather than the app's Google Fonts: matching
-// the on-screen look exactly isn't the point of a saved image, and it
-// avoids a font-loading race before drawing.
+// Canvas rendering — produces a self-contained ticket image (river-flow
+// header, QR credential, BIB badge, race details, finish-line footer) for
+// the "Save" buttons. Uses plain web-safe fonts rather than the app's
+// Google Fonts: matching the on-screen look exactly isn't the point of a
+// saved image, and it avoids a font-loading race before drawing.
 // ---------------------------------------------------------------------
 
 function loadImage(src: string): Promise<HTMLImageElement> {
@@ -207,124 +318,288 @@ function drawInfoBox(
   hint: string
 ) {
   roundRect(ctx, x, y, w, h, 10);
-  ctx.fillStyle = "#f9fafb";
+  ctx.fillStyle = RACE_BOX_BG;
   ctx.fill();
-  ctx.strokeStyle = "#e5e7eb";
-  ctx.lineWidth = 1;
-  ctx.stroke();
 
-  ctx.fillStyle = "#9ca3af";
-  ctx.font = "bold 10px Arial, sans-serif";
-  ctx.fillText(label.toUpperCase(), x + 14, y + 14);
+  ctx.fillStyle = "rgba(26,36,34,.6)";
+  ctx.font = "bold 11px Arial, sans-serif";
+  ctx.fillText(label.toUpperCase(), x + 18, y + 16);
 
-  ctx.fillStyle = "#111827";
-  ctx.font = "bold 15px Arial, sans-serif";
-  ctx.fillText(value, x + 14, y + 34);
+  ctx.fillStyle = INK;
+  ctx.font = "bold 17px Arial, sans-serif";
+  ctx.fillText(value, x + 18, y + 38);
 
-  ctx.fillStyle = "#9ca3af";
-  ctx.font = "12px Arial, sans-serif";
-  ctx.fillText(hint, x + 14, y + 56);
+  ctx.fillStyle = "rgba(26,36,34,.55)";
+  ctx.font = "13px Arial, sans-serif";
+  ctx.fillText(hint, x + 18, y + 62);
 }
 
+function drawBibBadge(ctx: CanvasRenderingContext2D, centerX: number, y: number, ticket: TicketData): number {
+  let text: string;
+  let mode: "pending" | "allotted" | "child";
+  if (ticket.isChildRunner) {
+    text = "NO BIB ENTRY";
+    mode = "child";
+    ctx.font = "bold 12px Arial, sans-serif";
+  } else if (ticket.bibNumber) {
+    text = `BIB #${ticket.bibNumber}`;
+    mode = "allotted";
+    ctx.font = "bold 14px Arial, sans-serif";
+  } else {
+    text = "BIB TO BE ALLOTTED";
+    mode = "pending";
+    ctx.font = "bold 12px Arial, sans-serif";
+  }
+
+  const textW = ctx.measureText(text).width;
+  const padX = 18;
+  const h = 34;
+  const w = textW + padX * 2;
+  const x = centerX - w / 2;
+
+  roundRect(ctx, x, y, w, h, h / 2);
+  if (mode === "allotted") {
+    const grad = ctx.createLinearGradient(x, y, x + w, y + h);
+    grad.addColorStop(0, GOLD);
+    grad.addColorStop(1, GOLD_DEEP);
+    ctx.fillStyle = grad;
+    ctx.fill();
+    ctx.fillStyle = "#241c0a";
+  } else if (mode === "pending") {
+    ctx.save();
+    ctx.setLineDash([4, 3]);
+    ctx.strokeStyle = "rgba(26,36,34,.4)";
+    ctx.lineWidth = 1.4;
+    ctx.stroke();
+    ctx.restore();
+    ctx.fillStyle = "rgba(26,36,34,.65)";
+  } else {
+    ctx.fillStyle = "rgba(26,36,34,.06)";
+    ctx.fill();
+    ctx.strokeStyle = "rgba(26,36,34,.18)";
+    ctx.lineWidth = 1.4;
+    ctx.stroke();
+    ctx.fillStyle = "rgba(26,36,34,.7)";
+  }
+
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText(text, centerX, y + h / 2 + 1);
+  ctx.textAlign = "left";
+  ctx.textBaseline = "top";
+  return h;
+}
+
+function drawCoverImage(
+  ctx: CanvasRenderingContext2D,
+  img: HTMLImageElement,
+  dx: number,
+  dy: number,
+  dw: number,
+  dh: number,
+  verticalBias = 0.42
+) {
+  const srcRatio = img.width / img.height;
+  const dstRatio = dw / dh;
+  let sx = 0;
+  let sy = 0;
+  let sw = img.width;
+  let sh = img.height;
+  if (srcRatio > dstRatio) {
+    sw = img.height * dstRatio;
+    sx = (img.width - sw) / 2;
+  } else {
+    sh = img.width / dstRatio;
+    sy = (img.height - sh) * verticalBias;
+  }
+  ctx.drawImage(img, sx, sy, sw, sh, dx, dy, dw, dh);
+}
+
+// The whole layout below is fixed-pixel, top to bottom, so the final
+// canvas height is a deterministic constant — no badge text, name length,
+// etc. changes any element's height, only its width. Computed once here so
+// the canvas can be sized correctly before the single drawing pass.
+const CANVAS_WIDTH = 640;
+const PAD = 32;
+const HEADER_H = 220;
+const HEADER_ROW_Y = 26;
+const LOGO_SIZE = 44;
+const LOGO_GAP = 14;
+const QR_BOX = 180;
+const QR_TILE_PAD = 16;
+const QR_TILE_SIZE = QR_BOX + QR_TILE_PAD * 2;
+const QR_TILE_Y = HEADER_H - 90;
+const RACE_BOX_H = 90;
+const FINISH_H = 260;
+const FINISH_FADE_H = 90;
+const BADGE_H = 34;
+const CANVAS_HEIGHT =
+  QR_TILE_Y + QR_TILE_SIZE + 26 + 30 + 26 + BADGE_H + 28 + 30 + RACE_BOX_H + 24 + FINISH_H + 40 + 30;
+
 async function renderTicketCanvas(ticket: TicketData): Promise<HTMLCanvasElement> {
-  const width = 640;
-  const pad = 32;
   const canvas = document.createElement("canvas");
-  canvas.width = width;
-  canvas.height = 520;
+  canvas.width = CANVAS_WIDTH;
+  canvas.height = CANVAS_HEIGHT;
 
   const ctx = canvas.getContext("2d");
   if (!ctx) return canvas;
 
-  ctx.fillStyle = "#ffffff";
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-  ctx.textBaseline = "top";
-
-  const [logo, qr] = await Promise.all([
+  const [logo, qr, finish] = await Promise.all([
     loadImage("/logo.png").catch(() => null),
     loadImage(ticket.qrDataUrl),
+    loadImage("/finish-line.jpg").catch(() => null),
   ]);
 
+  ctx.fillStyle = PAPER;
+  ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+
+  // --- header ---
+  const headerGrad = ctx.createLinearGradient(0, 0, CANVAS_WIDTH, HEADER_H);
+  headerGrad.addColorStop(0, FLOW_1);
+  headerGrad.addColorStop(0.55, FLOW_2);
+  headerGrad.addColorStop(1, FLOW_3);
+  ctx.fillStyle = headerGrad;
+  ctx.fillRect(0, 0, CANVAS_WIDTH, HEADER_H);
+
+  ctx.fillStyle = "rgba(255,255,255,.07)";
+  ctx.beginPath();
+  ctx.moveTo(-40, 150);
+  ctx.bezierCurveTo(110, 110, 200, 180, 330, 145);
+  ctx.bezierCurveTo(460, 110, 540, 175, 680, 135);
+  ctx.lineTo(680, 0);
+  ctx.lineTo(-40, 0);
+  ctx.closePath();
+  ctx.fill();
+
+  ctx.fillStyle = "rgba(255,255,255,.05)";
+  ctx.beginPath();
+  ctx.moveTo(-40, 175);
+  ctx.bezierCurveTo(110, 135, 220, 205, 350, 165);
+  ctx.bezierCurveTo(480, 130, 560, 190, 680, 150);
+  ctx.lineTo(680, 0);
+  ctx.lineTo(-40, 0);
+  ctx.closePath();
+  ctx.fill();
+
+  ctx.strokeStyle = "rgba(201,168,105,.55)";
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(-40, 115);
+  ctx.bezierCurveTo(130, 80, 220, 130, 350, 95);
+  ctx.bezierCurveTo(470, 65, 560, 105, 680, 75);
+  ctx.stroke();
+
+  // --- title / tagline group, centered as one block, both right-aligned ---
+  ctx.font = "bold 30px Arial, sans-serif";
+  const titleW = ctx.measureText(EVENT_TITLE).width;
+  const titleRowW = LOGO_SIZE + LOGO_GAP + titleW;
+
+  ctx.font = "bold 12px Arial, sans-serif";
+  const taglineText = TAGLINE.toUpperCase().split("").join("  ");
+  const taglineW = ctx.measureText(taglineText).width;
+
+  const groupW = Math.max(titleRowW, taglineW);
+  const groupLeft = (CANVAS_WIDTH - groupW) / 2;
+  const titleRowX = groupLeft + (groupW - titleRowW);
+
   if (logo) {
-    // object-contain equivalent: fit within a 48x48 box without cropping
-    // or distorting — logo.png is a wordmark, not a circular emblem.
-    const box = 48;
+    roundRect(ctx, titleRowX, HEADER_ROW_Y, LOGO_SIZE, LOGO_SIZE, 9);
+    ctx.fillStyle = "#ffffff";
+    ctx.fill();
+    const box = LOGO_SIZE - 12;
     const scale = Math.min(box / logo.width, box / logo.height);
     const drawW = logo.width * scale;
     const drawH = logo.height * scale;
-    ctx.drawImage(logo, pad + (box - drawW) / 2, pad + (box - drawH) / 2, drawW, drawH);
+    ctx.drawImage(
+      logo,
+      titleRowX + (LOGO_SIZE - drawW) / 2,
+      HEADER_ROW_Y + (LOGO_SIZE - drawH) / 2,
+      drawW,
+      drawH
+    );
   }
 
-  ctx.fillStyle = "#111827";
-  ctx.font = "bold 24px Arial, sans-serif";
-  ctx.fillText(EVENT_TITLE, pad + 64, pad + 2);
-
-  ctx.fillStyle = "#6b7280";
-  ctx.font = "14px Arial, sans-serif";
-  ctx.fillText(EVENT_DATE_LINE, pad + 64, pad + 32);
-
-  const accentY = pad + 64;
-  ctx.fillStyle = ACCENT;
-  ctx.fillRect(pad, accentY, width - pad * 2, 3);
-
-  const cardY = accentY + 24;
-  const cardH = 230;
-  roundRect(ctx, pad, cardY, width - pad * 2, cardH, 12);
-  ctx.strokeStyle = "#e5e7eb";
-  ctx.lineWidth = 1;
-  ctx.stroke();
-
-  const qrSize = 180;
-  ctx.drawImage(qr, pad + 24, cardY + 24, qrSize, qrSize);
-
-  const textX = pad + 24 + qrSize + 24;
-  const maxTextWidth = width - pad - textX - 16;
-
-  ctx.fillStyle = "#9ca3af";
-  ctx.font = "bold 12px Arial, sans-serif";
-  ctx.fillText("REGISTRATION ID", textX, cardY + 26);
-
-  ctx.fillStyle = ACCENT;
+  ctx.fillStyle = "#ffffff";
   ctx.font = "bold 30px Arial, sans-serif";
-  ctx.fillText(ticket.registrationCode, textX, cardY + 44);
+  ctx.textBaseline = "middle";
+  ctx.fillText(EVENT_TITLE, titleRowX + LOGO_SIZE + LOGO_GAP, HEADER_ROW_Y + LOGO_SIZE / 2 + 1);
 
-  ctx.fillStyle = "#111827";
-  ctx.font = "bold 17px Arial, sans-serif";
-  ctx.fillText(truncateToWidth(ctx, ticket.fullName, maxTextWidth), textX, cardY + 88);
-
-  ctx.fillStyle = "#6b7280";
-  ctx.font = "13px Arial, sans-serif";
-  ctx.fillText(truncateToWidth(ctx, ticket.categoryName, maxTextWidth), textX, cardY + 112);
-
-  const pillY = cardY + 138;
-  ctx.fillStyle = "#dcfce7";
-  roundRect(ctx, textX, pillY, 112, 26, 13);
-  ctx.fill();
-  ctx.fillStyle = "#15803d";
+  ctx.fillStyle = GOLD_LIGHT;
   ctx.font = "bold 12px Arial, sans-serif";
+  ctx.textAlign = "right";
+  ctx.fillText(taglineText, groupLeft + groupW, HEADER_ROW_Y + LOGO_SIZE + 22);
+  ctx.textAlign = "left";
+  ctx.textBaseline = "top";
+
+  ctx.fillStyle = "#ffffff";
+  ctx.font = "bold 16px Arial, sans-serif";
   ctx.textAlign = "center";
-  ctx.fillText("CONFIRMED", textX + 56, pillY + 7);
+  ctx.fillText(DATE_LINE_1, CANVAS_WIDTH / 2, HEADER_ROW_Y + LOGO_SIZE + 42);
+  ctx.fillText(DATE_LINE_2, CANVAS_WIDTH / 2, HEADER_ROW_Y + LOGO_SIZE + 64);
   ctx.textAlign = "left";
 
-  const boxY = cardY + cardH + 20;
-  const boxH = 90;
-  const gap = 16;
-  const boxW = (width - pad * 2 - gap) / 2;
-  if (ticket.isChildRunner) {
-    drawInfoBox(ctx, pad, boxY, width - pad * 2, boxH, "Accompanying Child", "No BIB / race entry", "Not part of the timed race");
-  } else {
-    drawInfoBox(ctx, pad, boxY, boxW, boxH, "BIB Details", "To be updated", "Details to follow");
-    drawInfoBox(ctx, pad + boxW + gap, boxY, boxW, boxH, "Race Details", "To be updated", "Details to follow");
-  }
+  // --- QR credential tile, overlapping the header/body seam ---
+  const tileX = (CANVAS_WIDTH - QR_TILE_SIZE) / 2;
 
-  ctx.fillStyle = "#111827";
-  ctx.font = "bold 14px Arial, sans-serif";
+  ctx.save();
+  ctx.shadowColor = "rgba(0,0,0,.35)";
+  ctx.shadowBlur = 24;
+  ctx.shadowOffsetY = 10;
+  roundRect(ctx, tileX, QR_TILE_Y, QR_TILE_SIZE, QR_TILE_SIZE, 14);
+  ctx.fillStyle = "#fbf7ec";
+  ctx.fill();
+  ctx.restore();
+  ctx.drawImage(qr, tileX + QR_TILE_PAD, QR_TILE_Y + QR_TILE_PAD, QR_BOX, QR_BOX);
+
+  // --- name / category / bib badge / code ---
+  let y = QR_TILE_Y + QR_TILE_SIZE + 26;
+  ctx.fillStyle = INK;
+  ctx.font = "bold 26px Arial, sans-serif";
   ctx.textAlign = "center";
-  ctx.fillText(
-    ticket.isChildRunner ? "Accompanying child — show at check-in." : "Show this at the time of BIB collection.",
-    width / 2,
-    boxY + boxH + 28
-  );
+  ctx.fillText(truncateToWidth(ctx, ticket.fullName, CANVAS_WIDTH - PAD * 2), CANVAS_WIDTH / 2, y);
+
+  y += 30;
+  ctx.fillStyle = "rgba(26,36,34,.6)";
+  ctx.font = "14px Arial, sans-serif";
+  ctx.fillText(truncateToWidth(ctx, ticket.categoryName, CANVAS_WIDTH - PAD * 2), CANVAS_WIDTH / 2, y);
+
+  y += 26;
+  drawBibBadge(ctx, CANVAS_WIDTH / 2, y, ticket);
+
+  y += BADGE_H + 28;
+  ctx.fillStyle = "rgba(26,36,34,.55)";
+  ctx.font = "13px Arial, sans-serif";
+  ctx.textAlign = "center";
+  ctx.fillText(ticket.registrationCode, CANVAS_WIDTH / 2, y);
+  ctx.textAlign = "left";
+
+  // --- race / child-runner details ---
+  y += 30;
+  const boxW = CANVAS_WIDTH - PAD * 2;
+  if (ticket.isChildRunner) {
+    drawInfoBox(ctx, PAD, y, boxW, RACE_BOX_H, "Accompanying Child", "No BIB / race entry", "Not part of the timed race");
+  } else {
+    drawInfoBox(ctx, PAD, y, boxW, RACE_BOX_H, "Race Details", "To be updated", "Details to follow");
+  }
+  y += RACE_BOX_H + 24;
+
+  // --- finish-line footer illustration ---
+  if (finish) {
+    drawCoverImage(ctx, finish, 0, y, CANVAS_WIDTH, FINISH_H);
+  }
+  const fade = ctx.createLinearGradient(0, y + FINISH_H - FINISH_FADE_H, 0, y + FINISH_H);
+  fade.addColorStop(0, "rgba(243,228,202,0)");
+  fade.addColorStop(0.92, PAPER);
+  ctx.fillStyle = fade;
+  ctx.fillRect(0, y + FINISH_H - FINISH_FADE_H, CANVAS_WIDTH, FINISH_FADE_H);
+  y += FINISH_H;
+
+  // --- footer line ---
+  y += 40;
+  ctx.fillStyle = FLOW_1;
+  ctx.font = "bold 16px Arial, sans-serif";
+  ctx.textAlign = "center";
+  ctx.fillText(ticket.isChildRunner ? CHILD_FOOTER_TEXT : FOOTER_TEXT, CANVAS_WIDTH / 2, y);
   ctx.textAlign = "left";
 
   return canvas;

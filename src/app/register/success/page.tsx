@@ -4,8 +4,6 @@ import { CHILD_RUNNER_CATEGORY_NAME } from "@/lib/registration-schema";
 import TicketView, { type TicketData } from "./TicketView";
 
 const ACCENT = "#5b3fa0";
-const EVENT_TITLE = "HIRA TGCG 2026";
-const EVENT_DATE_LINE = "Sun, 20 Dec 2026 · CBD Square, Naya Raipur";
 
 export default async function RegisterSuccessPage({
   searchParams,
@@ -55,6 +53,7 @@ async function GroupTicket({ group }: { group: GroupSummary }) {
         categoryName: attendee.ticket_categories?.name ?? "TGCG 2026",
         registrationCode: attendee.registration_code,
         isChildRunner: attendee.ticket_categories?.name === CHILD_RUNNER_CATEGORY_NAME,
+        bibNumber: attendee.bib_number,
         qrDataUrl: await QRCode.toDataURL(attendee.registration_code, {
           margin: 1,
           width: 320,
@@ -65,16 +64,7 @@ async function GroupTicket({ group }: { group: GroupSummary }) {
 
   return (
     <div>
-      <div className="flex items-center gap-3">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/logo.png" alt="LetsRun" className="h-10 w-10 shrink-0 object-contain" />
-        <div>
-          <p className="text-base font-bold text-[#111827]">{EVENT_TITLE}</p>
-          <p className="text-xs text-[#6b7280]">{EVENT_DATE_LINE}</p>
-        </div>
-      </div>
-
-      <div className="mt-8 text-center">
+      <div className="text-center">
         <div
           className="mx-auto flex h-16 w-16 items-center justify-center rounded-full"
           style={{ backgroundColor: `${ACCENT}1a`, color: ACCENT }}
@@ -91,10 +81,6 @@ async function GroupTicket({ group }: { group: GroupSummary }) {
       <div className="mt-8">
         <TicketView tickets={tickets} />
       </div>
-
-      <p className="mt-6 text-center text-sm font-semibold text-[#111827]">
-        Show this at the time of BIB collection.
-      </p>
     </div>
   );
 }
@@ -104,6 +90,7 @@ type AttendeeSummary = {
   amount_inr: number;
   payment_status: string;
   registration_code: string | null;
+  bib_number: string | null;
   ticket_categories: { name: string } | null;
 };
 
@@ -134,7 +121,7 @@ async function getGroupSummary(groupParam: string): Promise<GroupSummary | null>
 
   const { data: attendees } = await supabase
     .from("registrations")
-    .select("full_name, amount_inr, payment_status, registration_code, ticket_categories(name)")
+    .select("full_name, amount_inr, payment_status, registration_code, bib_number, ticket_categories(name)")
     .eq("group_id", group.id)
     .order("created_at", { ascending: true });
 
