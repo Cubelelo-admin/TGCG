@@ -69,12 +69,13 @@ export async function POST(request: Request) {
       campaignName,
       destinationPhoneE164: `${phoneCountryCode}${phone}`,
       userName: "there",
-      // This campaign's body variable ({{1}}) is a greeting name, not the
-      // code — per AiSensy's own reference curl for tgcg_otp_verification_new,
-      // which fills templateParams with "$FirstName" and puts a code-shaped
-      // value into the button's own parameter instead. The button is what
-      // carries the OTP (its "Copy Code" behavior), not the body text.
-      templateParams: ["there"],
+      // Standard WhatsApp Authentication template body: "{{1}} is your
+      // verification code." — {{1}} is the code itself, same value as the
+      // button's own parameter below (confirmed working: tapping Copy Code
+      // now copies the real OTP). Live-tested 2026-09-16; the earlier
+      // assumption that {{1}} was a greeting name was wrong — it showed up
+      // as the literal word "there" in the message body.
+      templateParams: [code],
       buttons: [
         {
           type: "button",
