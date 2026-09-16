@@ -18,7 +18,7 @@ export default async function RegisterSuccessPage({
   const allPaid = group ? group.attendees.every((a) => a.payment_status === "paid") : false;
 
   return (
-    <main className="min-h-screen flex-1 bg-white px-6 py-16">
+    <main className="bg-white px-6 py-16">
       <div className="mx-auto max-w-lg">
         {group && allPaid ? (
           <GroupTicket group={group} />

@@ -34,7 +34,7 @@ export default function AdminLoginPage() {
   }
 
   return (
-    <main className="flex-1 flex items-center justify-center bg-neutral-950 text-neutral-50 px-6">
+    <main className="min-h-screen flex items-center justify-center bg-neutral-950 text-neutral-50 px-6">
       <form
         onSubmit={onSubmit}
         className="w-full max-w-sm rounded-2xl border border-white/10 bg-white/[0.03] p-8"

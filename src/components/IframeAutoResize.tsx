@@ -16,7 +16,15 @@ export default function IframeAutoResize() {
 
     let lastHeight = 0;
     const postHeight = () => {
-      const height = document.documentElement.scrollHeight;
+      // Not document.documentElement.scrollHeight: per spec, the root
+      // element's scrollHeight is max(viewport height, content height) —
+      // once the parent has grown the iframe to fit a tall form, that
+      // "viewport height" IS the iframe's own (now large) rendered size,
+      // so documentElement.scrollHeight can never measure smaller again
+      // even after content shrinks back down (e.g. Save collapsing the
+      // form to the "So Far" recap). document.body has no such clamping
+      // and reports the real content height.
+      const height = document.body.scrollHeight;
       if (height !== lastHeight) {
         lastHeight = height;
         window.parent.postMessage({ type: MESSAGE_TYPE, height }, "*");
@@ -26,7 +34,7 @@ export default function IframeAutoResize() {
     postHeight();
 
     const observer = new ResizeObserver(() => postHeight());
-    observer.observe(document.documentElement);
+    observer.observe(document.body);
 
     window.addEventListener("load", postHeight);
     return () => {

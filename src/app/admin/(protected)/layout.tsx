@@ -18,7 +18,7 @@ export default async function AdminProtectedLayout({
 
   if (!session.authorized) {
     return (
-      <main className="flex-1 flex items-center justify-center bg-neutral-950 text-neutral-50 px-6">
+      <main className="min-h-screen flex items-center justify-center bg-neutral-950 text-neutral-50 px-6">
         <div className="max-w-sm text-center">
           <h1 className="text-xl font-bold">Access denied</h1>
           <p className="mt-2 text-sm text-neutral-400">
@@ -32,7 +32,7 @@ export default async function AdminProtectedLayout({
   }
 
   return (
-    <div className="flex-1 flex flex-col bg-neutral-950 text-neutral-50">
+    <div className="flex min-h-screen flex-col bg-neutral-950 text-neutral-50">
       <header className="border-b border-white/10">
         <div className="mx-auto max-w-6xl px-6 py-4 flex items-center justify-between">
           <nav className="flex items-center gap-6 text-sm">

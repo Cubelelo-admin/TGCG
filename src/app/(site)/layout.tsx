@@ -3,10 +3,10 @@ import Footer from "@/components/Footer";
 
 export default function SiteLayout({ children }: LayoutProps<"/">) {
   return (
-    <>
+    <div className="flex min-h-screen flex-col">
       <Header />
       {children}
       <Footer />
-    </>
+    </div>
   );
 }
