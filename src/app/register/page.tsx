@@ -1,4 +1,4 @@
-import { getAddons, getEvent, getTicketCategories } from "@/lib/catalog";
+import { getAddons, getChildRunnerCategory, getEvent, getTicketCategories } from "@/lib/catalog";
 import RegisterFlow from "./RegisterFlow";
 
 export default async function RegisterPage({
@@ -17,9 +17,10 @@ export default async function RegisterPage({
     );
   }
 
-  const [categories, addons] = await Promise.all([
+  const [categories, addons, childCategory] = await Promise.all([
     getTicketCategories(event.id),
     getAddons(event.id),
+    getChildRunnerCategory(event.id),
   ]);
 
   return (
@@ -28,6 +29,7 @@ export default async function RegisterPage({
         <RegisterFlow
           categories={categories}
           addons={addons}
+          childCategory={childCategory}
           eventName={event.name}
           initialCategoryId={category}
         />

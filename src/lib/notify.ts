@@ -7,7 +7,7 @@ type RegistrationForNotify = {
   id: string;
   full_name: string;
   email: string | null;
-  phone: string;
+  phone: string | null;
   phone_country_code: string;
   amount_inr: number;
   registration_code: string | null;
@@ -305,6 +305,10 @@ async function sendWhatsAppConfirmation(
     );
     return false;
   }
+  // No phone on file — e.g. a child runner registration, which has no
+  // phone of its own. Nothing to send to; the fallback email path (which
+  // needs an organizer email) is equally unreachable, so this is a no-op.
+  if (!registration.phone) return false;
 
   const ticketName = registration.ticket_categories?.name ?? "TGCG 2026";
   const destination = `${registration.phone_country_code}${registration.phone}`;

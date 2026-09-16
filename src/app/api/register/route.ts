@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
+import { getChildRunnerCategory } from "@/lib/catalog";
 import { getRazorpayClient } from "@/lib/razorpay";
 import { uploadKycFileToDrive } from "@/lib/drive";
 import { OTP_VERIFIED_FRESHNESS_MINUTES } from "@/lib/otp";
@@ -37,9 +38,18 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid attendees payload" }, { status: 400 });
   }
 
+  const rawChildRunnerValue = toStringOrUndefined(formData.get("childRunner"));
+  let rawChildRunner: unknown;
+  try {
+    rawChildRunner = rawChildRunnerValue ? JSON.parse(rawChildRunnerValue) : undefined;
+  } catch {
+    return NextResponse.json({ error: "Invalid child runner payload" }, { status: 400 });
+  }
+
   const parsed = groupRegistrationSchema.safeParse({
     organizerEmail: toStringOrUndefined(formData.get("organizerEmail")),
     attendees: rawAttendees,
+    childRunner: rawChildRunner,
   });
 
   if (!parsed.success) {
@@ -49,7 +59,7 @@ export async function POST(request: Request) {
     );
   }
 
-  const { attendees, organizerEmail } = parsed.data;
+  const { attendees, organizerEmail, childRunner } = parsed.data;
 
   const supabase = createServiceClient();
 
@@ -177,7 +187,21 @@ export async function POST(request: Request) {
   }
 
   const eventId = priced[0].ticketCategory.event_id;
-  const amountTotalInr = priced.reduce((sum, p) => sum + p.amountInr, 0);
+
+  // Child runner: looked up server-side by name, never trust a client-sent
+  // price — same principle as every other ticket category above.
+  let childCategory: TicketCategory | null = null;
+  if (childRunner) {
+    childCategory = await getChildRunnerCategory(eventId);
+    if (!childCategory) {
+      return NextResponse.json(
+        { error: "Child runner add-on is not available for this event" },
+        { status: 400 }
+      );
+    }
+  }
+  const childAmountInr = childCategory ? Number(childCategory.price_inr) : 0;
+  const amountTotalInr = priced.reduce((sum, p) => sum + p.amountInr, 0) + childAmountInr;
 
   const { data: group, error: groupError } = await supabase
     .from("registration_groups")
@@ -185,7 +209,7 @@ export async function POST(request: Request) {
       event_id: eventId,
       organizer_full_name: attendees[0].fullName,
       organizer_email: organizerEmail ?? null,
-      attendee_count: priced.length,
+      attendee_count: priced.length + (childCategory ? 1 : 0),
       amount_total_inr: amountTotalInr,
     })
     .select("id")
@@ -284,6 +308,36 @@ export async function POST(request: Request) {
         }))
       );
     }
+  }
+
+  if (childRunner && childCategory) {
+    // No phone/gender/city/DOB/t-shirt/emergency contact — not collected
+    // for a child. accepted_waiver/accepted_rules are set true here since
+    // the primary attendee already accepted them for the whole booking.
+    const { data: childRegistration, error: childInsertError } = await supabase
+      .from("registrations")
+      .insert({
+        event_id: childCategory.event_id,
+        ticket_category_id: childCategory.id,
+        group_id: group.id,
+        amount_inr: childAmountInr,
+        payment_status: "pending",
+        full_name: childRunner.fullName,
+        email: organizerEmail ?? null,
+        accepted_waiver: true,
+        accepted_rules: true,
+      })
+      .select("id")
+      .single();
+
+    if (childInsertError || !childRegistration) {
+      console.error("child runner registration insert failed", childInsertError);
+      return NextResponse.json(
+        { error: "Could not create registration, please try again" },
+        { status: 500 }
+      );
+    }
+    registrationIds.push(childRegistration.id);
   }
 
   try {

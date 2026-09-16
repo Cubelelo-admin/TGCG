@@ -13,6 +13,7 @@ export interface TicketCategory {
   sold_count: number;
   requires_kyc: boolean;
   is_active: boolean;
+  hidden_from_picker: boolean;
   sort_order: number;
 }
 

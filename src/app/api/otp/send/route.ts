@@ -69,19 +69,18 @@ export async function POST(request: Request) {
       campaignName,
       destinationPhoneE164: `${phoneCountryCode}${phone}`,
       userName: "there",
-      templateParams: [code],
-      // This template's approved button is a URL button that requires some
-      // parameter to be present or AiSensy accepts the request (HTTP 200)
-      // but then fails it downstream ("Button at index 0 of type Url
-      // requires a parameter") — confirmed via AiSensy's campaign dashboard.
-      // The button itself is unrelated to OTP verification, so the value
-      // filled in here is a placeholder, not something shown to the user.
+      // This campaign's body variable ({{1}}) is a greeting name, not the
+      // code — per AiSensy's own reference curl for tgcg_otp_verification_new,
+      // which fills templateParams with "$FirstName" and puts a code-shaped
+      // value into the button's own parameter instead. The button is what
+      // carries the OTP (its "Copy Code" behavior), not the body text.
+      templateParams: ["there"],
       buttons: [
         {
           type: "button",
           sub_type: "url",
           index: 0,
-          parameters: [{ type: "text", text: "VERIFY" }],
+          parameters: [{ type: "text", text: code }],
         },
       ],
     });

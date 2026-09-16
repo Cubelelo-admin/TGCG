@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 const ACCENT = "#5b3fa0";
 const EVENT_TITLE = "HIRA TGCG 2026";
@@ -11,6 +11,7 @@ export type TicketData = {
   categoryName: string;
   registrationCode: string;
   qrDataUrl: string;
+  isChildRunner: boolean;
 };
 
 /**
@@ -23,6 +24,17 @@ export type TicketData = {
 export default function TicketView({ tickets }: { tickets: TicketData[] }) {
   const [savingAll, setSavingAll] = useState(false);
   const [savingCode, setSavingCode] = useState<string | null>(null);
+
+  // Arriving here is a client-side navigation from /register (same iframe,
+  // same document) — the browser never does its own scroll-to-top for that,
+  // and the parent page has no reason to know the iframe's content just
+  // changed underneath it. See scrollToFormTop in RegisterFlow.tsx for the
+  // same pattern on the Save step.
+  useEffect(() => {
+    if (typeof window !== "undefined" && window.self !== window.top) {
+      window.parent.postMessage({ type: "tgcg:scrollToTop" }, "*");
+    }
+  }, []);
 
   async function saveOne(ticket: TicketData) {
     const canvas = await renderTicketCanvas(ticket);
@@ -91,7 +103,7 @@ function TicketCard({
     <div className="overflow-hidden rounded-lg border border-[#e5e7eb] bg-white text-left">
       <div className="flex items-center gap-5 p-5">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={ticket.qrDataUrl} alt="Registration QR code" className="h-28 w-28 shrink-0 rounded-sm" />
+        <img src={ticket.qrDataUrl} alt="Registration QR code" className="h-36 w-36 shrink-0 rounded-sm" />
         <div className="min-w-0">
           <p className="text-xs font-bold uppercase tracking-wide text-[#9ca3af]">Registration ID</p>
           <p className="text-2xl font-bold" style={{ color: ACCENT }}>
@@ -105,10 +117,16 @@ function TicketCard({
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-3 px-5 pb-5">
-        <InfoBox label="BIB Details" value="To be updated" hint="Details to follow" />
-        <InfoBox label="Race Details" value="To be updated" hint="Details to follow" />
-      </div>
+      {ticket.isChildRunner ? (
+        <div className="px-5 pb-5">
+          <InfoBox label="Accompanying Child" value="No BIB / race entry" hint="Not part of the timed race" />
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 gap-3 px-5 pb-5">
+          <InfoBox label="BIB Details" value="To be updated" hint="Details to follow" />
+          <InfoBox label="Race Details" value="To be updated" hint="Details to follow" />
+        </div>
+      )}
 
       <div className="border-t border-[#e5e7eb] py-3 text-center">
         <button
@@ -213,7 +231,7 @@ async function renderTicketCanvas(ticket: TicketData): Promise<HTMLCanvasElement
   const pad = 32;
   const canvas = document.createElement("canvas");
   canvas.width = width;
-  canvas.height = 480;
+  canvas.height = 520;
 
   const ctx = canvas.getContext("2d");
   if (!ctx) return canvas;
@@ -250,13 +268,13 @@ async function renderTicketCanvas(ticket: TicketData): Promise<HTMLCanvasElement
   ctx.fillRect(pad, accentY, width - pad * 2, 3);
 
   const cardY = accentY + 24;
-  const cardH = 190;
+  const cardH = 230;
   roundRect(ctx, pad, cardY, width - pad * 2, cardH, 12);
   ctx.strokeStyle = "#e5e7eb";
   ctx.lineWidth = 1;
   ctx.stroke();
 
-  const qrSize = 140;
+  const qrSize = 180;
   ctx.drawImage(qr, pad + 24, cardY + 24, qrSize, qrSize);
 
   const textX = pad + 24 + qrSize + 24;
@@ -292,13 +310,21 @@ async function renderTicketCanvas(ticket: TicketData): Promise<HTMLCanvasElement
   const boxH = 90;
   const gap = 16;
   const boxW = (width - pad * 2 - gap) / 2;
-  drawInfoBox(ctx, pad, boxY, boxW, boxH, "BIB Details", "To be updated", "Details to follow");
-  drawInfoBox(ctx, pad + boxW + gap, boxY, boxW, boxH, "Race Details", "To be updated", "Details to follow");
+  if (ticket.isChildRunner) {
+    drawInfoBox(ctx, pad, boxY, width - pad * 2, boxH, "Accompanying Child", "No BIB / race entry", "Not part of the timed race");
+  } else {
+    drawInfoBox(ctx, pad, boxY, boxW, boxH, "BIB Details", "To be updated", "Details to follow");
+    drawInfoBox(ctx, pad + boxW + gap, boxY, boxW, boxH, "Race Details", "To be updated", "Details to follow");
+  }
 
   ctx.fillStyle = "#111827";
   ctx.font = "bold 14px Arial, sans-serif";
   ctx.textAlign = "center";
-  ctx.fillText("Show this at the time of BIB collection.", width / 2, boxY + boxH + 28);
+  ctx.fillText(
+    ticket.isChildRunner ? "Accompanying child — show at check-in." : "Show this at the time of BIB collection.",
+    width / 2,
+    boxY + boxH + 28
+  );
   ctx.textAlign = "left";
 
   return canvas;

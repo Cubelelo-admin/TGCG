@@ -1,5 +1,6 @@
 import QRCode from "qrcode";
 import { createServiceClient } from "@/lib/supabase/server";
+import { CHILD_RUNNER_CATEGORY_NAME } from "@/lib/registration-schema";
 import TicketView, { type TicketData } from "./TicketView";
 
 const ACCENT = "#5b3fa0";
@@ -53,9 +54,10 @@ async function GroupTicket({ group }: { group: GroupSummary }) {
         fullName: attendee.full_name,
         categoryName: attendee.ticket_categories?.name ?? "TGCG 2026",
         registrationCode: attendee.registration_code,
+        isChildRunner: attendee.ticket_categories?.name === CHILD_RUNNER_CATEGORY_NAME,
         qrDataUrl: await QRCode.toDataURL(attendee.registration_code, {
           margin: 1,
-          width: 220,
+          width: 320,
           color: { dark: "#111827", light: "#ffffff" },
         }),
       }))

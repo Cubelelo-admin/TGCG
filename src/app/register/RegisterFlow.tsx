@@ -1,14 +1,16 @@
 "use client";
 
-import { useMemo, useRef, useState, type ReactNode, type RefObject } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from "react";
 import { useRouter } from "next/navigation";
 import { useForm, type FieldErrors, type UseFormRegister } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
   attendeeFieldsSchema,
+  childRunnerSchema,
   MAX_GROUP_SIZE,
   phoneRegex as PHONE_REGEX,
   type AttendeeFieldsInput,
+  type ChildRunnerInput,
 } from "@/lib/registration-schema";
 import type { Addon, TicketCategory, TicketGroup } from "@/lib/types";
 import type {} from "@/types/razorpay";
@@ -64,11 +66,13 @@ function toPersonalFields(item: AttendeeCartItem): AttendeeFieldsInput {
 export default function RegisterFlow({
   categories,
   addons,
+  childCategory,
   eventName,
   initialCategoryId,
 }: {
   categories: TicketCategory[];
   addons: Addon[];
+  childCategory: TicketCategory | null;
   eventName: string;
   initialCategoryId?: string;
 }) {
@@ -92,6 +96,14 @@ export default function RegisterFlow({
 
   const [submitting, setSubmitting] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
+
+  // At most one child runner per booking — a name + age confirmation, no
+  // other personal details, no phone/OTP, not counted toward MAX_GROUP_SIZE.
+  const [childRunner, setChildRunner] = useState<ChildRunnerInput | null>(null);
+  const [showChildForm, setShowChildForm] = useState(false);
+  const [childNameDraft, setChildNameDraft] = useState("");
+  const [childConfirmDraft, setChildConfirmDraft] = useState(false);
+  const [childError, setChildError] = useState<string | null>(null);
 
   // Phone-OTP verification for the primary (first) attendee only — Checkout
   // is hard-gated on this server-side too (see api/register/route.ts).
@@ -130,8 +142,9 @@ export default function RegisterFlow({
   // Already-saved attendees other than the one currently being drafted/edited.
   const otherAttendees = attendees.filter((_, i) => i !== editingIndex);
   const otherTotal = otherAttendees.reduce((sum, a) => sum + attendeeTotal(a), 0);
-  const projectedTotal = otherTotal + draftTotal;
-  const projectedCount = otherAttendees.length + (draftCategory ? 1 : 0);
+  const childAmount = childCategory ? Number(childCategory.price_inr) : 0;
+  const projectedTotal = otherTotal + draftTotal + (childRunner ? childAmount : 0);
+  const projectedCount = otherAttendees.length + (draftCategory ? 1 : 0) + (childRunner ? 1 : 0);
 
   const {
     register,
@@ -215,6 +228,60 @@ export default function RegisterFlow({
   const formTopRef = useRef<HTMLDivElement>(null);
   function scrollToFormTop() {
     formTopRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    // scrollIntoView above only scrolls within this document, which does
+    // nothing when embedded in an iframe sized to its content (no internal
+    // scrollbar of its own) — ask the parent page to scroll to the iframe's
+    // position instead. No-ops outside an iframe.
+    if (typeof window !== "undefined" && window.self !== window.top) {
+      window.parent.postMessage({ type: "tgcg:scrollToTop" }, "*");
+    }
+  }
+
+  // Scrolled to via effect (rather than a direct call in these handlers,
+  // like every other scrollToFormTop() call in this file) because these
+  // two are reached through the summaryItems data structure passed down as
+  // a prop, several layers from the JSX that actually renders the button —
+  // React's ref-safety lint rule flags a ref read that far from the click
+  // it's attached to, even though it only ever runs after the click.
+  useEffect(() => {
+    if (showChildForm) scrollToFormTop();
+  }, [showChildForm]);
+
+  function startAddChildRunner() {
+    setChildNameDraft("");
+    setChildConfirmDraft(false);
+    setChildError(null);
+    setShowChildForm(true);
+  }
+
+  function startEditChildRunner() {
+    if (!childRunner) return;
+    setChildNameDraft(childRunner.fullName);
+    setChildConfirmDraft(childRunner.confirmedUnder12);
+    setChildError(null);
+    setShowChildForm(true);
+  }
+
+  function removeChildRunner() {
+    setChildRunner(null);
+  }
+
+  function cancelChildForm() {
+    setShowChildForm(false);
+  }
+
+  function handleSaveChildRunner() {
+    const result = childRunnerSchema.safeParse({
+      fullName: childNameDraft,
+      confirmedUnder12: childConfirmDraft,
+    });
+    if (!result.success) {
+      setChildError(result.error.issues[0]?.message ?? "Please check the details");
+      return;
+    }
+    setChildError(null);
+    setChildRunner(result.data);
+    setShowChildForm(false);
   }
 
   function toggleGroup(key: string) {
@@ -356,6 +423,9 @@ export default function RegisterFlow({
       finalAttendees.forEach((item, i) => {
         if (item.govtIdFile) formData.set(`govtIdFile_${i}`, item.govtIdFile);
       });
+      if (childRunner) {
+        formData.set("childRunner", JSON.stringify(childRunner));
+      }
 
       const res = await fetch("/api/register", { method: "POST", body: formData });
       const json = await res.json();
@@ -410,18 +480,25 @@ export default function RegisterFlow({
     }
   }
 
-  const summaryItems = [
-    ...otherAttendees.map((a, i) => {
-      const originalIndex = attendees.indexOf(a);
-      return {
-        label: `${a.fullName} — ${categories.find((c) => c.id === a.categoryId)?.name ?? ""}`,
-        amount: attendeeTotal(a),
-        onEdit: () => startEditAttendee(originalIndex),
-        onRemove: () => removeAttendee(originalIndex),
-        key: a.clientKey ?? i,
-      };
-    }),
-  ];
+  const summaryItems = otherAttendees.map((a, i) => {
+    const originalIndex = attendees.indexOf(a);
+    return {
+      label: `${a.fullName} — ${categories.find((c) => c.id === a.categoryId)?.name ?? ""}`,
+      amount: attendeeTotal(a),
+      onEdit: () => startEditAttendee(originalIndex),
+      onRemove: () => removeAttendee(originalIndex),
+      key: a.clientKey ?? i,
+    };
+  });
+  if (childRunner) {
+    summaryItems.push({
+      label: `${childRunner.fullName} — Child Runner (Below 12)`,
+      amount: childAmount,
+      onEdit: () => startEditChildRunner(),
+      onRemove: () => removeChildRunner(),
+      key: "child-runner",
+    });
+  }
 
   return (
     <div className="mt-6">
@@ -473,6 +550,17 @@ export default function RegisterFlow({
         projectedTotal={projectedTotal}
         projectedCount={projectedCount}
         checkoutLabel={submitting ? "Processing..." : `Checkout — Pay ₹${projectedTotal.toLocaleString("en-IN")}`}
+        childCategory={childCategory}
+        childRunner={childRunner}
+        showChildForm={showChildForm}
+        childNameDraft={childNameDraft}
+        onChildNameChange={setChildNameDraft}
+        childConfirmDraft={childConfirmDraft}
+        onChildConfirmChange={setChildConfirmDraft}
+        childError={childError}
+        onAddChildRunner={startAddChildRunner}
+        onSaveChildRunner={handleSaveChildRunner}
+        onCancelChildForm={cancelChildForm}
       />
     </div>
   );
@@ -523,6 +611,17 @@ function AttendeeStep({
   projectedTotal,
   projectedCount,
   checkoutLabel,
+  childCategory,
+  childRunner,
+  showChildForm,
+  childNameDraft,
+  onChildNameChange,
+  childConfirmDraft,
+  onChildConfirmChange,
+  childError,
+  onAddChildRunner,
+  onSaveChildRunner,
+  onCancelChildForm,
 }: {
   eventName: string;
   categories: TicketCategory[];
@@ -572,6 +671,17 @@ function AttendeeStep({
   projectedTotal: number;
   projectedCount: number;
   checkoutLabel: string;
+  childCategory: TicketCategory | null;
+  childRunner: ChildRunnerInput | null;
+  showChildForm: boolean;
+  childNameDraft: string;
+  onChildNameChange: (value: string) => void;
+  childConfirmDraft: boolean;
+  onChildConfirmChange: (value: boolean) => void;
+  childError: string | null;
+  onAddChildRunner: () => void;
+  onSaveChildRunner: () => void;
+  onCancelChildForm: () => void;
 }) {
   return (
     <div>
@@ -763,7 +873,7 @@ function AttendeeStep({
         </>
         )}
 
-        {!showForm && (
+        {!showForm && !showChildForm && (
           <>
             {serverError && (
               <p className="rounded-md bg-red-50 px-4 py-3 text-sm text-red-700">{serverError}</p>
@@ -779,6 +889,16 @@ function AttendeeStep({
               >
                 + Add Participant{addDisabled ? ` (max ${MAX_GROUP_SIZE})` : ""}
               </button>
+              {childCategory && !childRunner && (
+                <button
+                  type="button"
+                  onClick={onAddChildRunner}
+                  className="flex-1 rounded-md border py-3.5 text-base font-semibold transition"
+                  style={{ borderColor: ACCENT, color: ACCENT }}
+                >
+                  + Add Child Runner (₹{Number(childCategory.price_inr).toLocaleString("en-IN")})
+                </button>
+              )}
               <button
                 type="button"
                 onClick={onCheckout}
@@ -808,6 +928,51 @@ function AttendeeStep({
               </p>
             )}
           </>
+        )}
+
+        {showChildForm && (
+          <FormCard
+            title={childRunner ? "Edit Child Runner" : "Add Child Runner"}
+            icon={<PersonIcon />}
+            action={
+              <button
+                type="button"
+                onClick={onCancelChildForm}
+                className="text-xs font-medium underline"
+                style={{ color: ACCENT }}
+              >
+                Cancel
+              </button>
+            }
+          >
+            <Field label="Child's Name" required>
+              <input
+                value={childNameDraft}
+                onChange={(e) => onChildNameChange(e.target.value)}
+                className={inputClass}
+              />
+            </Field>
+            <label className="flex items-start gap-3 text-sm text-[#374151]">
+              <input
+                type="checkbox"
+                checked={childConfirmDraft}
+                onChange={(e) => onChildConfirmChange(e.target.checked)}
+                className="mt-1"
+                style={{ accentColor: ACCENT }}
+              />
+              I confirm this child is below 12 years of age
+              {childCategory ? ` (₹${Number(childCategory.price_inr).toLocaleString("en-IN")} entry)` : ""}
+            </label>
+            {childError && <p className={errorClass}>{childError}</p>}
+            <button
+              type="button"
+              onClick={onSaveChildRunner}
+              className="w-full rounded-md py-3.5 text-base font-semibold text-white transition"
+              style={{ backgroundColor: ACCENT }}
+            >
+              Save
+            </button>
+          </FormCard>
         )}
       </form>
     </div>
@@ -855,7 +1020,7 @@ function OtpVerification({
           className="text-sm font-semibold underline disabled:cursor-not-allowed disabled:opacity-50"
           style={{ color: ACCENT }}
         >
-          {sending ? "Sending code..." : "Send OTP to verify this number"}
+          {sending ? "Sending code..." : "Send OTP on WhatsApp to verify this number"}
         </button>
       ) : (
         <div className="flex flex-wrap items-center gap-2">

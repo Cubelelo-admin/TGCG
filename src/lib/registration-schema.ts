@@ -7,6 +7,18 @@ const aadharRegex = /^\d{12}$/;
 
 export const MAX_GROUP_SIZE = 10;
 
+/** Must match the ticket_categories.name inserted by 0014_child_runner.sql exactly. */
+export const CHILD_RUNNER_CATEGORY_NAME = "Child Runner (Below 12)";
+
+/** Optional, at most one per booking — a name plus an age confirmation, no other personal details. */
+export const childRunnerSchema = z.object({
+  fullName: z.string().trim().min(2, "Child's name is required").max(120),
+  confirmedUnder12: z.literal(true, {
+    message: "Please confirm the child is below 12 years",
+  }),
+});
+export type ChildRunnerInput = z.infer<typeof childRunnerSchema>;
+
 /** Organizer's contact email — no longer collected in the flow; kept optional for any legacy callers. */
 export const organizerEmailSchema = z
   .string()
@@ -69,6 +81,7 @@ export const groupRegistrationSchema = z
       .array(attendeeCoreSchema)
       .min(1, "Add at least one attendee")
       .max(MAX_GROUP_SIZE, `A maximum of ${MAX_GROUP_SIZE} attendees can be registered together`),
+    childRunner: childRunnerSchema.optional(),
   })
   // The client already blocks this at save-time, but the server is the
   // source of truth — never trust the client not to have sent duplicates.
