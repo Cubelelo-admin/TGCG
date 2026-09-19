@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { CONTACT, LEGAL, NAV_LINKS, SOCIAL_LINKS } from "@/lib/site-content";
+import { CONTACT, LEGAL, NAV_LINKS, POLICY_LINKS, SOCIAL_LINKS } from "@/lib/site-content";
 
 export default function Footer() {
   return (
@@ -81,7 +81,16 @@ export default function Footer() {
 
       <div className="border-t border-[#f6ede1]/10">
         <div className="mx-auto max-w-6xl px-6 py-6 text-xs text-[#f6ede1]/50">
-          {LEGAL.entityLine} · {LEGAL.formalName} · CIN {LEGAL.cin}
+          <ul className="mb-4 flex flex-wrap gap-x-6 gap-y-2 text-[#f6ede1]/70">
+            {POLICY_LINKS.map((link) => (
+              <li key={link.href}>
+                <Link href={link.href} className="hover:text-[#e8b98f]">
+                  {link.label}
+                </Link>
+              </li>
+            ))}
+          </ul>
+          Event by {LEGAL.entityLine} · Formally: {LEGAL.formalName} · CIN {LEGAL.cin}
         </div>
       </div>
     </footer>

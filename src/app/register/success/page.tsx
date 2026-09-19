@@ -1,9 +1,8 @@
 import QRCode from "qrcode";
 import { createServiceClient } from "@/lib/supabase/server";
-import { CHILD_RUNNER_CATEGORY_NAME } from "@/lib/registration-schema";
+import { getWaGroupLinks } from "@/lib/app-settings";
 import TicketView, { type TicketData } from "./TicketView";
-
-const ACCENT = "#5b3fa0";
+import ActionButtons from "./ActionButtons";
 
 export default async function RegisterSuccessPage({
   searchParams,
@@ -44,7 +43,6 @@ export default async function RegisterSuccessPage({
 }
 
 async function GroupTicket({ group }: { group: GroupSummary }) {
-  const total = group.attendees.reduce((sum, a) => sum + Number(a.amount_inr), 0);
   const tickets: TicketData[] = await Promise.all(
     group.attendees
       .filter((a): a is AttendeeSummary & { registration_code: string } => Boolean(a.registration_code))
@@ -52,8 +50,8 @@ async function GroupTicket({ group }: { group: GroupSummary }) {
         fullName: attendee.full_name,
         categoryName: attendee.ticket_categories?.name ?? "TGCG 2026",
         registrationCode: attendee.registration_code,
-        isChildRunner: attendee.ticket_categories?.name === CHILD_RUNNER_CATEGORY_NAME,
         bibNumber: attendee.bib_number,
+        tshirtSize: attendee.tshirt_size,
         qrDataUrl: await QRCode.toDataURL(attendee.registration_code, {
           margin: 1,
           width: 320,
@@ -62,25 +60,19 @@ async function GroupTicket({ group }: { group: GroupSummary }) {
       }))
   );
 
+  const waGroupLinks = await getWaGroupLinks();
+
   return (
     <div>
-      <div className="text-center">
-        <div
-          className="mx-auto flex h-16 w-16 items-center justify-center rounded-full"
-          style={{ backgroundColor: `${ACCENT}1a`, color: ACCENT }}
-        >
-          <CheckIcon />
-        </div>
-        <h1 className="mt-6 text-2xl font-bold text-[#111827]">You&apos;re registered!</h1>
-        <p className="mt-2 text-[#6b7280]">
-          {group.attendees.length} attendee{group.attendees.length === 1 ? "" : "s"} · ₹
-          {total.toLocaleString("en-IN")}
-        </p>
-      </div>
+      <ActionButtons waGroupLinks={waGroupLinks} />
 
-      <div className="mt-8">
+      <div className="mt-6">
         <TicketView tickets={tickets} />
       </div>
+
+      <p className="mt-6 text-center text-xs text-[#9ca3af]">
+        *T-Shirt allotment subject to size availability.
+      </p>
     </div>
   );
 }
@@ -91,6 +83,7 @@ type AttendeeSummary = {
   payment_status: string;
   registration_code: string | null;
   bib_number: string | null;
+  tshirt_size: string | null;
   ticket_categories: { name: string } | null;
 };
 
@@ -121,7 +114,9 @@ async function getGroupSummary(groupParam: string): Promise<GroupSummary | null>
 
   const { data: attendees } = await supabase
     .from("registrations")
-    .select("full_name, amount_inr, payment_status, registration_code, bib_number, ticket_categories(name)")
+    .select(
+      "full_name, amount_inr, payment_status, registration_code, bib_number, tshirt_size, ticket_categories(name)"
+    )
     .eq("group_id", group.id)
     .order("created_at", { ascending: true });
 
@@ -129,12 +124,4 @@ async function getGroupSummary(groupParam: string): Promise<GroupSummary | null>
     organizer_email: group.organizer_email,
     attendees: (attendees ?? []) as unknown as AttendeeSummary[],
   };
-}
-
-function CheckIcon() {
-  return (
-    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-      <path d="M20 6 9 17l-5-5" />
-    </svg>
-  );
 }

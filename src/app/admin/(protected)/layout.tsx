@@ -34,23 +34,26 @@ export default async function AdminProtectedLayout({
   return (
     <div className="flex min-h-screen flex-col bg-neutral-950 text-neutral-50">
       <header className="border-b border-white/10">
-        <div className="mx-auto max-w-6xl px-6 py-4 flex items-center justify-between">
-          <nav className="flex items-center gap-6 text-sm">
+        <div className="mx-auto flex max-w-[1920px] flex-wrap items-center justify-between gap-3 px-4 py-4 sm:px-6">
+          <nav className="flex items-center gap-4 text-sm sm:gap-6">
             <Link href="/admin" className="flex items-center gap-2 font-semibold">
-              <Image src="/logo.png" alt="" width={300} height={300} className="h-7 w-7" />
-              TGCG Admin
+              <Image src="/logo.png" alt="" width={300} height={300} className="h-7 w-7 shrink-0" />
+              <span className="whitespace-nowrap">TGCG Admin</span>
             </Link>
-            <Link href="/admin/registrations" className="text-neutral-400 hover:text-neutral-200">
+            <Link href="/admin/registrations" className="whitespace-nowrap text-neutral-400 hover:text-neutral-200">
               Registrations
             </Link>
+            <Link href="/admin/assets" className="whitespace-nowrap text-neutral-400 hover:text-neutral-200">
+              Configuration
+            </Link>
           </nav>
-          <div className="flex items-center gap-4 text-sm text-neutral-400">
-            <span>{session.email}</span>
+          <div className="flex items-center gap-3 text-sm text-neutral-400 sm:gap-4">
+            <span className="hidden truncate sm:inline">{session.email}</span>
             <SignOutButton />
           </div>
         </div>
       </header>
-      <div className="mx-auto w-full max-w-6xl flex-1 px-6 py-8">{children}</div>
+      <div className="mx-auto w-full max-w-[1920px] flex-1 px-4 py-6 sm:px-6 sm:py-8">{children}</div>
     </div>
   );
 }

@@ -11,6 +11,7 @@ type RegistrationForNotify = {
   phone_country_code: string;
   amount_inr: number;
   registration_code: string | null;
+  bib_number: string | null;
   ticket_categories?: { name?: string } | null;
 };
 
@@ -27,6 +28,23 @@ function ticketUrl(bookingCode: string | null | undefined): string | null {
 }
 
 /**
+ * A dynamic-URL button's fill value is a separate top-level `buttons` field
+ * in AiSensy's actual API, not an extra templateParams slot (confirmed
+ * against the approved templates' reference curls) — this builds that one
+ * index-0 URL button shape shared by every template that has one.
+ */
+function buildUrlButton(text: string): Record<string, unknown>[] {
+  return [
+    {
+      type: "button",
+      sub_type: "URL",
+      index: 0,
+      parameters: [{ type: "text", text }],
+    },
+  ];
+}
+
+/**
  * Fires the registration-confirmation WhatsApp message (AiSensy) and email
  * (Gmail SMTP), logging each attempt to wa_message_log. Each channel is
  * independent and never throws — a send failure on either channel must not
@@ -39,7 +57,7 @@ export async function notifyRegistrationPaid(registrationId: string) {
   const { data } = await supabase
     .from("registrations")
     .select(
-      "id, full_name, email, phone, phone_country_code, amount_inr, registration_code, ticket_categories(name), registration_groups(booking_code)"
+      "id, full_name, email, phone, phone_country_code, amount_inr, registration_code, bib_number, ticket_categories(name), registration_groups(booking_code)"
     )
     .eq("id", registrationId)
     .maybeSingle();
@@ -89,7 +107,7 @@ export async function notifyGroupPaid(groupId: string) {
   const { data: rows } = await supabase
     .from("registrations")
     .select(
-      "id, full_name, email, phone, phone_country_code, amount_inr, registration_code, ticket_categories(name)"
+      "id, full_name, email, phone, phone_country_code, amount_inr, registration_code, bib_number, ticket_categories(name)"
     )
     .eq("group_id", groupId)
     .order("created_at", { ascending: true });
@@ -141,15 +159,10 @@ async function sendBookingSummaryWhatsApp(
       campaignName,
       destinationPhoneE164: destination,
       userName: primary.full_name,
-      // 5th param fills the "View QR Ticket" button, same convention as
-      // sendWhatsAppConfirmation — see the comment there.
-      templateParams: [
-        primary.full_name,
-        String(attendees.length),
-        String(total),
-        group.booking_code ?? "—",
-        group.booking_code ?? "—",
-      ],
+      templateParams: [primary.full_name, String(attendees.length), String(total), group.booking_code ?? "—"],
+      // "View & Save QR Tickets" is this template's dynamic-URL button —
+      // see buildUrlButton's comment.
+      buttons: buildUrlButton(group.booking_code ?? "—"),
     });
 
     await supabase.from("wa_message_log").insert({
@@ -318,21 +331,20 @@ async function sendWhatsAppConfirmation(
       campaignName,
       destinationPhoneE164: destination,
       userName: registration.full_name,
-      // 5th param fills the template's "View QR Ticket" button — a dynamic
-      // URL button whose base (https://.../register/success?group={{5}}) is
-      // configured in the AiSensy dashboard. Per AiSensy's own API-reference
-      // curl for this template, the button's fill value is just the next
-      // slot in templateParams (not a separate `buttons` entry). The link
-      // always points at the whole booking's ticket page (every attendee's
-      // QR), not just this one, so it still resolves even if this
-      // attendee's own number is wrong/unreachable and someone else opens it.
       templateParams: [
         registration.full_name,
         ticketName,
+        registration.bib_number ?? "—",
         String(registration.amount_inr),
         registration.registration_code ?? "—",
-        bookingCode ?? "—",
       ],
+      // "View QR Ticket" is this template's dynamic-URL button — see
+      // buildUrlButton's comment. The link always points at the whole
+      // booking's ticket page (every attendee's QR), not just this one, so
+      // it still resolves even if this attendee's own number is
+      // wrong/unreachable and someone else opens it. The second button
+      // ("Race Booklet & FAQ") is a fully static URL and needs no entry here.
+      buttons: buildUrlButton(bookingCode ?? "—"),
     });
 
     await supabase.from("wa_message_log").insert({

@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import { getEvent, getTicketCategories } from "@/lib/catalog";
 import { PrimaryButton, SecondaryButton } from "@/components/Buttons";
@@ -17,35 +18,25 @@ export default async function HomePage() {
     <main className="flex-1">
       {/* Hero */}
       <section className="relative overflow-hidden">
-        {/* faint topographic contour lines */}
-        <svg
-          className="pointer-events-none absolute inset-x-0 top-0 h-[620px] w-full opacity-[0.35]"
-          viewBox="0 0 1200 620"
-          preserveAspectRatio="none"
-          aria-hidden
-        >
-          <path d="M-50,120 C200,50 350,190 600,120 C850,50 1000,190 1250,120" fill="none" stroke="#2f6f6b" strokeWidth="1.4" />
-          <path d="M-50,165 C200,95 350,235 600,165 C850,95 1000,235 1250,165" fill="none" stroke="#2f6f6b" strokeWidth="1.4" />
-          <path d="M-50,210 C200,140 350,280 600,210 C850,140 1000,280 1250,210" fill="none" stroke="#2f6f6b" strokeWidth="1.4" />
-        </svg>
-
-        <div className="relative mx-auto max-w-5xl px-6 pt-10 sm:pt-16">
-          <div className="text-xs font-semibold uppercase tracking-[0.1em] text-[#8a5a3a]">
-            {EVENT.tagline}
-          </div>
-
-          <div className="mt-6 h-[3px] w-full bg-gradient-to-r from-[#b9541f] to-transparent" />
-
-          <h1 className="font-display mt-8 break-words text-[32px] leading-[0.98] uppercase tracking-[-0.01em] sm:text-6xl lg:text-[80px]">
-            The Great Chhattisgarh <span className="text-[#2f6f6b]">Run</span>
+        <div className="relative mx-auto max-w-5xl px-6 pt-10 text-center sm:pt-16">
+          <h1 className="flex justify-center">
+            <span className="sr-only">The Great Chhattisgarh Run</span>
+            <Image
+              src="/tgcg-logo-full.png"
+              alt="HIRA — The Great Chhattisgarh Run"
+              width={1891}
+              height={844}
+              priority
+              className="h-auto w-full max-w-[520px] sm:max-w-[680px] lg:max-w-[860px]"
+            />
           </h1>
 
-          <p className="mt-6 max-w-xl text-lg font-medium text-[#5c564a]">
+          <p className="mx-auto mt-8 max-w-xl text-lg font-medium text-[#5c564a]">
             {event?.name ?? EVENT.shortName} · {EVENT.edition} — {EVENT.dateLabel}, {EVENT.venueName},
             Raipur. {EVENT.theme}.
           </p>
 
-          <div className="mt-9 flex flex-wrap items-center gap-4">
+          <div className="mt-9 flex flex-wrap items-center justify-center gap-4">
             <PrimaryButton href="/register" size="lg">
               Register Now
             </PrimaryButton>

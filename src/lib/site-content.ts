@@ -44,7 +44,7 @@ export const SOCIAL_LINKS = {
 
 export const LEGAL = {
   entityLine: "LetsRun Team, Raipur, CG 492001",
-  formalName: "Runmatics OPC PVT LTD",
+  formalName: "Runmatics OPC, PVT LTD",
   cin: "U92490CT2016OPC007591",
 };
 
@@ -153,6 +153,14 @@ export const GALLERY_PHOTOS = [
   "https://p.taplink.st/p/0/e/0/5/63608018.jpg",
   "https://p.taplink.st/p/0/1/1/b/63608029.jpg",
   "https://p.taplink.st/p/6/6/e/5/63608049.jpg",
+];
+
+export const POLICY_LINKS = [
+  { href: "/policies#terms", label: "Terms & Conditions" },
+  { href: "/policies#privacy", label: "Privacy Policy" },
+  { href: "/policies#refunds", label: "Refund & Cancellation Policy" },
+  { href: "/policies#payments", label: "Payment Policy" },
+  { href: "/policies#contact", label: "Contact Us" },
 ];
 
 export const NAV_LINKS = [

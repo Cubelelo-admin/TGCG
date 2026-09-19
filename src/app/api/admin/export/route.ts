@@ -23,6 +23,7 @@ const COLUMNS = [
   "bank_account_number",
   "bank_ifsc",
   "pan_number",
+  "govt_id_drive_link",
   "ticket_category",
   "payment_status",
   "amount_inr",
@@ -58,7 +59,7 @@ export async function GET(request: Request) {
   let query = supabase
     .from("registrations")
     .select(
-      "registration_code, group_id, full_name, email, phone, gender, city, organization, running_community, date_of_birth, tshirt_size, emergency_phone, aadhar_number, bank_name_location, bank_account_number, bank_ifsc, pan_number, payment_status, amount_inr, bib_number, checked_in, created_at, ticket_categories(name)"
+      "registration_code, group_id, full_name, email, phone, gender, city, organization, running_community, date_of_birth, tshirt_size, emergency_phone, aadhar_number, bank_name_location, bank_account_number, bank_ifsc, pan_number, govt_id_drive_file_id, payment_status, amount_inr, bib_number, checked_in, created_at, ticket_categories(name)"
     )
     .eq("event_id", event.id)
     .order("created_at", { ascending: false });
@@ -82,11 +83,14 @@ export async function GET(request: Request) {
 
   const lines = [COLUMNS.join(",")];
   for (const row of rows) {
-    const values = COLUMNS.map((col) =>
-      col === "ticket_category"
-        ? csvEscape(row.ticket_categories?.name)
-        : csvEscape(row[col])
-    );
+    const values = COLUMNS.map((col) => {
+      if (col === "ticket_category") return csvEscape(row.ticket_categories?.name);
+      if (col === "govt_id_drive_link") {
+        const fileId = row.govt_id_drive_file_id;
+        return csvEscape(fileId ? `https://drive.google.com/file/d/${fileId}/view` : "");
+      }
+      return csvEscape(row[col]);
+    });
     lines.push(values.join(","));
   }
 

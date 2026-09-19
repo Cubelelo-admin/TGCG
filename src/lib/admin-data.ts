@@ -4,11 +4,11 @@ import { createServiceClient } from "@/lib/supabase/server";
 export interface RegistrationRow {
   id: string;
   full_name: string;
-  email: string;
-  phone: string;
-  city: string;
-  gender: string;
-  tshirt_size: string;
+  email: string | null;
+  phone: string | null;
+  city: string | null;
+  gender: string | null;
+  tshirt_size: string | null;
   payment_status: string;
   amount_inr: number;
   registration_code: string | null;
@@ -16,8 +16,9 @@ export interface RegistrationRow {
   checked_in: boolean;
   created_at: string;
   group_id: string | null;
-  registration_groups: { attendee_count: number; organizer_email: string } | null;
-  ticket_categories: { name: string; group: string } | null;
+  ticket_category_id: string;
+  registration_groups: { attendee_count: number; organizer_email: string; booking_code: string | null } | null;
+  ticket_categories: { name: string; group: string; hidden_from_picker: boolean } | null;
 }
 
 export async function getDashboardStats(eventId: string) {
@@ -71,7 +72,7 @@ export async function listRegistrations(params: {
   let query = supabase
     .from("registrations")
     .select(
-      "id, full_name, email, phone, city, gender, tshirt_size, payment_status, amount_inr, registration_code, bib_number, checked_in, created_at, group_id, registration_groups(attendee_count, organizer_email), ticket_categories(name, group)",
+      "id, full_name, email, phone, city, gender, tshirt_size, payment_status, amount_inr, registration_code, bib_number, checked_in, created_at, group_id, ticket_category_id, registration_groups(attendee_count, organizer_email, booking_code), ticket_categories(name, group, hidden_from_picker)",
       { count: "exact" }
     )
     .eq("event_id", params.eventId)

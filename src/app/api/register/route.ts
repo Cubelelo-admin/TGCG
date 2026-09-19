@@ -287,11 +287,17 @@ export async function POST(request: Request) {
           .eq("id", registration.id);
 
         const buffer = Buffer.from(await govtIdFile.arrayBuffer());
-        await uploadKycFileToDrive({
+        const driveResult = await uploadKycFileToDrive({
           filename: `${attendee.fullName} — ${registration.id}.${ext}`,
           mimeType: govtIdFile.type || "application/octet-stream",
           buffer,
         });
+        if (driveResult) {
+          await supabase
+            .from("registrations")
+            .update({ govt_id_drive_file_id: driveResult.fileId })
+            .eq("id", registration.id);
+        }
       } else {
         console.error("govt id upload failed", uploadError);
       }

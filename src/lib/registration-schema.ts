@@ -1,9 +1,12 @@
 import { z } from "zod";
 
 export const phoneRegex = /^[6-9]\d{9}$/; // Indian mobile numbers
-const ifscRegex = /^[A-Z]{4}0[A-Z0-9]{6}$/;
-const panRegex = /^[A-Z]{5}[0-9]{4}[A-Z]$/;
-const aadharRegex = /^\d{12}$/;
+export const ifscRegex = /^[A-Z]{4}0[A-Z0-9]{6}$/;
+export const panRegex = /^[A-Z]{5}[0-9]{4}[A-Z]$/;
+export const aadharRegex = /^\d{12}$/;
+export const bankAccountRegex = /^\d{6,20}$/;
+export const TSHIRT_SIZES = ["XS", "S", "M", "L", "XL", "XXL", "XXXL"] as const;
+export const GENDERS = ["male", "female", "others"] as const;
 
 export const MAX_GROUP_SIZE = 10;
 
@@ -31,14 +34,14 @@ export const organizerEmailSchema = z
 const attendeePersonalSchema = z.object({
   fullName: z.string().trim().min(2, "Full name is required").max(120),
   phone: z.string().regex(phoneRegex, "Enter a valid 10-digit mobile number"),
-  gender: z.enum(["male", "female", "others"]),
+  gender: z.enum(GENDERS),
   city: z.string().trim().min(2, "City is required").max(80),
   organization: z.string().trim().max(120).optional().or(z.literal("")),
   runningCommunity: z.string().trim().max(120).optional().or(z.literal("")),
   dateOfBirth: z.string().refine((v) => !Number.isNaN(Date.parse(v)), {
     message: "Enter a valid date of birth",
   }),
-  tshirtSize: z.enum(["XS", "S", "M", "L", "XL", "XXL", "XXXL"]),
+  tshirtSize: z.enum(TSHIRT_SIZES),
   emergencyPhone: z
     .string()
     .regex(phoneRegex, "Enter a valid 10-digit emergency contact number"),
@@ -47,7 +50,7 @@ const attendeePersonalSchema = z.object({
   // validateKycRequired below, since KYC fields are conditionally required.
   aadharNumber: z.string().regex(aadharRegex, "Enter a valid 12-digit Aadhar number").optional().or(z.literal("")),
   bankNameLocation: z.string().trim().max(160).optional().or(z.literal("")),
-  bankAccountNumber: z.string().trim().regex(/^\d{6,20}$/, "Enter a valid bank account number").optional().or(z.literal("")),
+  bankAccountNumber: z.string().trim().regex(bankAccountRegex, "Enter a valid bank account number").optional().or(z.literal("")),
   bankIfsc: z.string().trim().toUpperCase().regex(ifscRegex, "Enter a valid IFSC code").optional().or(z.literal("")),
   panNumber: z.string().trim().toUpperCase().regex(panRegex, "Enter a valid PAN number").optional().or(z.literal("")),
 

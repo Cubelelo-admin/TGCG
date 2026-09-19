@@ -15,8 +15,19 @@ import {
 import type { Addon, TicketCategory, TicketGroup } from "@/lib/types";
 import type {} from "@/types/razorpay";
 
-const TSHIRT_SIZES = ["XS", "S", "M", "L", "XL", "XXL", "XXXL"] as const;
 const ACCENT = "#5b3fa0";
+
+// Generic unisex round-neck reference chart — not the actual vendor's spec.
+// Swap these for the real supplier's measurements once available.
+const TSHIRT_SIZE_CHART: { size: string; chest: string; length: string }[] = [
+  { size: "XS", chest: "34", length: "26" },
+  { size: "S", chest: "36", length: "27" },
+  { size: "M", chest: "38", length: "28" },
+  { size: "L", chest: "40", length: "29" },
+  { size: "XL", chest: "42", length: "30" },
+  { size: "XXL", chest: "44", length: "31" },
+  { size: "XXXL", chest: "46", length: "32" },
+];
 
 function loadRazorpayScript(): Promise<boolean> {
   return new Promise((resolve) => {
@@ -122,6 +133,17 @@ export default function RegisterFlow({
     [categories, draftCategoryId]
   );
 
+  // While editing an already-saved attendee, restrict category switching to
+  // the same group (competitive <-> competitive, non-competitive <->
+  // non-competitive) — a prize-eligible entrant can't quietly downgrade to
+  // fun-run pricing or vice versa via the edit form. Looked up from the
+  // saved attendee (not draftCategoryId, which changes as the user picks
+  // within the group), so it stays fixed for the whole edit session.
+  const lockedGroup: TicketGroup | null =
+    editingIndex !== null
+      ? categories.find((c) => c.id === attendees[editingIndex].categoryId)?.group ?? null
+      : null;
+
   const draftTotal = useMemo(() => {
     const base = draftCategory ? Number(draftCategory.price_inr) : 0;
     const addonsTotal = addons
@@ -167,6 +189,9 @@ export default function RegisterFlow({
   // input here, and wherever the draft form's phone value is set
   // programmatically (resetDraft, startEditAttendee).
   const [phoneValue, setPhoneValue] = useState("");
+  // Mirrors "tshirtSize" the same way phoneValue mirrors "phone" — needed to
+  // highlight the selected size card without react-hook-form's watch().
+  const [tshirtSizeValue, setTshirtSizeValue] = useState("");
   // Only the very first attendee in the booking needs phone verification.
   const isPrimaryAttendee = editingIndex === 0 || (editingIndex === null && attendees.length === 0);
   const isPhoneVerified = Boolean(phoneValue) && phoneValue === otpVerifiedPhone;
@@ -301,6 +326,7 @@ export default function RegisterFlow({
     setDraftGovtIdFile(null);
     setCategoryError(null);
     setPhoneValue("");
+    setTshirtSizeValue("");
     reset();
   }
 
@@ -320,6 +346,7 @@ export default function RegisterFlow({
     setDraftGovtIdFile(item.govtIdFile);
     setCategoryError(null);
     setPhoneValue(item.phone);
+    setTshirtSizeValue(item.tshirtSize);
     reset(toPersonalFields(item));
     setEditingIndex(index);
     setServerError(null);
@@ -503,12 +530,12 @@ export default function RegisterFlow({
   return (
     <div className="mt-6">
       <AttendeeStep
-        eventName={eventName}
         categories={categories}
         addons={addons}
         draftCategoryId={draftCategoryId}
         draftCategory={draftCategory}
         categoryError={categoryError}
+        lockedGroup={lockedGroup}
         openGroups={openGroups}
         onToggleGroup={toggleGroup}
         onSelectCategory={(id) => {
@@ -534,6 +561,8 @@ export default function RegisterFlow({
         isPrimaryAttendee={isPrimaryAttendee}
         phoneValue={phoneValue}
         onPhoneChange={setPhoneValue}
+        tshirtSizeValue={tshirtSizeValue}
+        onTshirtSizeChange={setTshirtSizeValue}
         isPhoneVerified={isPhoneVerified}
         showOtpCodeInput={showOtpCodeInput}
         otpCode={otpCode}
@@ -567,12 +596,12 @@ export default function RegisterFlow({
 }
 
 function AttendeeStep({
-  eventName,
   categories,
   addons,
   draftCategoryId,
   draftCategory,
   categoryError,
+  lockedGroup,
   openGroups,
   onToggleGroup,
   onSelectCategory,
@@ -595,6 +624,8 @@ function AttendeeStep({
   isPrimaryAttendee,
   phoneValue,
   onPhoneChange,
+  tshirtSizeValue,
+  onTshirtSizeChange,
   isPhoneVerified,
   showOtpCodeInput,
   otpCode,
@@ -623,12 +654,12 @@ function AttendeeStep({
   onSaveChildRunner,
   onCancelChildForm,
 }: {
-  eventName: string;
   categories: TicketCategory[];
   addons: Addon[];
   draftCategoryId: string | null;
   draftCategory: TicketCategory | null;
   categoryError: string | null;
+  lockedGroup: TicketGroup | null;
   openGroups: Record<string, boolean>;
   onToggleGroup: (key: string) => void;
   onSelectCategory: (id: string | null) => void;
@@ -654,6 +685,8 @@ function AttendeeStep({
   isPrimaryAttendee: boolean;
   phoneValue: string;
   onPhoneChange: (value: string) => void;
+  tshirtSizeValue: string;
+  onTshirtSizeChange: (value: string) => void;
   isPhoneVerified: boolean;
   showOtpCodeInput: boolean;
   otpCode: string;
@@ -686,9 +719,7 @@ function AttendeeStep({
   return (
     <div>
       <form className="mx-auto max-w-xl space-y-6">
-        <div ref={formTopRef} className="scroll-mt-6">
-          <p className="text-sm text-[#6b7280]">{eventName}</p>
-        </div>
+        <div ref={formTopRef} className="scroll-mt-6" />
 
         {summaryItems.length > 0 && (
           <SummaryCard
@@ -720,7 +751,7 @@ function AttendeeStep({
           <Field label="Full Name" required error={errors.fullName?.message}>
             <input {...register("fullName")} className={inputClass} />
           </Field>
-          <Field label="Contact Number" required error={errors.phone?.message}>
+          <Field label="WhatsApp Contact Number" required error={errors.phone?.message}>
             <input
               {...register("phone", { onChange: (e) => onPhoneChange(e.target.value) })}
               placeholder="10-digit mobile number"
@@ -770,16 +801,11 @@ function AttendeeStep({
             required
             error={errors.tshirtSize?.message}
           >
-            <select {...register("tshirtSize")} className={inputClass} defaultValue="">
-              <option value="" disabled>
-                Select size
-              </option>
-              {TSHIRT_SIZES.map((s) => (
-                <option key={s} value={s}>
-                  {s}
-                </option>
-              ))}
-            </select>
+            <SizePicker
+              register={register}
+              value={tshirtSizeValue}
+              onChange={onTshirtSizeChange}
+            />
           </Field>
           <Field label="Emergency Contact Number" required error={errors.emergencyPhone?.message}>
             <input {...register("emergencyPhone")} placeholder="10-digit mobile number" className={inputClass} />
@@ -787,9 +813,16 @@ function AttendeeStep({
         </FormCard>
 
         <FormCard title="Select Ticket">
+          {lockedGroup && (
+            <p className="pb-2 text-xs text-[#6b7280]">
+              You can only switch to another{" "}
+              {lockedGroup === "competitive" ? "competitive" : "non-competitive"} category.
+            </p>
+          )}
           <TicketAccordion
             categories={categories}
             categoryId={draftCategoryId}
+            lockedGroup={lockedGroup}
             openGroups={openGroups}
             onToggleGroup={onToggleGroup}
             onSelectCategory={onSelectCategory}
@@ -945,6 +978,11 @@ function AttendeeStep({
               </button>
             }
           >
+            <p className="text-sm text-[#6b7280]">
+              This ticket is for children accompanying a registered runner. It provides a non-timed
+              bib and access to the holding area, allowing them to safely participate and enjoy the
+              event experience.
+            </p>
             <Field label="Child's Name" required>
               <input
                 value={childNameDraft}
@@ -1017,10 +1055,16 @@ function OtpVerification({
           type="button"
           onClick={onSend}
           disabled={!phoneValid || sending}
-          className="text-sm font-semibold underline disabled:cursor-not-allowed disabled:opacity-50"
-          style={{ color: ACCENT }}
+          className="inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-50"
+          style={{ borderColor: "#25D366", color: "#0f5132", backgroundColor: "#dcf8e6" }}
         >
-          {sending ? "Sending code..." : "Send OTP on WhatsApp to verify this number"}
+          {sending ? (
+            "Sending code..."
+          ) : (
+            <>
+              Send OTP on <WhatsAppIcon /> to verify this number
+            </>
+          )}
         </button>
       ) : (
         <div className="flex flex-wrap items-center gap-2">
@@ -1060,40 +1104,46 @@ function OtpVerification({
 function TicketAccordion({
   categories,
   categoryId,
+  lockedGroup,
   openGroups,
   onToggleGroup,
   onSelectCategory,
 }: {
   categories: TicketCategory[];
   categoryId: string | null;
+  lockedGroup: TicketGroup | null;
   openGroups: Record<string, boolean>;
   onToggleGroup: (key: string) => void;
   onSelectCategory: (id: string | null) => void;
 }) {
-  const groups: { key: TicketGroup; label: string }[] = [
+  const allGroups: { key: TicketGroup; label: string }[] = [
     { key: "competitive", label: "All Competitive Tickets (नकद पुरस्कार श्रेणी)" },
     { key: "non_competitive", label: "All Non Competitive Tickets" },
   ];
+  const groups = lockedGroup ? allGroups.filter((g) => g.key === lockedGroup) : allGroups;
 
   return (
     <div className="border-t border-[#e5e7eb]">
       {groups.map(({ key, label }) => {
         const group = categories.filter((c) => c.group === key);
         if (group.length === 0) return null;
-        const open = openGroups[key];
+        const open = lockedGroup ? true : openGroups[key];
         return (
           <div key={key} className="border-b border-[#e5e7eb]">
             <button
               type="button"
               onClick={() => onToggleGroup(key)}
-              className="flex w-full items-center gap-3 py-4 text-left"
+              disabled={Boolean(lockedGroup)}
+              className="flex w-full items-center gap-3 py-4 text-left disabled:cursor-default"
             >
-              <span
-                className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-sm font-bold"
-                style={{ backgroundColor: `${ACCENT}1a`, color: ACCENT }}
-              >
-                {open ? "−" : "+"}
-              </span>
+              {!lockedGroup && (
+                <span
+                  className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-sm font-bold"
+                  style={{ backgroundColor: `${ACCENT}1a`, color: ACCENT }}
+                >
+                  {open ? "−" : "+"}
+                </span>
+              )}
               <span className="text-sm font-bold uppercase tracking-wide text-[#111827]">{label}</span>
             </button>
 
@@ -1112,9 +1162,12 @@ function TicketAccordion({
                           <p className="mt-2 max-w-lg text-sm leading-relaxed text-[#6b7280]">{c.description}</p>
                         )}
                         {c.min_age && (
-                          <p className="mt-2 text-sm text-[#6b7280]">
+                          <span
+                            className="mt-2 inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold"
+                            style={{ backgroundColor: `${ACCENT}1a`, color: ACCENT }}
+                          >
                             Age Eligibility: {c.min_age} years &amp; above
-                          </p>
+                          </span>
                         )}
                       </div>
                       <ToggleButton
@@ -1288,11 +1341,124 @@ function Field({
   );
 }
 
+/**
+ * A dropdown that opens onto the chest/length chart directly, instead of a
+ * plain list of size names — the measurements are the deciding factor, so
+ * putting them right on the option removes a step (no separate "Size guide"
+ * lookup). Backed by a real (visually hidden) radio per size so
+ * react-hook-form's register() wires it up exactly like the Gender radios
+ * above; `value` is the parent's mirrored form state (see phoneValue for why
+ * this file avoids watch()), used only to show the current selection.
+ */
+function SizePicker({
+  register,
+  value,
+  onChange,
+}: {
+  register: UseFormRegister<AttendeeFieldsInput>;
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const selected = TSHIRT_SIZE_CHART.find((row) => row.size === value) ?? null;
+
+  return (
+    <div>
+      <button
+        type="button"
+        onClick={(e) => {
+          e.preventDefault();
+          setOpen((o) => !o);
+        }}
+        aria-expanded={open}
+        className={`${inputClass} flex items-center justify-between gap-2 text-left`}
+      >
+        <span className={selected ? undefined : "text-[#9ca3af]"}>
+          {selected ? `${selected.size} — Chest ${selected.chest}″, Length ${selected.length}″` : "Select size"}
+        </span>
+        <ChevronDownIcon open={open} />
+      </button>
+
+      {/*
+        Rendered in normal flow (not an absolute/floating overlay) because
+        FormCard clips overflow for its rounded corners — an overlay here
+        would get cut off instead of floating above the rest of the form.
+      */}
+      {open && (
+        <div
+          className="mt-1 max-h-72 overflow-y-auto rounded-lg border bg-white shadow-sm"
+          style={{ borderColor: "#e5e7eb" }}
+        >
+          <p className="border-b px-3 py-2 text-xs text-[#6b7280]" style={{ borderColor: "#f3f4f6" }}>
+            Approximate measurements in inches — if you&apos;re between sizes, we recommend sizing up.
+          </p>
+          {TSHIRT_SIZE_CHART.map((row) => {
+            const isSelected = value === row.size;
+            return (
+              <label
+                key={row.size}
+                className="flex cursor-pointer items-center justify-between gap-3 border-b px-3 py-2 text-sm last:border-b-0"
+                style={{
+                  borderColor: "#f3f4f6",
+                  backgroundColor: isSelected ? `${ACCENT}1a` : "transparent",
+                }}
+              >
+                <input
+                  type="radio"
+                  value={row.size}
+                  {...register("tshirtSize", {
+                    onChange: (e) => {
+                      onChange(e.target.value);
+                      setOpen(false);
+                    },
+                  })}
+                  className="sr-only"
+                />
+                <span className="font-semibold" style={{ color: isSelected ? ACCENT : "#111827" }}>
+                  {row.size}
+                </span>
+                <span className="text-xs text-[#6b7280]">
+                  Chest {row.chest}&Prime; &middot; Length {row.length}&Prime;
+                </span>
+              </label>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ChevronDownIcon({ open }: { open: boolean }) {
+  return (
+    <svg
+      width="14"
+      height="14"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.5"
+      className="shrink-0 transition-transform"
+      style={{ transform: open ? "rotate(180deg)" : undefined, color: "#6b7280" }}
+    >
+      <path d="m6 9 6 6 6-6" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
 function CheckIcon() {
   return (
     <svg width="18" height="18" viewBox="0 0 24 24">
       <circle cx="12" cy="12" r="12" fill="#22c55e" opacity="0.15" />
       <path d="M7 12.5l3 3 7-7" stroke="#16a34a" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function WhatsAppIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="#25D366" aria-label="WhatsApp">
+      <path d="M12 2C6.48 2 2 6.48 2 12c0 1.85.5 3.58 1.35 5.07L2 22l5.06-1.33A9.94 9.94 0 0 0 12 22c5.52 0 10-4.48 10-10S17.52 2 12 2Zm0 18.1c-1.62 0-3.14-.44-4.44-1.2l-.32-.19-3.16.83.84-3.09-.2-.32A8.09 8.09 0 0 1 3.9 12c0-4.47 3.63-8.1 8.1-8.1s8.1 3.63 8.1 8.1-3.63 8.1-8.1 8.1Zm4.46-6.07c-.24-.12-1.44-.71-1.66-.79-.22-.08-.39-.12-.55.12-.16.24-.63.79-.78.95-.14.16-.29.18-.53.06-.24-.12-1.02-.38-1.94-1.2-.72-.64-1.2-1.43-1.35-1.67-.14-.24-.02-.37.11-.49.11-.11.24-.29.36-.43.12-.14.16-.24.24-.4.08-.16.04-.3-.02-.42-.06-.12-.55-1.33-.76-1.82-.2-.48-.4-.42-.55-.42-.14-.01-.3-.01-.47-.01-.16 0-.42.06-.65.3-.22.24-.85.83-.85 2.03s.87 2.36 1 2.52c.12.16 1.71 2.61 4.15 3.66.58.25 1.03.4 1.38.51.58.18 1.11.16 1.53.1.47-.07 1.44-.59 1.64-1.16.2-.57.2-1.06.14-1.16-.06-.1-.22-.16-.46-.28Z" />
     </svg>
   );
 }

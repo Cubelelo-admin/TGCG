@@ -15,6 +15,8 @@ export interface TicketCategory {
   is_active: boolean;
   hidden_from_picker: boolean;
   sort_order: number;
+  bib_prefix: string | null;
+  bib_fixed_label: string | null;
 }
 
 export interface Addon {
