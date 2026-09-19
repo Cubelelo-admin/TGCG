@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import { CONTACT, LEGAL, NAV_LINKS, POLICY_LINKS, SOCIAL_LINKS } from "@/lib/site-content";
 
@@ -6,7 +7,9 @@ export default function Footer() {
     <footer className="border-t border-[#17181a]/10 bg-[#17181a] text-[#f6ede1]">
       <div className="mx-auto max-w-6xl px-6 py-14 grid gap-10 sm:grid-cols-2 lg:grid-cols-4">
         <div>
-          <span className="text-sm font-bold tracking-[0.05em]">LETSRUN</span>
+          <span className="inline-block rounded-xl bg-[#f6ede1] px-3 py-2">
+            <Image src="/lr-logo.png" alt="LetsRun" width={370} height={234} className="h-12 w-auto" />
+          </span>
           <p className="mt-3 text-sm text-[#f6ede1]/60 leading-relaxed">
             The Great Chhattisgarh Run — running for cleaner, greener rivers.
           </p>

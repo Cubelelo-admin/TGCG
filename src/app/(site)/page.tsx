@@ -82,9 +82,9 @@ export default async function HomePage() {
             description="Relive past editions — recap films and race-day photos."
           />
           <ExploreCard
-            href="/rules"
-            title="Rules & Regulations"
-            description="Eligibility, BIB collection, cut-offs, and prize policy."
+            href="/policies"
+            title="Rules & Policies"
+            description="Race rules, BIB collection, prize policy, refunds, payments and privacy."
           />
           <ExploreCard
             href="/faq"

@@ -13,7 +13,7 @@ export default function Header() {
     <header className="sticky top-0 z-50 border-b border-[#17181a]/10 bg-[#f6ede1]/95 backdrop-blur">
       <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
         <Link href="/" className="flex items-center gap-3" onClick={() => setOpen(false)}>
-          <Image src="/logo-transparent.png" alt="LetsRun" width={300} height={202} className="h-11 w-auto" />
+          <Image src="/lr-logo.png" alt="LetsRun" width={370} height={234} className="h-11 w-auto" />
         </Link>
 
         <nav className="hidden items-center gap-8 lg:flex">

@@ -166,6 +166,6 @@ export const POLICY_LINKS = [
 export const NAV_LINKS = [
   { href: "/race-information", label: "Race Information" },
   { href: "/gallery", label: "Gallery" },
-  { href: "/rules", label: "Rules & Regulations" },
+  { href: "/policies", label: "Rules & Policies" },
   { href: "/faq", label: "FAQ" },
 ];

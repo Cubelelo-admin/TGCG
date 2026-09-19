@@ -3,9 +3,9 @@ import type { ReactNode } from "react";
 import { CONTACT, LEGAL } from "@/lib/site-content";
 
 export const metadata: Metadata = {
-  title: "Policies — LetsRun TGCG 2026",
+  title: "Rules & Policies — LetsRun TGCG 2026",
   description:
-    "Terms & conditions, refund & cancellation policy, payment policy, privacy policy and contact details for LetsRun TGCG 2026.",
+    "Race rules & regulations, prize and BIB collection policy, refund & cancellation, payments, privacy and contact details for LetsRun TGCG 2026.",
 };
 
 // Rules and Regulations TGCG.run 2026 — carried over from the official Race
@@ -82,17 +82,20 @@ export default function PoliciesPage() {
       <div className="border-b border-[#17181a]/10 bg-[#fbf7ee]">
         <div className="mx-auto max-w-3xl px-6 py-16">
           <div className="text-xs font-semibold uppercase tracking-[0.1em] text-[#8a5a3a]">
-            Policies
+            Rules & Policies
           </div>
           <h1 className="font-display mt-4 text-3xl uppercase tracking-[-0.01em] sm:text-5xl">
-            Terms, refunds, payments & privacy
+            Rules, refunds, payments & privacy
           </h1>
+          <p className="mt-4 text-[#6d6656]">
+            Every registrant is required to read and accept these rules during registration.
+          </p>
           <p className="mt-4 text-[#6d6656]">
             Event by {LEGAL.entityLine} &mdash; formally {LEGAL.formalName} (CIN {LEGAL.cin}).
           </p>
           <ul className="mt-6 flex flex-wrap gap-x-5 gap-y-2 text-sm font-medium text-[#2f6f6b]">
             <li>
-              <a href="#terms" className="hover:underline">Terms & Conditions</a>
+              <a href="#terms" className="hover:underline">Rules & Terms</a>
             </li>
             <li>
               <a href="#refunds" className="hover:underline">Refund & Cancellation</a>
