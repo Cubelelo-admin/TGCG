@@ -30,7 +30,7 @@ export default function AdminLoginPage() {
   return (
     <main className="flex min-h-screen items-center justify-center bg-neutral-950 px-6 text-neutral-50">
       <div className="w-full max-w-sm rounded-2xl border border-white/10 bg-white/[0.03] p-8 text-center">
-        <Image src="/logo.png" alt="LetsRun" width={300} height={300} className="mx-auto h-12 w-12" />
+        <Image src="/logo.png" alt="LetsRun" width={300} height={202} className="mx-auto h-14 w-auto rounded-md" />
         <h1 className="mt-4 text-xl font-bold">TGCG Admin</h1>
         <p className="mt-1 text-sm text-neutral-400">Sign in to manage registrations</p>
 

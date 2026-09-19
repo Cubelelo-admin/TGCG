@@ -37,7 +37,7 @@ export default async function AdminProtectedLayout({
         <div className="mx-auto flex max-w-[1920px] flex-wrap items-center justify-between gap-3 px-4 py-4 sm:px-6">
           <nav className="flex items-center gap-4 text-sm sm:gap-6">
             <Link href="/admin" className="flex items-center gap-2 font-semibold">
-              <Image src="/logo.png" alt="" width={300} height={300} className="h-7 w-7 shrink-0" />
+              <Image src="/logo.png" alt="" width={300} height={202} className="h-8 w-auto shrink-0 rounded" />
               <span className="whitespace-nowrap">TGCG Admin</span>
             </Link>
             <Link href="/admin/registrations" className="whitespace-nowrap text-neutral-400 hover:text-neutral-200">
