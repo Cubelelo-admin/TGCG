@@ -23,6 +23,8 @@ update addons set sold_count = 0;
 
 -- BIB numbering (0016_bib_number.sql) — restart per-distance counters.
 update bib_counters set last_value = 0;
+-- Retired-BIB pool (0020_reuse_retired_bibs.sql) — empty it alongside.
+delete from bib_released;
 
 -- Human-readable code numbering (0008_registration_code.sql /
 -- 0011_booking_code.sql) — restart so the first real registration is
