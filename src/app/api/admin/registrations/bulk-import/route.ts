@@ -97,6 +97,9 @@ export async function POST(request: Request) {
           group_id: group.id,
           amount_inr: amountInr,
           payment_status: "pending",
+          // Collected offline — flagged so it's totalled apart from Razorpay
+          // settlements (see 0019_manual_payments.sql).
+          payment_method: "bulk_import",
           full_name: row.fullName.trim(),
           email: row.email.trim() || null,
           phone: isChild ? null : row.phone.trim(),

@@ -26,6 +26,12 @@ const COLUMNS = [
   "govt_id_drive_link",
   "ticket_category",
   "payment_status",
+  "payment_method",
+  "manual_payment_mode",
+  "manual_payment_ref",
+  "manual_payment_note",
+  "manual_paid_by",
+  "manual_paid_at",
   "amount_inr",
   "bib_number",
   "checked_in",
@@ -54,17 +60,20 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const q = searchParams.get("q");
   const status = searchParams.get("status");
+  const method = searchParams.get("method");
 
   const supabase = createServiceClient();
   let query = supabase
     .from("registrations")
     .select(
-      "registration_code, group_id, full_name, email, phone, gender, city, organization, running_community, date_of_birth, tshirt_size, emergency_phone, aadhar_number, bank_name_location, bank_account_number, bank_ifsc, pan_number, govt_id_drive_file_id, payment_status, amount_inr, bib_number, checked_in, created_at, ticket_categories(name)"
+      "registration_code, group_id, full_name, email, phone, gender, city, organization, running_community, date_of_birth, tshirt_size, emergency_phone, aadhar_number, bank_name_location, bank_account_number, bank_ifsc, pan_number, govt_id_drive_file_id, payment_status, payment_method, manual_payment_mode, manual_payment_ref, manual_payment_note, manual_paid_by, manual_paid_at, amount_inr, bib_number, checked_in, created_at, ticket_categories(name)"
     )
     .eq("event_id", event.id)
     .order("created_at", { ascending: false });
 
   if (status) query = query.eq("payment_status", status);
+  if (method === "direct") query = query.neq("payment_method", "razorpay");
+  else if (method) query = query.eq("payment_method", method);
   if (q) {
     const term = q.trim();
     query = query.or(

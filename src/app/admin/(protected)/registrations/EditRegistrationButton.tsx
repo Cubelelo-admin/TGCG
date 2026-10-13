@@ -48,17 +48,32 @@ export default function EditRegistrationButton({
     (c) => !c.hidden_from_picker && c.group === currentGroup
   );
 
-  const [form, setForm] = useState({
-    fullName: registration.full_name,
-    email: registration.email ?? "",
-    phone: registration.phone ?? "",
-    gender: registration.gender ?? GENDERS[0],
-    city: registration.city ?? "",
-    tshirtSize: registration.tshirt_size ?? TSHIRT_SIZES[0],
-    bibNumber: registration.bib_number ?? "",
-    checkedIn: registration.checked_in,
-    ticketCategoryId: registration.ticket_category_id,
-  });
+  const [loading, setLoading] = useState(false);
+  const [form, setForm] = useState(() => formFrom(registration));
+
+  // The listing only carries the basics; KYC/DOB/emergency contact etc. are
+  // fetched on open so they aren't shipped to the page for every row.
+  async function openDialog() {
+    setOpen(true);
+    setError(null);
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/admin/registrations/${registration.id}`);
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body.error ?? "Could not load registration");
+      setForm(formFrom(body.registration as FullRegistration));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not load registration");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  const selectedCategory = categories.find((c) => c.id === form.ticketCategoryId);
+  const showKyc =
+    !isChildRunner &&
+    (selectedCategory?.requires_kyc ||
+      Boolean(form.aadharNumber || form.bankNameLocation || form.bankAccountNumber || form.bankIfsc || form.panNumber));
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -76,6 +91,16 @@ export default function EditRegistrationButton({
       body.gender = form.gender;
       body.city = form.city;
       body.tshirtSize = form.tshirtSize;
+      body.dateOfBirth = form.dateOfBirth;
+      body.emergencyPhone = form.emergencyPhone;
+      body.organization = form.organization;
+      body.runningCommunity = form.runningCommunity;
+      body.aadharNumber = form.aadharNumber;
+      body.bankNameLocation = form.bankNameLocation;
+      body.bankAccountNumber = form.bankAccountNumber;
+      body.bankIfsc = form.bankIfsc;
+      body.panNumber = form.panNumber;
+      body.acceptedTerms = form.acceptedTerms;
       if (form.ticketCategoryId !== registration.ticket_category_id) {
         body.ticketCategoryId = form.ticketCategoryId;
       }
@@ -103,7 +128,7 @@ export default function EditRegistrationButton({
     <>
       <button
         type="button"
-        onClick={() => setOpen(true)}
+        onClick={openDialog}
         aria-label="Edit registration"
         title="Edit registration"
         className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-white/20 text-neutral-300 hover:border-white/40 hover:text-neutral-50"
@@ -118,6 +143,7 @@ export default function EditRegistrationButton({
             className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-2xl border border-white/10 bg-neutral-900 p-5 text-neutral-50 sm:p-6"
           >
             <h2 className="text-lg font-bold">Edit registration</h2>
+            {loading && <p className="mt-2 text-xs text-neutral-400">Loading full record…</p>}
 
             <div className="mt-4 grid gap-3">
               <Field label="Full name">
@@ -206,6 +232,88 @@ export default function EditRegistrationButton({
                       className={inputClass}
                     />
                   </Field>
+                  <div className="grid grid-cols-2 gap-3">
+                    <Field label="Date of birth">
+                      <input
+                        type="date"
+                        value={form.dateOfBirth}
+                        onChange={(e) => setForm((f) => ({ ...f, dateOfBirth: e.target.value }))}
+                        className={inputClass}
+                      />
+                    </Field>
+                    <Field label="Emergency phone">
+                      <input
+                        value={form.emergencyPhone}
+                        onChange={(e) => setForm((f) => ({ ...f, emergencyPhone: e.target.value }))}
+                        className={inputClass}
+                      />
+                    </Field>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <Field label="Organization">
+                      <input
+                        value={form.organization}
+                        onChange={(e) => setForm((f) => ({ ...f, organization: e.target.value }))}
+                        placeholder="Optional"
+                        className={inputClass}
+                      />
+                    </Field>
+                    <Field label="Running community">
+                      <input
+                        value={form.runningCommunity}
+                        onChange={(e) => setForm((f) => ({ ...f, runningCommunity: e.target.value }))}
+                        placeholder="Optional"
+                        className={inputClass}
+                      />
+                    </Field>
+                  </div>
+
+                  {showKyc && (
+                    <fieldset className="grid gap-3 rounded-lg border border-white/10 p-3">
+                      <legend className="px-1 text-xs text-neutral-400">
+                        Prize-money KYC{selectedCategory?.requires_kyc ? " (required for this category)" : ""}
+                      </legend>
+                      <div className="grid grid-cols-2 gap-3">
+                        <Field label="Aadhar number">
+                          <input
+                            value={form.aadharNumber}
+                            onChange={(e) => setForm((f) => ({ ...f, aadharNumber: e.target.value }))}
+                            className={inputClass}
+                          />
+                        </Field>
+                        <Field label="PAN (optional)">
+                          <input
+                            value={form.panNumber}
+                            onChange={(e) => setForm((f) => ({ ...f, panNumber: e.target.value }))}
+                            className={inputClass}
+                          />
+                        </Field>
+                      </div>
+                      <Field label="Bank name & location">
+                        <input
+                          value={form.bankNameLocation}
+                          onChange={(e) => setForm((f) => ({ ...f, bankNameLocation: e.target.value }))}
+                          className={inputClass}
+                        />
+                      </Field>
+                      <div className="grid grid-cols-2 gap-3">
+                        <Field label="Account number">
+                          <input
+                            value={form.bankAccountNumber}
+                            onChange={(e) => setForm((f) => ({ ...f, bankAccountNumber: e.target.value }))}
+                            className={inputClass}
+                          />
+                        </Field>
+                        <Field label="IFSC">
+                          <input
+                            value={form.bankIfsc}
+                            onChange={(e) => setForm((f) => ({ ...f, bankIfsc: e.target.value }))}
+                            className={inputClass}
+                          />
+                        </Field>
+                      </div>
+                    </fieldset>
+                  )}
                 </>
               )}
 
@@ -232,6 +340,17 @@ export default function EditRegistrationButton({
                 />
                 Checked in
               </label>
+              {!isChildRunner && (
+                <label className="flex items-center gap-2 text-sm text-neutral-300">
+                  <input
+                    type="checkbox"
+                    checked={form.acceptedTerms}
+                    onChange={(e) => setForm((f) => ({ ...f, acceptedTerms: e.target.checked }))}
+                    className="h-4 w-4 rounded border-white/20 bg-white/[0.04]"
+                  />
+                  Accepted waiver &amp; rules
+                </label>
+              )}
             </div>
 
             {error && <p className="mt-3 text-sm text-red-400">{error}</p>}
@@ -247,7 +366,7 @@ export default function EditRegistrationButton({
               </button>
               <button
                 type="submit"
-                disabled={saving}
+                disabled={saving || loading}
                 className="rounded-full bg-emerald-500 px-4 py-2 text-sm font-semibold text-neutral-950 hover:bg-emerald-400 disabled:opacity-50"
               >
                 {saving ? "Saving..." : "Save changes"}
@@ -258,6 +377,44 @@ export default function EditRegistrationButton({
       )}
     </>
   );
+}
+
+type FullRegistration = EditableRegistration & {
+  date_of_birth?: string | null;
+  emergency_phone?: string | null;
+  organization?: string | null;
+  running_community?: string | null;
+  aadhar_number?: string | null;
+  bank_name_location?: string | null;
+  bank_account_number?: string | null;
+  bank_ifsc?: string | null;
+  pan_number?: string | null;
+  accepted_waiver?: boolean;
+  accepted_rules?: boolean;
+};
+
+function formFrom(r: FullRegistration) {
+  return {
+    fullName: r.full_name,
+    email: r.email ?? "",
+    phone: r.phone ?? "",
+    gender: r.gender ?? GENDERS[0],
+    city: r.city ?? "",
+    tshirtSize: r.tshirt_size ?? TSHIRT_SIZES[0],
+    bibNumber: r.bib_number ?? "",
+    checkedIn: r.checked_in,
+    ticketCategoryId: r.ticket_category_id,
+    dateOfBirth: r.date_of_birth ?? "",
+    emergencyPhone: r.emergency_phone ?? "",
+    organization: r.organization ?? "",
+    runningCommunity: r.running_community ?? "",
+    aadharNumber: r.aadhar_number ?? "",
+    bankNameLocation: r.bank_name_location ?? "",
+    bankAccountNumber: r.bank_account_number ?? "",
+    bankIfsc: r.bank_ifsc ?? "",
+    panNumber: r.pan_number ?? "",
+    acceptedTerms: Boolean(r.accepted_waiver && r.accepted_rules),
+  };
 }
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {

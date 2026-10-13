@@ -17,49 +17,79 @@ export interface RegistrationRow {
   created_at: string;
   group_id: string | null;
   ticket_category_id: string;
+  payment_method: string;
+  manual_payment_mode: string | null;
+  manual_payment_ref: string | null;
+  manual_payment_note: string | null;
+  manual_paid_by: string | null;
+  manual_paid_at: string | null;
   registration_groups: { attendee_count: number; organizer_email: string; booking_code: string | null } | null;
   ticket_categories: { name: string; group: string; hidden_from_picker: boolean } | null;
+}
+
+export type PaymentTotals = {
+  paidCount: number;
+  revenue: number;
+  razorpay: { count: number; amount: number };
+  /** Everything not settled through Razorpay (manual override + bulk import). */
+  direct: { count: number; amount: number };
+  manual: { count: number; amount: number };
+  bulkImport: { count: number; amount: number };
+};
+
+/** Paid totals split by payment method — aggregated in Postgres (see 0019_manual_payments.sql). */
+export async function getPaymentTotals(eventId: string): Promise<PaymentTotals> {
+  const supabase = createServiceClient();
+  const { data, error } = await supabase.rpc("payment_totals", { p_event_id: eventId });
+  if (error) console.error("payment_totals failed", error);
+
+  const rows = (data ?? []) as { payment_method: string; paid_count: number; amount_inr: number }[];
+  const pick = (method: string) => {
+    const row = rows.find((r) => r.payment_method === method);
+    return { count: Number(row?.paid_count ?? 0), amount: Number(row?.amount_inr ?? 0) };
+  };
+
+  const razorpay = pick("razorpay");
+  const manual = pick("manual");
+  const bulkImport = pick("bulk_import");
+  const direct = { count: manual.count + bulkImport.count, amount: manual.amount + bulkImport.amount };
+  return {
+    paidCount: razorpay.count + direct.count,
+    revenue: razorpay.amount + direct.amount,
+    razorpay,
+    direct,
+    manual,
+    bulkImport,
+  };
 }
 
 export async function getDashboardStats(eventId: string) {
   const supabase = createServiceClient();
 
-  const [{ count: totalPaid }, { data: revenueRows }, { data: categories }] =
-    await Promise.all([
-      supabase
-        .from("registrations")
-        .select("id", { count: "exact", head: true })
-        .eq("event_id", eventId)
-        .eq("payment_status", "paid"),
-      supabase
-        .from("registrations")
-        .select("amount_inr")
-        .eq("event_id", eventId)
-        .eq("payment_status", "paid"),
-      supabase
-        .from("ticket_categories")
-        .select("id, name, sold_count")
-        .eq("event_id", eventId)
-        .order("sort_order", { ascending: true }),
-    ]);
-
-  const revenue = (revenueRows ?? []).reduce(
-    (sum, r) => sum + Number(r.amount_inr),
-    0
-  );
+  const [totals, { data: categories }] = await Promise.all([
+    getPaymentTotals(eventId),
+    supabase
+      .from("ticket_categories")
+      .select("id, name, sold_count")
+      .eq("event_id", eventId)
+      .order("sort_order", { ascending: true }),
+  ]);
 
   return {
-    totalPaid: totalPaid ?? 0,
-    revenue,
+    totals,
     categories: categories ?? [],
   };
 }
+
+/** "direct" = anything not paid through Razorpay. */
+export const PAYMENT_METHOD_FILTERS = ["razorpay", "direct", "manual", "bulk_import"] as const;
 
 export async function listRegistrations(params: {
   eventId: string;
   search?: string;
   status?: string;
   groupId?: string;
+  method?: string;
   page?: number;
   pageSize?: number;
 }) {
@@ -72,7 +102,7 @@ export async function listRegistrations(params: {
   let query = supabase
     .from("registrations")
     .select(
-      "id, full_name, email, phone, city, gender, tshirt_size, payment_status, amount_inr, registration_code, bib_number, checked_in, created_at, group_id, ticket_category_id, registration_groups(attendee_count, organizer_email, booking_code), ticket_categories(name, group, hidden_from_picker)",
+      "id, full_name, email, phone, city, gender, tshirt_size, payment_status, amount_inr, registration_code, bib_number, checked_in, created_at, group_id, ticket_category_id, payment_method, manual_payment_mode, manual_payment_ref, manual_payment_note, manual_paid_by, manual_paid_at, registration_groups(attendee_count, organizer_email, booking_code), ticket_categories(name, group, hidden_from_picker)",
       { count: "exact" }
     )
     .eq("event_id", params.eventId)
@@ -81,6 +111,11 @@ export async function listRegistrations(params: {
 
   if (params.status) {
     query = query.eq("payment_status", params.status);
+  }
+  if (params.method === "direct") {
+    query = query.neq("payment_method", "razorpay");
+  } else if (params.method) {
+    query = query.eq("payment_method", params.method);
   }
   if (params.groupId) {
     query = query.eq("group_id", params.groupId);

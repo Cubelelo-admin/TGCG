@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { getEvent } from "@/lib/catalog";
 import { getDashboardStats } from "@/lib/admin-data";
 
@@ -8,16 +9,30 @@ export default async function AdminDashboardPage() {
   }
 
   const stats = await getDashboardStats(event.id);
+  const { totals } = stats;
 
   return (
     <div>
       <h1 className="text-2xl font-bold">{event.name}</h1>
-      <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        <StatCard label="Paid Registrations" value={stats.totalPaid.toLocaleString("en-IN")} />
+      <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <StatCard label="Paid Registrations" value={totals.paidCount.toLocaleString("en-IN")} />
+        <StatCard label="Total Revenue" value={`₹${totals.revenue.toLocaleString("en-IN")}`} />
         <StatCard
-          label="Revenue"
-          value={`₹${stats.revenue.toLocaleString("en-IN")}`}
+          label="Via Razorpay"
+          value={`₹${totals.razorpay.amount.toLocaleString("en-IN")}`}
+          sub={`${totals.razorpay.count.toLocaleString("en-IN")} paid`}
         />
+        <Link
+          href={{ pathname: "/admin/registrations", query: { method: "direct", status: "paid" } }}
+          className="block rounded-xl border border-sky-500/30 bg-sky-500/[0.06] p-5 hover:border-sky-400/60"
+        >
+          <p className="text-sm text-sky-300">Collected directly (not Razorpay)</p>
+          <p className="mt-1 text-2xl font-bold text-sky-300">₹{totals.direct.amount.toLocaleString("en-IN")}</p>
+          <p className="mt-1 text-xs text-neutral-400">
+            {totals.direct.count} paid · ₹{totals.manual.amount.toLocaleString("en-IN")} manual override · ₹
+            {totals.bulkImport.amount.toLocaleString("en-IN")} bulk import
+          </p>
+        </Link>
       </div>
 
       <h2 className="mt-10 font-semibold text-lg">By Category</h2>
@@ -43,11 +58,12 @@ export default async function AdminDashboardPage() {
   );
 }
 
-function StatCard({ label, value }: { label: string; value: string }) {
+function StatCard({ label, value, sub }: { label: string; value: string; sub?: string }) {
   return (
     <div className="rounded-xl border border-white/10 bg-white/[0.03] p-5">
       <p className="text-sm text-neutral-400">{label}</p>
       <p className="mt-1 text-2xl font-bold text-emerald-400">{value}</p>
+      {sub && <p className="mt-1 text-xs text-neutral-400">{sub}</p>}
     </div>
   );
 }
