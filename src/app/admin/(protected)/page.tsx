@@ -35,6 +35,8 @@ export default async function AdminDashboardPage() {
         </Link>
       </div>
 
+      <TshirtSummary counts={stats.tshirtCounts} />
+
       {stats.pocTotals.length > 0 && (
         <>
           <h2 className="mt-10 font-semibold text-lg">By Group POC</h2>
@@ -91,6 +93,31 @@ export default async function AdminDashboardPage() {
         </table>
       </div>
     </div>
+  );
+}
+
+function TshirtSummary({ counts }: { counts: { size: string; count: number }[] }) {
+  const total = counts.reduce((sum, c) => sum + c.count, 0);
+  return (
+    <>
+      <div className="mt-10 flex flex-wrap items-baseline justify-between gap-2">
+        <h2 className="font-semibold text-lg">T-Shirt Sizes</h2>
+        <p className="text-sm text-neutral-400">
+          {total.toLocaleString("en-IN")} T-shirts · paid registrations only (Child Runner excluded)
+        </p>
+      </div>
+      <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-8">
+        {counts.map((c) => (
+          <div key={c.size} className="rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3">
+            <p className="text-xs font-semibold uppercase tracking-wide text-neutral-400">{c.size}</p>
+            <p className="mt-0.5 text-2xl font-bold text-emerald-400">{c.count.toLocaleString("en-IN")}</p>
+            <p className="text-xs text-neutral-500">
+              {total > 0 ? `${Math.round((c.count / total) * 100)}%` : "—"}
+            </p>
+          </div>
+        ))}
+      </div>
+    </>
   );
 }
 

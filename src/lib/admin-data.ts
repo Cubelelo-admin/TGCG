@@ -1,5 +1,6 @@
 import "server-only";
 import { createServiceClient } from "@/lib/supabase/server";
+import { TSHIRT_SIZES } from "@/lib/registration-schema";
 
 export interface RegistrationRow {
   id: string;
@@ -81,12 +82,48 @@ export async function getPocTotals(eventId: string): Promise<PocTotal[]> {
   }));
 }
 
+export type TshirtCount = { size: string; count: number };
+
+/**
+ * T-shirts to order: paid registrations per size, in size-chart order, plus
+ * an "Other" bucket for any value outside the standard list (e.g. a typo
+ * from an older import) so the total always matches. Each size is a
+ * head-only exact count, so this stays correct past PostgREST's 1000-row
+ * response cap without a dedicated RPC. Child Runner has no T-shirt
+ * (tshirt_size is null) and isn't counted.
+ */
+export async function getTshirtCounts(eventId: string): Promise<TshirtCount[]> {
+  const supabase = createServiceClient();
+  const base = () =>
+    supabase
+      .from("registrations")
+      .select("id", { count: "exact", head: true })
+      .eq("event_id", eventId)
+      .eq("payment_status", "paid");
+
+  const [sized, other] = await Promise.all([
+    Promise.all(TSHIRT_SIZES.map((size) => base().eq("tshirt_size", size))),
+    base()
+      .not("tshirt_size", "is", null)
+      .not("tshirt_size", "in", `(${TSHIRT_SIZES.join(",")})`),
+  ]);
+
+  const counts: TshirtCount[] = TSHIRT_SIZES.map((size, i) => {
+    if (sized[i].error) console.error("tshirt count failed", size, sized[i].error);
+    return { size, count: sized[i].count ?? 0 };
+  });
+  if (other.error) console.error("tshirt count failed (other)", other.error);
+  if (other.count) counts.push({ size: "Other", count: other.count });
+  return counts;
+}
+
 export async function getDashboardStats(eventId: string) {
   const supabase = createServiceClient();
 
-  const [totals, pocTotals, { data: categories }] = await Promise.all([
+  const [totals, pocTotals, tshirtCounts, { data: categories }] = await Promise.all([
     getPaymentTotals(eventId),
     getPocTotals(eventId),
+    getTshirtCounts(eventId),
     supabase
       .from("ticket_categories")
       .select("id, name, sold_count")
@@ -97,6 +134,7 @@ export async function getDashboardStats(eventId: string) {
   return {
     totals,
     pocTotals,
+    tshirtCounts,
     categories: categories ?? [],
   };
 }
