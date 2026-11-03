@@ -1,6 +1,7 @@
 import QRCode from "qrcode";
 import { createServiceClient } from "@/lib/supabase/server";
 import { getWaGroupLinks } from "@/lib/app-settings";
+import { getEventProfile, type EventProfile } from "@/lib/event-profiles";
 import TicketView, { type TicketData } from "./TicketView";
 import ActionButtons from "./ActionButtons";
 
@@ -43,12 +44,13 @@ export default async function RegisterSuccessPage({
 }
 
 async function GroupTicket({ group }: { group: GroupSummary }) {
+  const profile: EventProfile = getEventProfile(group.event_slug);
   const tickets: TicketData[] = await Promise.all(
     group.attendees
       .filter((a): a is AttendeeSummary & { registration_code: string } => Boolean(a.registration_code))
       .map(async (attendee) => ({
         fullName: attendee.full_name,
-        categoryName: attendee.ticket_categories?.name ?? "TGCG 2026",
+        categoryName: attendee.ticket_categories?.name ?? profile.shortName,
         registrationCode: attendee.registration_code,
         bibNumber: attendee.bib_number,
         tshirtSize: attendee.tshirt_size,
@@ -57,14 +59,24 @@ async function GroupTicket({ group }: { group: GroupSummary }) {
           width: 320,
           color: { dark: "#111827", light: "#ffffff" },
         }),
+        venueText: profile.venueShort,
+        eventDate: profile.ticketDate,
       }))
   );
 
-  const waGroupLinks = await getWaGroupLinks();
+  // WhatsApp groups / race booklet are configured once, for TGCG 2026, under
+  // Admin → Configuration — other events hide them until they get their own.
+  const waGroupLinks = profile.showWaGroups
+    ? await getWaGroupLinks()
+    : { group4221: null, group10: null, group6: null };
 
   return (
     <div>
-      <ActionButtons waGroupLinks={waGroupLinks} />
+      <ActionButtons
+        waGroupLinks={waGroupLinks}
+        showRaceBooklet={profile.showRaceBooklet}
+        bibCollection={profile.bibCollection}
+      />
 
       <div className="mt-6">
         <TicketView tickets={tickets} />
@@ -88,6 +100,7 @@ type AttendeeSummary = {
 };
 
 type GroupSummary = {
+  event_slug: string | null;
   organizer_email: string | null;
   attendees: AttendeeSummary[];
 };
@@ -107,7 +120,7 @@ async function getGroupSummary(groupParam: string): Promise<GroupSummary | null>
 
   const { data: group } = await supabase
     .from("registration_groups")
-    .select("id, organizer_email")
+    .select("id, organizer_email, events(slug)")
     .eq(column, groupParam)
     .maybeSingle();
   if (!group) return null;
@@ -120,7 +133,10 @@ async function getGroupSummary(groupParam: string): Promise<GroupSummary | null>
     .eq("group_id", group.id)
     .order("created_at", { ascending: true });
 
+  const eventJoin = group.events as unknown as { slug: string } | null;
+
   return {
+    event_slug: eventJoin?.slug ?? null,
     organizer_email: group.organizer_email,
     attendees: (attendees ?? []) as unknown as AttendeeSummary[],
   };

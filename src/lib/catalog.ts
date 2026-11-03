@@ -3,25 +3,47 @@ import { unstable_cache } from "next/cache";
 import { createServiceClient } from "@/lib/supabase/server";
 import { CHILD_RUNNER_CATEGORY_NAME } from "@/lib/registration-schema";
 import type { Addon, EventRecord, TicketCategory } from "@/lib/types";
+import { DEFAULT_EVENT_SLUG } from "@/lib/event-profiles";
 
-export const EVENT_SLUG = "tgcg-2026";
+export { DEFAULT_EVENT_SLUG } from "@/lib/event-profiles";
 
-// The active event record almost never changes — every admin/registration
-// page load was re-fetching it as its own sequential round trip, adding
-// fixed latency to every navigation for no reason. Cached for a few minutes;
-// call revalidateTag("event") if it's ever edited from admin tooling.
+// Event records almost never change — every admin/registration page load was
+// re-fetching one as its own sequential round trip, adding fixed latency to
+// every navigation for no reason. Cached for a few minutes per slug; call
+// revalidateTag("event") if one is ever edited from admin tooling.
+//
+// Public pages only ever see ACTIVE events: an event seeded inactive (e.g.
+// Raigarh 2027 while its details are placeholders) renders "Registration is
+// not open yet" and can't be checked out.
 export const getEvent = unstable_cache(
-  async (): Promise<EventRecord | null> => {
+  async (slug: string = DEFAULT_EVENT_SLUG): Promise<EventRecord | null> => {
     const supabase = createServiceClient();
     const { data } = await supabase
       .from("events")
       .select("*")
-      .eq("slug", EVENT_SLUG)
+      .eq("slug", slug)
       .eq("is_active", true)
       .maybeSingle();
     return data;
   },
-  ["get-event", EVENT_SLUG],
+  ["get-event"],
+  { revalidate: 300, tags: ["event"] }
+);
+
+/**
+ * Every event, active or not — for the admin event switcher, so organizers
+ * can review/bulk-import into an event before its public form goes live.
+ */
+export const listAllEvents = unstable_cache(
+  async (): Promise<EventRecord[]> => {
+    const supabase = createServiceClient();
+    const { data } = await supabase
+      .from("events")
+      .select("*")
+      .order("event_date", { ascending: true });
+    return data ?? [];
+  },
+  ["list-all-events"],
   { revalidate: 300, tags: ["event"] }
 );
 

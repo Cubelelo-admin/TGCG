@@ -2,6 +2,7 @@ import "server-only";
 import { createServiceClient } from "@/lib/supabase/server";
 import { sendWhatsAppTemplate } from "@/lib/aisensy";
 import { sendEmail } from "@/lib/email";
+import { getEventProfile, type EventProfile } from "@/lib/event-profiles";
 
 type RegistrationForNotify = {
   id: string;
@@ -14,6 +15,11 @@ type RegistrationForNotify = {
   bib_number: string | null;
   ticket_categories?: { name?: string } | null;
 };
+
+/** The AiSensy campaign for this event, or null if its env var isn't set. */
+function campaignFor(envName: string): string | null {
+  return process.env[envName] || null;
+}
 
 /**
  * Absolute link to the shared booking ticket page (every attendee's QR from
@@ -57,21 +63,25 @@ export async function notifyRegistrationPaid(registrationId: string) {
   const { data } = await supabase
     .from("registrations")
     .select(
-      "id, full_name, email, phone, phone_country_code, amount_inr, registration_code, bib_number, ticket_categories(name), registration_groups(booking_code)"
+      "id, full_name, email, phone, phone_country_code, amount_inr, registration_code, bib_number, ticket_categories(name), registration_groups(booking_code), events(slug)"
     )
     .eq("id", registrationId)
     .maybeSingle();
 
   const registration = data as unknown as
-    | (RegistrationForNotify & { registration_groups?: { booking_code: string | null } | null })
+    | (RegistrationForNotify & {
+        registration_groups?: { booking_code: string | null } | null;
+        events?: { slug: string } | null;
+      })
     | null;
   if (!registration) return;
 
   const bookingCode = registration.registration_groups?.booking_code ?? null;
+  const profile = getEventProfile(registration.events?.slug);
 
   await Promise.all([
-    sendWhatsAppConfirmation(supabase, registration, bookingCode),
-    sendEmailConfirmation(supabase, registration, bookingCode),
+    sendWhatsAppConfirmation(supabase, registration, bookingCode, profile),
+    sendEmailConfirmation(supabase, registration, bookingCode, profile),
   ]);
 }
 
@@ -99,10 +109,11 @@ export async function notifyGroupPaid(groupId: string) {
 
   const { data: group } = await supabase
     .from("registration_groups")
-    .select("id, organizer_full_name, organizer_email, booking_code")
+    .select("id, organizer_full_name, organizer_email, booking_code, events(slug)")
     .eq("id", groupId)
     .maybeSingle();
   if (!group) return;
+  const profile = getEventProfile((group.events as unknown as { slug: string } | null)?.slug);
 
   const { data: rows } = await supabase
     .from("registrations")
@@ -116,19 +127,19 @@ export async function notifyGroupPaid(groupId: string) {
   if (attendees.length === 0) return;
 
   if (attendees.length > 1) {
-    await sendBookingSummaryWhatsApp(supabase, group, attendees);
+    await sendBookingSummaryWhatsApp(supabase, group, attendees, profile);
   }
 
   await Promise.all(
     attendees.map(async (attendee) => {
-      const sent = await sendWhatsAppConfirmation(supabase, attendee, group.booking_code);
+      const sent = await sendWhatsAppConfirmation(supabase, attendee, group.booking_code, profile);
       if (!sent) {
-        await sendAttendeeFallbackEmail(supabase, group, attendee);
+        await sendAttendeeFallbackEmail(supabase, group, attendee, profile);
       }
     })
   );
 
-  await sendGroupSummaryEmail(supabase, group, attendees);
+  await sendGroupSummaryEmail(supabase, group, attendees, profile);
 }
 
 /**
@@ -140,13 +151,12 @@ export async function notifyGroupPaid(groupId: string) {
 async function sendBookingSummaryWhatsApp(
   supabase: ReturnType<typeof createServiceClient>,
   group: GroupForNotify,
-  attendees: RegistrationForNotify[]
+  attendees: RegistrationForNotify[],
+  profile: EventProfile
 ) {
-  const campaignName = process.env.AISENSY_BOOKING_SUMMARY_CAMPAIGN;
+  const campaignName = campaignFor(profile.aisensyBookingSummaryCampaignEnv);
   if (!campaignName) {
-    console.warn(
-      "AISENSY_BOOKING_SUMMARY_CAMPAIGN not set — skipping booking summary WhatsApp"
-    );
+    console.warn(`${profile.aisensyBookingSummaryCampaignEnv} not set — skipping booking summary WhatsApp`);
     return;
   }
 
@@ -189,19 +199,21 @@ async function sendBookingSummaryWhatsApp(
 async function sendAttendeeFallbackEmail(
   supabase: ReturnType<typeof createServiceClient>,
   group: GroupForNotify,
-  attendee: RegistrationForNotify
+  attendee: RegistrationForNotify,
+  profile: EventProfile
 ) {
   if (!process.env.GMAIL_USER || !process.env.GMAIL_APP_PASSWORD) return;
   if (!group.organizer_email) return;
 
-  const ticketName = attendee.ticket_categories?.name ?? "TGCG 2026";
+  const ticketName = attendee.ticket_categories?.name ?? profile.shortName;
   const amount = Number(attendee.amount_inr).toLocaleString("en-IN");
   const link = ticketUrl(group.booking_code);
 
   try {
     const result = await sendEmail({
       to: group.organizer_email,
-      subject: `Registration details for ${attendee.full_name} (WhatsApp delivery failed)`,
+      fromName: profile.fullName,
+      subject: `${profile.shortName}: registration details for ${attendee.full_name} (WhatsApp delivery failed)`,
       html: `<div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto;">
         <p>We couldn't reach ${attendee.full_name} on WhatsApp (${attendee.phone_country_code}${attendee.phone}), so here are their registration details:</p>
         <table style="width: 100%; border-collapse: collapse; margin: 16px 0;">
@@ -239,7 +251,8 @@ async function sendAttendeeFallbackEmail(
 async function sendGroupSummaryEmail(
   supabase: ReturnType<typeof createServiceClient>,
   group: GroupForNotify,
-  attendees: RegistrationForNotify[]
+  attendees: RegistrationForNotify[],
+  profile: EventProfile
 ) {
   if (!process.env.GMAIL_USER || !process.env.GMAIL_APP_PASSWORD) {
     console.warn("GMAIL_USER/GMAIL_APP_PASSWORD not set — skipping group summary email");
@@ -253,7 +266,7 @@ async function sendGroupSummaryEmail(
     .map(
       (a) => `<tr>
         <td style="padding: 6px 0; color: #555;">${a.full_name}</td>
-        <td style="padding: 6px 0;">${a.ticket_categories?.name ?? "TGCG 2026"}</td>
+        <td style="padding: 6px 0;">${a.ticket_categories?.name ?? profile.shortName}</td>
         <td style="padding: 6px 0;">${a.registration_code ?? "—"}</td>
         <td style="padding: 6px 0; text-align: right;">₹${Number(a.amount_inr).toLocaleString("en-IN")}</td>
       </tr>`
@@ -262,7 +275,7 @@ async function sendGroupSummaryEmail(
 
   const html = `
     <div style="font-family: Arial, sans-serif; max-width: 560px; margin: 0 auto;">
-      <h2 style="color: #059669;">You're registered for LetsRun TGCG 2026!</h2>
+      <h2 style="color: #059669;">You're registered for ${profile.fullName}!</h2>
       <p>Hi ${group.organizer_full_name ?? "there"},</p>
       <p>Your group registration is confirmed for ${attendees.length} attendee${attendees.length === 1 ? "" : "s"}.</p>
       ${group.booking_code ? `<p style="color: #555;">Booking ID: <strong>${group.booking_code}</strong></p>` : ""}
@@ -276,12 +289,13 @@ async function sendGroupSummaryEmail(
       <p style="color: #888; font-size: 12px;">LetsRun Team &middot; letsrunteam@gmail.com &middot; WhatsApp: 830-5387786</p>
     </div>
   `;
-  const text = `Hi ${group.organizer_full_name ?? "there"}, your group registration for LetsRun TGCG 2026 is confirmed (${attendees.length} attendees, total Rs ${total.toLocaleString("en-IN")}).${group.booking_code ? ` Booking ID: ${group.booking_code}.` : ""}${link ? ` View everyone's tickets: ${link}` : ""} See you at the start line! - LetsRun Team`;
+  const text = `Hi ${group.organizer_full_name ?? "there"}, your group registration for ${profile.fullName} is confirmed (${attendees.length} attendees, total Rs ${total.toLocaleString("en-IN")}).${group.booking_code ? ` Booking ID: ${group.booking_code}.` : ""}${link ? ` View everyone's tickets: ${link}` : ""} See you at the start line! - LetsRun Team`;
 
   try {
     const result = await sendEmail({
       to: group.organizer_email,
-      subject: `Your TGCG 2026 group registration (${attendees.length} attendees) is confirmed!`,
+      fromName: profile.fullName,
+      subject: `Your ${profile.shortName} group registration (${attendees.length} attendees) is confirmed!`,
       html,
       text,
     });
@@ -309,13 +323,12 @@ async function sendGroupSummaryEmail(
 async function sendWhatsAppConfirmation(
   supabase: ReturnType<typeof createServiceClient>,
   registration: RegistrationForNotify,
-  bookingCode: string | null
+  bookingCode: string | null,
+  profile: EventProfile
 ): Promise<boolean> {
-  const campaignName = process.env.AISENSY_REGISTRATION_CAMPAIGN;
+  const campaignName = campaignFor(profile.aisensyRegistrationCampaignEnv);
   if (!campaignName) {
-    console.warn(
-      "AISENSY_REGISTRATION_CAMPAIGN not set — skipping WhatsApp confirmation"
-    );
+    console.warn(`${profile.aisensyRegistrationCampaignEnv} not set — skipping WhatsApp confirmation`);
     return false;
   }
   // No phone on file — e.g. a child runner registration, which has no
@@ -323,7 +336,7 @@ async function sendWhatsAppConfirmation(
   // needs an organizer email) is equally unreachable, so this is a no-op.
   if (!registration.phone) return false;
 
-  const ticketName = registration.ticket_categories?.name ?? "TGCG 2026";
+  const ticketName = registration.ticket_categories?.name ?? profile.shortName;
   const destination = `${registration.phone_country_code}${registration.phone}`;
 
   try {
@@ -371,7 +384,8 @@ async function sendWhatsAppConfirmation(
 async function sendEmailConfirmation(
   supabase: ReturnType<typeof createServiceClient>,
   registration: RegistrationForNotify,
-  bookingCode: string | null
+  bookingCode: string | null,
+  profile: EventProfile
 ) {
   if (!process.env.GMAIL_USER || !process.env.GMAIL_APP_PASSWORD) {
     console.warn("GMAIL_USER/GMAIL_APP_PASSWORD not set — skipping confirmation email");
@@ -379,32 +393,33 @@ async function sendEmailConfirmation(
   }
   if (!registration.email) return;
 
-  const ticketName = registration.ticket_categories?.name ?? "TGCG 2026";
+  const ticketName = registration.ticket_categories?.name ?? profile.shortName;
   const amount = Number(registration.amount_inr).toLocaleString("en-IN");
   const link = ticketUrl(bookingCode);
 
   const html = `
     <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto;">
-      <h2 style="color: #059669;">You're registered for LetsRun TGCG 2026!</h2>
+      <h2 style="color: #059669;">You're registered for ${profile.fullName}!</h2>
       <p>Hi ${registration.full_name},</p>
       <p>Your registration is confirmed.</p>
       <table style="width: 100%; border-collapse: collapse; margin: 16px 0;">
         <tr><td style="padding: 6px 0; color: #555;">Category</td><td style="padding: 6px 0; text-align: right;"><strong>${ticketName}</strong></td></tr>
         <tr><td style="padding: 6px 0; color: #555;">Amount Paid</td><td style="padding: 6px 0; text-align: right;"><strong>₹${amount}</strong></td></tr>
-        <tr><td style="padding: 6px 0; color: #555;">Event Date</td><td style="padding: 6px 0; text-align: right;"><strong>20 Dec 2026, 4:00 AM IST</strong></td></tr>
-        <tr><td style="padding: 6px 0; color: #555;">Venue</td><td style="padding: 6px 0; text-align: right;"><strong>CBD Square, Naya Raipur</strong></td></tr>
+        <tr><td style="padding: 6px 0; color: #555;">Event Date</td><td style="padding: 6px 0; text-align: right;"><strong>${profile.dateTimeLine}</strong></td></tr>
+        <tr><td style="padding: 6px 0; color: #555;">Venue</td><td style="padding: 6px 0; text-align: right;"><strong>${profile.venueShort}</strong></td></tr>
       </table>
       ${link ? `<p><a href="${link}">View &amp; save your QR ticket</a></p>` : ""}
       <p>See you at the start line!</p>
       <p style="color: #888; font-size: 12px;">LetsRun Team &middot; letsrunteam@gmail.com &middot; WhatsApp: 830-5387786</p>
     </div>
   `;
-  const text = `Hi ${registration.full_name}, your registration for LetsRun TGCG 2026 is confirmed. Category: ${ticketName}. Amount paid: Rs ${amount}. Event: 20 Dec 2026, 4:00 AM IST at CBD Square, Naya Raipur.${link ? ` Ticket: ${link}` : ""} See you at the start line! - LetsRun Team`;
+  const text = `Hi ${registration.full_name}, your registration for ${profile.fullName} is confirmed. Category: ${ticketName}. Amount paid: Rs ${amount}. Event: ${profile.dateTimeLine} at ${profile.venueShort}.${link ? ` Ticket: ${link}` : ""} See you at the start line! - LetsRun Team`;
 
   try {
     const result = await sendEmail({
       to: registration.email,
-      subject: "You're registered for LetsRun TGCG 2026!",
+      fromName: profile.fullName,
+      subject: `You're registered for ${profile.fullName}!`,
       html,
       text,
     });

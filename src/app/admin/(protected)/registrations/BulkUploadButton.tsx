@@ -23,7 +23,15 @@ const inputClass =
   "w-full min-w-[110px] rounded border border-white/10 bg-white/[0.04] px-2 py-1 text-xs focus:border-emerald-400 focus:outline-none";
 const errorInputClass = "border-red-500/70 bg-red-500/10";
 
-export default function BulkUploadButton({ categories }: { categories: (BulkCategoryInfo & { price_inr: number })[] }) {
+export default function BulkUploadButton({
+  eventId,
+  eventName,
+  categories,
+}: {
+  eventId: string;
+  eventName: string;
+  categories: (BulkCategoryInfo & { price_inr: number })[];
+}) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [step, setStep] = useState<"upload" | "preview" | "importing" | "done">("upload");
@@ -31,6 +39,10 @@ export default function BulkUploadButton({ categories }: { categories: (BulkCate
   const [parseError, setParseError] = useState<string | null>(null);
   const [progress, setProgress] = useState(0);
   const [results, setResults] = useState<Record<number, RowResult>>({});
+  // Group POC — the person collecting the money for this upload's
+  // registrations. Fills every row whose "POC Name" cell is blank.
+  const [defaultPoc, setDefaultPoc] = useState("");
+  const [bulkPoc, setBulkPoc] = useState("");
 
   function reset() {
     setStep("upload");
@@ -38,6 +50,8 @@ export default function BulkUploadButton({ categories }: { categories: (BulkCate
     setParseError(null);
     setProgress(0);
     setResults({});
+    setDefaultPoc("");
+    setBulkPoc("");
   }
 
   function closeModal() {
@@ -56,6 +70,8 @@ export default function BulkUploadButton({ categories }: { categories: (BulkCate
           return categories[0]?.name ?? "";
         case "amountInr":
           return String(categories[0]?.price_inr ?? "");
+        case "pocName":
+          return "Group POC name (or leave blank and fill on upload)";
         case "phone":
         case "emergencyPhone":
           return "9800000000";
@@ -82,7 +98,8 @@ export default function BulkUploadButton({ categories }: { categories: (BulkCate
     ]);
     XLSX.utils.book_append_sheet(wb, categorySheet, "Categories (reference)");
 
-    XLSX.writeFile(wb, "tgcg-bulk-registration-template.xlsx");
+    const fileSlug = eventName.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+    XLSX.writeFile(wb, `${fileSlug || "tgcg"}-bulk-registration-template.xlsx`);
   }
 
   async function handleFile(file: File) {
@@ -110,6 +127,7 @@ export default function BulkUploadButton({ categories }: { categories: (BulkCate
           // of leaving the ambiguous raw text for them to second-guess.
           // Left as-is (and caught by validateBulkRow) if unparseable.
           row.dateOfBirth = parseDateOfBirth(row.dateOfBirth) ?? row.dateOfBirth;
+          if (!row.pocName && defaultPoc.trim()) row.pocName = defaultPoc.trim();
           return row;
         })
         // Skip fully-blank rows and the sample row shipped in the template.
@@ -132,6 +150,12 @@ export default function BulkUploadButton({ categories }: { categories: (BulkCate
     setRows((prev) => prev.map((row, i) => (i === index ? { ...row, [key]: value } : row)));
   }
 
+  function applyPocToAll(value: string) {
+    const poc = value.trim();
+    if (!poc) return;
+    setRows((prev) => prev.map((row) => ({ ...row, pocName: poc })));
+  }
+
   function removeRow(index: number) {
     setRows((prev) => prev.filter((_, i) => i !== index));
   }
@@ -151,7 +175,7 @@ export default function BulkUploadButton({ categories }: { categories: (BulkCate
         const res = await fetch("/api/admin/registrations/bulk-import", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ rows: batch }),
+          body: JSON.stringify({ eventId, rows: batch }),
         });
         const json = await res.json().catch(() => ({}));
         if (!res.ok) {
@@ -192,7 +216,9 @@ export default function BulkUploadButton({ categories }: { categories: (BulkCate
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
           <div className="flex max-h-[90vh] w-full max-w-6xl flex-col rounded-2xl border border-white/10 bg-neutral-900 text-neutral-50">
             <div className="flex items-center justify-between border-b border-white/10 px-5 py-4">
-              <h2 className="text-lg font-bold">Bulk Upload Registrations</h2>
+              <h2 className="text-lg font-bold">
+                Bulk Upload Registrations <span className="font-normal text-neutral-400">— {eventName}</span>
+              </h2>
               <button
                 type="button"
                 onClick={closeModal}
@@ -217,6 +243,24 @@ export default function BulkUploadButton({ categories }: { categories: (BulkCate
                   >
                     Download Template (.xlsx)
                   </button>
+                  <div>
+                    <label htmlFor="bulk-default-poc" className="mb-1 block text-xs text-neutral-400">
+                      POC name — the person collecting the money for this group
+                    </label>
+                    <input
+                      id="bulk-default-poc"
+                      type="text"
+                      value={defaultPoc}
+                      onChange={(e) => setDefaultPoc(e.target.value)}
+                      placeholder="e.g. Ramesh Sahu (Raipur Runners)"
+                      maxLength={120}
+                      className="w-full max-w-md rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2 text-sm focus:border-emerald-400 focus:outline-none"
+                    />
+                    <p className="mt-1 text-xs text-neutral-500">
+                      Filled into every row whose &quot;POC Name&quot; column is blank. Rows that already name a POC keep
+                      theirs, so one sheet can hold several groups. Every row needs a POC before you can confirm.
+                    </p>
+                  </div>
                   <div>
                     <label className="mb-1 block text-xs text-neutral-400">Upload filled template (.csv or .xlsx)</label>
                     <input
@@ -259,8 +303,36 @@ export default function BulkUploadButton({ categories }: { categories: (BulkCate
                     </button>
                   </div>
 
+                  <form
+                    className="flex flex-wrap items-center gap-2"
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      applyPocToAll(bulkPoc);
+                    }}
+                  >
+                    <label htmlFor="bulk-apply-poc" className="text-xs text-neutral-400">
+                      Set POC for all rows:
+                    </label>
+                    <input
+                      id="bulk-apply-poc"
+                      type="text"
+                      value={bulkPoc}
+                      onChange={(e) => setBulkPoc(e.target.value)}
+                      placeholder="POC name"
+                      maxLength={120}
+                      className="w-56 rounded border border-white/10 bg-white/[0.04] px-2 py-1 text-xs focus:border-emerald-400 focus:outline-none"
+                    />
+                    <button
+                      type="submit"
+                      disabled={!bulkPoc.trim()}
+                      className="rounded-full border border-white/20 px-3 py-1 text-xs font-medium hover:border-white/40 disabled:cursor-not-allowed disabled:opacity-40"
+                    >
+                      Apply to all {rows.length}
+                    </button>
+                  </form>
+
                   <div className="max-h-[55vh] overflow-auto rounded-lg border border-white/10">
-                    <table className="w-full min-w-[1500px] text-xs">
+                    <table className="w-full min-w-[1620px] text-xs">
                       <thead className="sticky top-0 z-10 bg-neutral-900 text-left text-neutral-400">
                         <tr>
                           <th className="px-2 py-2 font-medium">#</th>

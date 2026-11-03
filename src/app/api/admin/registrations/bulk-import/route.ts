@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getAdminSession } from "@/lib/admin-auth";
 import { createServiceClient } from "@/lib/supabase/server";
-import { EVENT_SLUG, getBulkImportCategories } from "@/lib/catalog";
+import { getBulkImportCategories } from "@/lib/catalog";
 import { CHILD_RUNNER_CATEGORY_NAME } from "@/lib/registration-schema";
 import { findBulkCategory, parseDateOfBirth, validateBulkRow, type BulkRowFields } from "@/lib/bulk-registration-schema";
 import { notifyGroupPaid } from "@/lib/notify";
@@ -31,6 +31,7 @@ export async function POST(request: Request) {
 
   const body = await request.json().catch(() => null);
   const rows = body?.rows as BulkRowFields[] | undefined;
+  const eventId = typeof body?.eventId === "string" ? body.eventId : null;
   if (!Array.isArray(rows) || rows.length === 0) {
     return NextResponse.json({ error: "No rows provided" }, { status: 400 });
   }
@@ -38,16 +39,20 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Send at most 10 rows per request" }, { status: 400 });
   }
 
+  if (!eventId) {
+    return NextResponse.json({ error: "No event selected" }, { status: 400 });
+  }
+
   const supabase = createServiceClient();
 
-  const { data: event } = await supabase
-    .from("events")
-    .select("id")
-    .eq("slug", EVENT_SLUG)
-    .eq("is_active", true)
-    .maybeSingle();
+  // The event comes from the browser (the one selected in the admin header
+  // when the preview was built), not the admin's current cookie — so
+  // switching events in another tab mid-upload can't silently send rows to
+  // a different event than the one previewed. Inactive events are allowed:
+  // organizers may digitize offline registrations before the form opens.
+  const { data: event } = await supabase.from("events").select("id").eq("id", eventId).maybeSingle();
   if (!event) {
-    return NextResponse.json({ error: "No active event found" }, { status: 400 });
+    return NextResponse.json({ error: "Event not found" }, { status: 400 });
   }
 
   const categories = await getBulkImportCategories(event.id);
@@ -79,7 +84,7 @@ export async function POST(request: Request) {
       const { data: group, error: groupError } = await supabase
         .from("registration_groups")
         .insert({
-          event_id: category.event_id,
+          event_id: event.id,
           organizer_full_name: row.fullName.trim(),
           organizer_email: row.email.trim() || null,
           attendee_count: 1,
@@ -92,7 +97,7 @@ export async function POST(request: Request) {
       const { data: registration, error: insertError } = await supabase
         .from("registrations")
         .insert({
-          event_id: category.event_id,
+          event_id: event.id,
           ticket_category_id: category.id,
           group_id: group.id,
           amount_inr: amountInr,
@@ -100,6 +105,7 @@ export async function POST(request: Request) {
           // Collected offline — flagged so it's totalled apart from Razorpay
           // settlements (see 0019_manual_payments.sql).
           payment_method: "bulk_import",
+          poc_name: row.pocName.trim(),
           full_name: row.fullName.trim(),
           email: row.email.trim() || null,
           phone: isChild ? null : row.phone.trim(),

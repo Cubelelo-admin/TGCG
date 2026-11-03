@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getAdminSession } from "@/lib/admin-auth";
 import { createServiceClient } from "@/lib/supabase/server";
-import { getEvent } from "@/lib/catalog";
+import { getAdminEvent } from "@/lib/admin-event";
 
 export const runtime = "nodejs";
 
@@ -32,6 +32,7 @@ const COLUMNS = [
   "manual_payment_note",
   "manual_paid_by",
   "manual_paid_at",
+  "poc_name",
   "amount_inr",
   "bib_number",
   "checked_in",
@@ -52,7 +53,7 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const event = await getEvent();
+  const { event } = await getAdminEvent();
   if (!event) {
     return NextResponse.json({ error: "No active event" }, { status: 404 });
   }
@@ -66,7 +67,7 @@ export async function GET(request: Request) {
   let query = supabase
     .from("registrations")
     .select(
-      "registration_code, group_id, full_name, email, phone, gender, city, organization, running_community, date_of_birth, tshirt_size, emergency_phone, aadhar_number, bank_name_location, bank_account_number, bank_ifsc, pan_number, govt_id_drive_file_id, payment_status, payment_method, manual_payment_mode, manual_payment_ref, manual_payment_note, manual_paid_by, manual_paid_at, amount_inr, bib_number, checked_in, created_at, ticket_categories(name)"
+      "registration_code, group_id, full_name, email, phone, gender, city, organization, running_community, date_of_birth, tshirt_size, emergency_phone, aadhar_number, bank_name_location, bank_account_number, bank_ifsc, pan_number, govt_id_drive_file_id, payment_status, payment_method, manual_payment_mode, manual_payment_ref, manual_payment_note, manual_paid_by, manual_paid_at, poc_name, amount_inr, bib_number, checked_in, created_at, ticket_categories(name)"
     )
     .eq("event_id", event.id)
     .order("created_at", { ascending: false });
@@ -77,7 +78,7 @@ export async function GET(request: Request) {
   if (q) {
     const term = q.trim();
     query = query.or(
-      `full_name.ilike.%${term}%,email.ilike.%${term}%,phone.ilike.%${term}%`
+      `full_name.ilike.%${term}%,email.ilike.%${term}%,phone.ilike.%${term}%,registration_code.ilike.%${term}%,poc_name.ilike.%${term}%`
     );
   }
 
@@ -106,7 +107,7 @@ export async function GET(request: Request) {
   return new NextResponse(lines.join("\n"), {
     headers: {
       "Content-Type": "text/csv; charset=utf-8",
-      "Content-Disposition": `attachment; filename="tgcg-registrations-${new Date().toISOString().slice(0, 10)}.csv"`,
+      "Content-Disposition": `attachment; filename="${event.slug}-registrations-${new Date().toISOString().slice(0, 10)}.csv"`,
     },
   });
 }

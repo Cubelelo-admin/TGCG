@@ -31,6 +31,8 @@ const baseUpdateSchema = z.object({
     ),
   checkedIn: z.boolean(),
   ticketCategoryId: z.string().uuid().optional(),
+  // Group POC (0021) — empty string clears it.
+  pocName: z.string().trim().max(120).optional().or(z.literal("")),
 });
 
 // Empty string clears the field. These are optional here so an admin can
@@ -69,7 +71,7 @@ const nonChildFieldsSchema = z.object({
 });
 
 const EDITABLE_REGISTRATION_COLUMNS =
-  "id, full_name, email, phone, gender, city, date_of_birth, tshirt_size, emergency_phone, organization, running_community, aadhar_number, bank_name_location, bank_account_number, bank_ifsc, pan_number, accepted_waiver, accepted_rules, bib_number, checked_in, ticket_category_id, payment_status";
+  "id, full_name, email, phone, gender, city, date_of_birth, tshirt_size, emergency_phone, organization, running_community, aadhar_number, bank_name_location, bank_account_number, bank_ifsc, pan_number, accepted_waiver, accepted_rules, bib_number, checked_in, poc_name, ticket_category_id, payment_status";
 
 /** Full record for the edit dialog — fetched on open rather than shipping KYC fields for every listed row. */
 export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -139,6 +141,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     email: data.email || null,
     checked_in: data.checkedIn,
   };
+  if (data.pocName !== undefined) update.poc_name = data.pocName || null;
 
   if (!isChildRunner) {
     update.phone = data.phone;

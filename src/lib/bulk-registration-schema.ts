@@ -19,6 +19,7 @@ export type BulkRowFields = {
   fullName: string;
   category: string;
   amountInr: string;
+  pocName: string;
   phone: string;
   email: string;
   gender: string;
@@ -39,6 +40,7 @@ export const EMPTY_BULK_ROW: BulkRowFields = {
   fullName: "",
   category: "",
   amountInr: "",
+  pocName: "",
   phone: "",
   email: "",
   gender: "",
@@ -60,6 +62,10 @@ export const BULK_TEMPLATE_COLUMNS: { key: keyof BulkRowFields; label: string }[
   { key: "fullName", label: "Full Name" },
   { key: "category", label: "Category" },
   { key: "amountInr", label: "Amount Paid" },
+  // The group's point of contact — the person responsible for collecting
+  // the money for these registrations. Can be left blank in the sheet and
+  // filled for every row at once from the upload screen.
+  { key: "pocName", label: "POC Name" },
   { key: "phone", label: "Phone (WhatsApp)" },
   { key: "email", label: "Email" },
   { key: "gender", label: "Gender" },
@@ -166,6 +172,12 @@ export function validateBulkRow(
   const amount = Number(row.amountInr);
   if (row.amountInr.trim() === "" || Number.isNaN(amount) || amount < 0) {
     errors.amountInr = "Required, must be 0 or more";
+  }
+
+  if (row.pocName.trim().length < 2) {
+    errors.pocName = "Required — who is collecting the money for this registration";
+  } else if (row.pocName.trim().length > 120) {
+    errors.pocName = "Too long (max 120 characters)";
   }
 
   if (category?.name === CHILD_RUNNER_CATEGORY_NAME) {

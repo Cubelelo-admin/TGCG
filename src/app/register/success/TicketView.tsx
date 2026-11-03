@@ -23,14 +23,11 @@ const GOLD_DEEP = "#a9803e";
 const PAPER = "#f1e1c7";
 const INK = "#1a2422";
 
-const VENUE_TEXT = "CBD Square, Naya Raipur";
 const FOOTER_TEXT = "Show this at the time of BIB collection.";
-// Split out (rather than reusing DATE_LINE_1-style prose) so the closing
-// illustration's date badge can size/weight each part differently.
-const EVENT_DAY = "20";
-const EVENT_MONTH = "DEC";
-const EVENT_YEAR = "2026";
-const EVENT_WEEKDAY = "SUNDAY";
+// The event's date, split (rather than one prose line) so the closing
+// illustration's date badge can size/weight each part differently. Comes
+// per ticket from the event's profile (src/lib/event-profiles.ts).
+export type TicketEventDate = { day: string; month: string; year: string; weekday: string };
 
 export type TicketData = {
   fullName: string;
@@ -39,6 +36,9 @@ export type TicketData = {
   qrDataUrl: string;
   bibNumber: string | null;
   tshirtSize: string | null;
+  /** Short venue line in the ticket header, from the event's profile. */
+  venueText: string;
+  eventDate: TicketEventDate;
 };
 
 /**
@@ -208,7 +208,7 @@ function TicketCard({
             <path d="M12 21s7-6.1 7-11.5A7 7 0 0 0 5 9.5C5 14.9 12 21 12 21Z" />
             <circle cx="12" cy="9.5" r="2.4" />
           </svg>
-          {VENUE_TEXT}
+          {ticket.venueText}
         </p>
       </div>
 
@@ -243,24 +243,24 @@ function TicketCard({
             className="text-[28px] font-extrabold leading-none"
             style={{ color: PAPER, textShadow: "0 2px 6px rgba(15,58,77,.7)" }}
           >
-            {EVENT_DAY}
+            {ticket.eventDate.day}
           </span>
           <div className="flex flex-col leading-[1.05]">
             <span
               className="text-[11px] font-extrabold tracking-wide"
               style={{ color: GOLD, textShadow: "0 1px 4px rgba(15,58,77,.7)" }}
             >
-              {EVENT_MONTH}
+              {ticket.eventDate.month}
             </span>
             <span className="text-[9px] font-bold" style={{ color: GOLD, textShadow: "0 1px 4px rgba(15,58,77,.7)" }}>
-              {EVENT_YEAR}
+              {ticket.eventDate.year}
             </span>
           </div>
           <span
             className="ml-0.5 border-l pl-2 text-[10px] font-extrabold tracking-widest"
             style={{ color: PAPER, borderColor: "rgba(243,228,202,.55)", textShadow: "0 1px 4px rgba(15,58,77,.7)" }}
           >
-            {EVENT_WEEKDAY}
+            {ticket.eventDate.weekday}
           </span>
         </div>
       </div>
@@ -451,7 +451,7 @@ const CANVAS_HEIGHT =
   FOOTER_H +
   BOTTOM_MARGIN;
 
-function drawDateBadge(ctx: CanvasRenderingContext2D, rightX: number, bottomY: number) {
+function drawDateBadge(ctx: CanvasRenderingContext2D, rightX: number, bottomY: number, date: TicketEventDate) {
   // Canvas has no CSS text-shadow — approximated with shadowBlur instead.
   ctx.save();
   ctx.shadowColor = "rgba(15,58,77,.7)";
@@ -459,24 +459,24 @@ function drawDateBadge(ctx: CanvasRenderingContext2D, rightX: number, bottomY: n
   ctx.textBaseline = "alphabetic";
 
   ctx.font = "bold 15px Arial, sans-serif";
-  const weekdayW = ctx.measureText(EVENT_WEEKDAY).width;
+  const weekdayW = ctx.measureText(date.weekday).width;
   ctx.font = "bold 12px Arial, sans-serif";
   const monthW = Math.max(
-    ctx.measureText(EVENT_MONTH).width,
+    ctx.measureText(date.month).width,
     (() => {
       ctx.font = "bold 10px Arial, sans-serif";
-      return ctx.measureText(EVENT_YEAR).width;
+      return ctx.measureText(date.year).width;
     })()
   );
   ctx.font = "bold 40px Arial, sans-serif";
-  const dayW = ctx.measureText(EVENT_DAY).width;
+  const dayW = ctx.measureText(date.day).width;
 
   const gap = 10;
   let x = rightX - weekdayW;
   ctx.textAlign = "left";
   ctx.fillStyle = PAPER;
   ctx.font = "bold 15px Arial, sans-serif";
-  ctx.fillText(EVENT_WEEKDAY, x, bottomY);
+  ctx.fillText(date.weekday, x, bottomY);
 
   x -= gap + 1;
   ctx.strokeStyle = "rgba(243,228,202,.55)";
@@ -489,14 +489,14 @@ function drawDateBadge(ctx: CanvasRenderingContext2D, rightX: number, bottomY: n
   x -= gap + monthW;
   ctx.fillStyle = GOLD;
   ctx.font = "bold 12px Arial, sans-serif";
-  ctx.fillText(EVENT_MONTH, x, bottomY - 12);
+  ctx.fillText(date.month, x, bottomY - 12);
   ctx.font = "bold 10px Arial, sans-serif";
-  ctx.fillText(EVENT_YEAR, x, bottomY + 2);
+  ctx.fillText(date.year, x, bottomY + 2);
 
   x -= gap + dayW;
   ctx.fillStyle = PAPER;
   ctx.font = "bold 40px Arial, sans-serif";
-  ctx.fillText(EVENT_DAY, x, bottomY + 4);
+  ctx.fillText(date.day, x, bottomY + 4);
 
   ctx.restore();
 }
@@ -579,14 +579,14 @@ async function renderTicketCanvas(ticket: TicketData): Promise<HTMLCanvasElement
 
   ctx.font = "bold 17px Arial, sans-serif";
   const venueY = chipY + LOGO_CHIP_H + VENUE_GAP;
-  const venueTextW = ctx.measureText(VENUE_TEXT).width;
+  const venueTextW = ctx.measureText(ticket.venueText).width;
   const PIN_SIZE = 15;
   const PIN_TEXT_GAP = 7;
   const venueStartX = CANVAS_WIDTH / 2 - (PIN_SIZE + PIN_TEXT_GAP + venueTextW) / 2;
   drawPinIcon(ctx, venueStartX, venueY - PIN_SIZE + 3, PIN_SIZE, "#ffffff");
   ctx.fillStyle = "#ffffff";
   ctx.textAlign = "left";
-  ctx.fillText(VENUE_TEXT, venueStartX + PIN_SIZE + PIN_TEXT_GAP, venueY);
+  ctx.fillText(ticket.venueText, venueStartX + PIN_SIZE + PIN_TEXT_GAP, venueY);
 
   // --- QR credential tile, overlapping the header/body seam ---
   const tileX = (CANVAS_WIDTH - QR_TILE_SIZE) / 2;
@@ -661,7 +661,7 @@ async function renderTicketCanvas(ticket: TicketData): Promise<HTMLCanvasElement
   if (illustration) {
     ctx.drawImage(illustration, 0, y, CANVAS_WIDTH, ILLUSTRATION_H);
   }
-  drawDateBadge(ctx, CANVAS_WIDTH - 22, y + ILLUSTRATION_H - 22);
+  drawDateBadge(ctx, CANVAS_WIDTH - 22, y + ILLUSTRATION_H - 22, ticket.eventDate);
   y += ILLUSTRATION_H;
 
   // --- footer line ---

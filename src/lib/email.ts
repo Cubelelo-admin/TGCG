@@ -23,13 +23,15 @@ function getTransporter() {
 
 export async function sendEmail(params: {
   to: string;
+  /** Sender display name — the event's full name, e.g. "LetsRun TGCG Raigarh 2027". */
+  fromName?: string;
   subject: string;
   html: string;
   text: string;
 }) {
   const from = process.env.GMAIL_USER;
   const info = await getTransporter().sendMail({
-    from: `LetsRun TGCG 2026 <${from}>`,
+    from: `${params.fromName ?? "LetsRun TGCG 2026"} <${from}>`,
     to: params.to,
     subject: params.subject,
     html: params.html,

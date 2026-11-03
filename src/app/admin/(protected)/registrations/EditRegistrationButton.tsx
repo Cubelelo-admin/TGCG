@@ -22,6 +22,7 @@ export type EditableRegistration = {
   tshirt_size: string | null;
   bib_number: string | null;
   checked_in: boolean;
+  poc_name?: string | null;
   ticket_category_id: string;
   ticket_categories: { name: string; group: string; hidden_from_picker: boolean } | null;
 };
@@ -85,6 +86,7 @@ export default function EditRegistrationButton({
       email: form.email,
       bibNumber: form.bibNumber,
       checkedIn: form.checkedIn,
+      pocName: form.pocName,
     };
     if (!isChildRunner) {
       body.phone = form.phone;
@@ -160,6 +162,15 @@ export default function EditRegistrationButton({
                   value={form.email}
                   onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
                   placeholder="Not collected — optional"
+                  className={inputClass}
+                />
+              </Field>
+              <Field label="Group POC (collects the money)">
+                <input
+                  value={form.pocName}
+                  onChange={(e) => setForm((f) => ({ ...f, pocName: e.target.value }))}
+                  placeholder="Only for bulk/offline registrations — optional"
+                  maxLength={120}
                   className={inputClass}
                 />
               </Field>
@@ -403,6 +414,7 @@ function formFrom(r: FullRegistration) {
     tshirtSize: r.tshirt_size ?? TSHIRT_SIZES[0],
     bibNumber: r.bib_number ?? "",
     checkedIn: r.checked_in,
+    pocName: r.poc_name ?? "",
     ticketCategoryId: r.ticket_category_id,
     dateOfBirth: r.date_of_birth ?? "",
     emergencyPhone: r.emergency_phone ?? "",

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import type { BibCollectionInfo } from "@/lib/event-profiles";
 
 const ACCENT = "#5b3fa0";
 
@@ -52,7 +53,15 @@ export type WaGroupLinks = {
  * three most useful next actions instead: join a WhatsApp group, get the
  * race booklet/FAQ, and check BIB collection logistics.
  */
-export default function ActionButtons({ waGroupLinks }: { waGroupLinks: WaGroupLinks }) {
+export default function ActionButtons({
+  waGroupLinks,
+  showRaceBooklet,
+  bibCollection,
+}: {
+  waGroupLinks: WaGroupLinks;
+  showRaceBooklet: boolean;
+  bibCollection: BibCollectionInfo | null;
+}) {
   const [bibOpen, setBibOpen] = useState(false);
   const [waPickerOpen, setWaPickerOpen] = useState(false);
   const hasAnyWaGroup = Boolean(waGroupLinks.group4221 || waGroupLinks.group10 || waGroupLinks.group6);
@@ -70,27 +79,31 @@ export default function ActionButtons({ waGroupLinks }: { waGroupLinks: WaGroupL
           Join WhatsApp Group for Updates
         </button>
       )}
-      <a
-        href="/api/assets/race-information"
-        target="_blank"
-        rel="noopener noreferrer"
-        className="flex h-[50px] items-center justify-center gap-2 rounded-full text-sm font-bold"
-        style={{ background: "#ffffff", border: `1.5px solid ${ACCENT}`, color: ACCENT }}
-      >
-        <BookletIcon />
-        Race Booklet &amp; FAQ
-      </a>
-      <button
-        type="button"
-        onClick={() => setBibOpen(true)}
-        className="flex h-[50px] w-full items-center justify-center gap-2 rounded-full text-sm font-bold text-white"
-        style={{ background: ACCENT }}
-      >
-        <PinIcon />
-        View BIB Collection Details
-      </button>
+      {showRaceBooklet && (
+        <a
+          href="/api/assets/race-information"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex h-[50px] items-center justify-center gap-2 rounded-full text-sm font-bold"
+          style={{ background: "#ffffff", border: `1.5px solid ${ACCENT}`, color: ACCENT }}
+        >
+          <BookletIcon />
+          Race Booklet &amp; FAQ
+        </a>
+      )}
+      {bibCollection && (
+        <button
+          type="button"
+          onClick={() => setBibOpen(true)}
+          className="flex h-[50px] w-full items-center justify-center gap-2 rounded-full text-sm font-bold text-white"
+          style={{ background: ACCENT }}
+        >
+          <PinIcon />
+          View BIB Collection Details
+        </button>
+      )}
 
-      {bibOpen && (
+      {bibOpen && bibCollection && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-5"
           onClick={() => setBibOpen(false)}
@@ -124,34 +137,41 @@ export default function ActionButtons({ waGroupLinks }: { waGroupLinks: WaGroupL
                 </tr>
               </thead>
               <tbody>
-                <tr>
-                  <td className="border-b border-[#f3f4f6] px-2.5 py-3 text-[15px] font-bold text-[#111827]">
-                    18 Dec 2026
-                  </td>
-                  <td className="border-b border-[#f3f4f6] px-2.5 py-3 text-[15px] text-[#111827]">11 AM – 5 PM</td>
-                </tr>
-                <tr>
-                  <td className="px-2.5 py-3 text-[15px] font-bold text-[#111827]">19 Dec 2026</td>
-                  <td className="px-2.5 py-3 text-[15px] text-[#111827]">10 AM – 3 PM</td>
-                </tr>
+                {bibCollection.schedule.map((slot, idx) => {
+                  const last = idx === bibCollection.schedule.length - 1;
+                  return (
+                    <tr key={slot.date}>
+                      <td
+                        className={`px-2.5 py-3 text-[15px] font-bold text-[#111827] ${last ? "" : "border-b border-[#f3f4f6]"}`}
+                      >
+                        {slot.date}
+                      </td>
+                      <td className={`px-2.5 py-3 text-[15px] text-[#111827] ${last ? "" : "border-b border-[#f3f4f6]"}`}>
+                        {slot.time}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
 
             <p className="mb-1.5 text-xs font-bold uppercase tracking-wide" style={{ color: ACCENT }}>
               Collect Your BIB At
             </p>
-            <p className="mb-3.5 text-base font-bold text-[#111827]">Vrindavan Hall, Civil Lines, Raipur CG</p>
+            <p className="mb-3.5 text-base font-bold text-[#111827]">{bibCollection.venue}</p>
 
-            <a
-              href="https://maps.app.goo.gl/W2gAj4VL5e9mHaE78"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex h-[50px] items-center justify-center gap-2 rounded-full text-sm font-bold text-white"
-              style={{ background: ACCENT }}
-            >
-              <MapIcon />
-              Open Location in Google Maps
-            </a>
+            {bibCollection.mapsUrl && (
+              <a
+                href={bibCollection.mapsUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex h-[50px] items-center justify-center gap-2 rounded-full text-sm font-bold text-white"
+                style={{ background: ACCENT }}
+              >
+                <MapIcon />
+                Open Location in Google Maps
+              </a>
+            )}
           </div>
         </div>
       )}

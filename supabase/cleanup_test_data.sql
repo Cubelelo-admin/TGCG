@@ -26,11 +26,10 @@ update bib_counters set last_value = 0;
 -- Retired-BIB pool (0020_reuse_retired_bibs.sql) — empty it alongside.
 delete from bib_released;
 
--- Human-readable code numbering (0008_registration_code.sql /
--- 0011_booking_code.sql) — restart so the first real registration is
--- TGCG-0001 / TGCG-G-0001 again.
-alter sequence registration_code_seq restart with 1;
-alter sequence booking_code_seq restart with 1;
+-- Human-readable code numbering — restart so the first real registration is
+-- TGCG-0001 / TGCG-G-0001 again. Per-event counters on `events` since
+-- 0021_poc_and_multi_event.sql (the old global sequences are no longer used).
+update events set registration_seq = 0, booking_seq = 0;
 
 commit;
 

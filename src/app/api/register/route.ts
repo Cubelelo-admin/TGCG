@@ -188,6 +188,26 @@ export async function POST(request: Request) {
 
   const eventId = priced[0].ticketCategory.event_id;
 
+  // More than one event shares this database now (TGCG 2026, Raigarh 2027…)
+  // — one booking/Razorpay order must belong to exactly one event, and only
+  // to one that's open: an inactive event's categories are still is_active,
+  // so the category lookup above alone wouldn't stop a crafted request.
+  if (priced.some((p) => p.ticketCategory.event_id !== eventId)) {
+    return NextResponse.json(
+      { error: "All participants in one booking must be registering for the same event" },
+      { status: 400 }
+    );
+  }
+  const { data: openEvent } = await supabase
+    .from("events")
+    .select("id")
+    .eq("id", eventId)
+    .eq("is_active", true)
+    .maybeSingle();
+  if (!openEvent) {
+    return NextResponse.json({ error: "Registration is not open for this event" }, { status: 400 });
+  }
+
   // Child runner: looked up server-side by name, never trust a client-sent
   // price — same principle as every other ticket category above.
   let childCategory: TicketCategory | null = null;

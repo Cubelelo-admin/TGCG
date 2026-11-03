@@ -79,12 +79,14 @@ export default function RegisterFlow({
   addons,
   childCategory,
   eventName,
+  eventShortName,
   initialCategoryId,
 }: {
   categories: TicketCategory[];
   addons: Addon[];
   childCategory: TicketCategory | null;
   eventName: string;
+  eventShortName: string;
   initialCategoryId?: string;
 }) {
   const router = useRouter();
@@ -167,6 +169,9 @@ export default function RegisterFlow({
   const childAmount = childCategory ? Number(childCategory.price_inr) : 0;
   const projectedTotal = otherTotal + draftTotal + (childRunner ? childAmount : 0);
   const projectedCount = otherAttendees.length + (draftCategory ? 1 : 0) + (childRunner ? 1 : 0);
+  // T-shirt tally for the "So Far" summary — the same saved attendees the
+  // summary lists (Child Runner gets no T-shirt), in size-chart order.
+  const tshirtCounts = tallyTshirtSizes(otherAttendees.map((a) => a.tshirtSize));
 
   const {
     register,
@@ -475,7 +480,7 @@ export default function RegisterFlow({
         amount: json.amount,
         currency: json.currency,
         name: eventName,
-        description: `${finalAttendees.length} attendee${finalAttendees.length === 1 ? "" : "s"} — TGCG 2026`,
+        description: `${finalAttendees.length} attendee${finalAttendees.length === 1 ? "" : "s"} — ${eventShortName}`,
         order_id: json.orderId,
         prefill: {
           name: finalAttendees[0]?.fullName,
@@ -576,6 +581,7 @@ export default function RegisterFlow({
         serverError={serverError}
         summaryTitle={summaryItems.length > 0 ? "So Far" : "Summary"}
         summaryItems={summaryItems}
+        tshirtCounts={tshirtCounts}
         projectedTotal={projectedTotal}
         projectedCount={projectedCount}
         checkoutLabel={submitting ? "Processing..." : `Checkout — Pay ₹${projectedTotal.toLocaleString("en-IN")}`}
@@ -639,6 +645,7 @@ function AttendeeStep({
   serverError,
   summaryTitle,
   summaryItems,
+  tshirtCounts,
   projectedTotal,
   projectedCount,
   checkoutLabel,
@@ -701,6 +708,7 @@ function AttendeeStep({
   serverError: string | null;
   summaryTitle: string;
   summaryItems: { label: string; amount: number; onEdit: () => void; onRemove: () => void; key: string | number }[];
+  tshirtCounts: { size: string; count: number }[];
   projectedTotal: number;
   projectedCount: number;
   checkoutLabel: string;
@@ -725,6 +733,7 @@ function AttendeeStep({
           <SummaryCard
             title={summaryTitle}
             items={summaryItems}
+            tshirtCounts={tshirtCounts}
             total={projectedTotal}
             itemCount={projectedCount}
           />
@@ -1218,14 +1227,29 @@ function ToggleButton({ selected, onClick }: { selected: boolean; onClick: () =>
   );
 }
 
+/** Counts per T-shirt size, ordered like the size chart (any unknown size last). */
+function tallyTshirtSizes(sizes: (string | null | undefined)[]): { size: string; count: number }[] {
+  const counts = new Map<string, number>();
+  for (const size of sizes) {
+    if (size) counts.set(size, (counts.get(size) ?? 0) + 1);
+  }
+  const order = TSHIRT_SIZE_CHART.map((row) => row.size);
+  const rank = (size: string) => (order.includes(size) ? order.indexOf(size) : order.length);
+  return [...counts.entries()]
+    .map(([size, count]) => ({ size, count }))
+    .sort((a, b) => rank(a.size) - rank(b.size));
+}
+
 function SummaryCard({
   title = "Summary",
   items,
+  tshirtCounts,
   total,
   itemCount,
 }: {
   title?: string;
   items?: { label: string; amount: number; onEdit?: () => void; onRemove?: () => void; key?: string | number }[];
+  tshirtCounts?: { size: string; count: number }[];
   total: number;
   itemCount: number;
 }) {
@@ -1267,6 +1291,28 @@ function SummaryCard({
                 )}
               </div>
             ))}
+          </div>
+        )}
+
+        {tshirtCounts && tshirtCounts.length > 0 && (
+          <div className="mt-3 border-b border-[#e5e7eb] pb-3">
+            <div className="flex items-center justify-between text-xs font-bold uppercase tracking-wide text-[#6b7280]">
+              <span>T-Shirts</span>
+              <span>
+                {tshirtCounts.reduce((sum, t) => sum + t.count, 0)} total
+              </span>
+            </div>
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              {tshirtCounts.map((t) => (
+                <span
+                  key={t.size}
+                  className="rounded-full border px-2.5 py-0.5 text-xs font-semibold"
+                  style={{ borderColor: ACCENT, color: ACCENT }}
+                >
+                  {t.size} × {t.count}
+                </span>
+              ))}
+            </div>
           </div>
         )}
 

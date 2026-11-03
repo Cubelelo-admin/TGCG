@@ -23,6 +23,7 @@ export interface RegistrationRow {
   manual_payment_note: string | null;
   manual_paid_by: string | null;
   manual_paid_at: string | null;
+  poc_name: string | null;
   registration_groups: { attendee_count: number; organizer_email: string; booking_code: string | null } | null;
   ticket_categories: { name: string; group: string; hidden_from_picker: boolean } | null;
 }
@@ -63,11 +64,29 @@ export async function getPaymentTotals(eventId: string): Promise<PaymentTotals> 
   };
 }
 
+export type PocTotal = { pocName: string; count: number; amount: number };
+
+/** Paid bulk-import registrations per group POC — who is collecting how much (see 0021_poc_and_multi_event.sql). */
+export async function getPocTotals(eventId: string): Promise<PocTotal[]> {
+  const supabase = createServiceClient();
+  const { data, error } = await supabase.rpc("poc_totals", { p_event_id: eventId });
+  if (error) {
+    console.error("poc_totals failed", error);
+    return [];
+  }
+  return ((data ?? []) as { poc_name: string; paid_count: number; amount_inr: number }[]).map((r) => ({
+    pocName: r.poc_name,
+    count: Number(r.paid_count),
+    amount: Number(r.amount_inr),
+  }));
+}
+
 export async function getDashboardStats(eventId: string) {
   const supabase = createServiceClient();
 
-  const [totals, { data: categories }] = await Promise.all([
+  const [totals, pocTotals, { data: categories }] = await Promise.all([
     getPaymentTotals(eventId),
+    getPocTotals(eventId),
     supabase
       .from("ticket_categories")
       .select("id, name, sold_count")
@@ -77,6 +96,7 @@ export async function getDashboardStats(eventId: string) {
 
   return {
     totals,
+    pocTotals,
     categories: categories ?? [],
   };
 }
@@ -102,7 +122,7 @@ export async function listRegistrations(params: {
   let query = supabase
     .from("registrations")
     .select(
-      "id, full_name, email, phone, city, gender, tshirt_size, payment_status, amount_inr, registration_code, bib_number, checked_in, created_at, group_id, ticket_category_id, payment_method, manual_payment_mode, manual_payment_ref, manual_payment_note, manual_paid_by, manual_paid_at, registration_groups(attendee_count, organizer_email, booking_code), ticket_categories(name, group, hidden_from_picker)",
+      "id, full_name, email, phone, city, gender, tshirt_size, payment_status, amount_inr, registration_code, bib_number, checked_in, created_at, group_id, ticket_category_id, payment_method, manual_payment_mode, manual_payment_ref, manual_payment_note, manual_paid_by, manual_paid_at, poc_name, registration_groups(attendee_count, organizer_email, booking_code), ticket_categories(name, group, hidden_from_picker)",
       { count: "exact" }
     )
     .eq("event_id", params.eventId)
@@ -123,7 +143,7 @@ export async function listRegistrations(params: {
   if (params.search) {
     const term = params.search.trim();
     query = query.or(
-      `full_name.ilike.%${term}%,email.ilike.%${term}%,phone.ilike.%${term}%,registration_code.ilike.%${term}%`
+      `full_name.ilike.%${term}%,email.ilike.%${term}%,phone.ilike.%${term}%,registration_code.ilike.%${term}%,poc_name.ilike.%${term}%`
     );
   }
 

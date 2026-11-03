@@ -1,9 +1,9 @@
 import Link from "next/link";
-import { getEvent } from "@/lib/catalog";
+import { getAdminEvent } from "@/lib/admin-event";
 import { getDashboardStats } from "@/lib/admin-data";
 
 export default async function AdminDashboardPage() {
-  const event = await getEvent();
+  const { event } = await getAdminEvent();
   if (!event) {
     return <p className="text-neutral-400">No active event found.</p>;
   }
@@ -34,6 +34,42 @@ export default async function AdminDashboardPage() {
           </p>
         </Link>
       </div>
+
+      {stats.pocTotals.length > 0 && (
+        <>
+          <h2 className="mt-10 font-semibold text-lg">By Group POC</h2>
+          <p className="mt-1 text-sm text-neutral-400">
+            Bulk-imported registrations, grouped by the POC responsible for collecting their money.
+          </p>
+          <div className="mt-4 overflow-x-auto rounded-xl border border-white/10">
+            <table className="w-full text-sm">
+              <thead className="bg-white/[0.04] text-left text-neutral-400">
+                <tr>
+                  <th className="px-4 py-3 font-medium">POC</th>
+                  <th className="px-4 py-3 font-medium">Registrations</th>
+                  <th className="px-4 py-3 font-medium">Amount</th>
+                </tr>
+              </thead>
+              <tbody>
+                {stats.pocTotals.map((p) => (
+                  <tr key={p.pocName} className="border-t border-white/10">
+                    <td className="px-4 py-3">
+                      <Link
+                        href={{ pathname: "/admin/registrations", query: { q: p.pocName } }}
+                        className="underline decoration-white/30 hover:decoration-white"
+                      >
+                        {p.pocName}
+                      </Link>
+                    </td>
+                    <td className="px-4 py-3">{p.count.toLocaleString("en-IN")}</td>
+                    <td className="px-4 py-3">₹{p.amount.toLocaleString("en-IN")}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
 
       <h2 className="mt-10 font-semibold text-lg">By Category</h2>
       <div className="mt-4 overflow-x-auto rounded-xl border border-white/10">

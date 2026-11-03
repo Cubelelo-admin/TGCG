@@ -3,7 +3,9 @@ import Image from "next/image";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { getAdminSession } from "@/lib/admin-auth";
+import { getAdminEvent } from "@/lib/admin-event";
 import SignOutButton from "./SignOutButton";
+import EventSwitcher from "./EventSwitcher";
 
 export default async function AdminProtectedLayout({
   children,
@@ -31,6 +33,8 @@ export default async function AdminProtectedLayout({
     );
   }
 
+  const { event, events } = await getAdminEvent();
+
   return (
     <div className="flex min-h-screen flex-col bg-neutral-950 text-neutral-50">
       <header className="border-b border-white/10">
@@ -48,6 +52,10 @@ export default async function AdminProtectedLayout({
             </Link>
           </nav>
           <div className="flex items-center gap-3 text-sm text-neutral-400 sm:gap-4">
+            <EventSwitcher
+              events={events.map((e) => ({ slug: e.slug, name: e.name, is_active: e.is_active }))}
+              selectedSlug={event?.slug ?? null}
+            />
             <span className="hidden truncate sm:inline">{session.email}</span>
             <SignOutButton />
           </div>

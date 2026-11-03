@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { getBulkImportCategories, getEvent } from "@/lib/catalog";
+import { getBulkImportCategories } from "@/lib/catalog";
+import { getAdminEvent } from "@/lib/admin-event";
 import { getPaymentTotals, listRegistrations, PAYMENT_METHOD_FILTERS, type RegistrationRow } from "@/lib/admin-data";
 import { MANUAL_PAYMENT_MODE_LABELS, PAYMENT_METHOD_LABELS, type ManualPaymentMode } from "@/lib/manual-payment";
 import ResendWaButton from "./ResendWaButton";
@@ -23,7 +24,7 @@ export default async function AdminRegistrationsPage({
 }) {
   const { q, status, method: rawMethod, group: groupId, page } = await searchParams;
   const method = (PAYMENT_METHOD_FILTERS as readonly string[]).includes(rawMethod ?? "") ? rawMethod : undefined;
-  const event = await getEvent();
+  const { event } = await getAdminEvent();
   if (!event) return <p className="text-neutral-400">No active event found.</p>;
 
   const pageNum = Number(page) || 1;
@@ -52,7 +53,7 @@ export default async function AdminRegistrationsPage({
       <div className="flex flex-wrap items-center justify-between gap-4">
         <h1 className="text-xl font-bold sm:text-2xl">Registrations ({count})</h1>
         <div className="flex flex-wrap gap-3">
-          <BulkUploadButton categories={categoryRows} />
+          <BulkUploadButton eventId={event.id} eventName={event.name} categories={categoryRows} />
           <a
             href={exportHref}
             className="rounded-full border border-white/20 px-4 py-2 text-sm font-medium hover:border-white/40"
@@ -92,7 +93,7 @@ export default async function AdminRegistrationsPage({
           type="text"
           name="q"
           defaultValue={q}
-          placeholder="Search name, email, phone, registration ID"
+          placeholder="Search name, email, phone, registration ID, POC"
           className="w-full min-w-0 flex-1 rounded-lg border border-white/10 bg-white/[0.04] px-3.5 py-2 text-sm focus:border-emerald-400 focus:outline-none sm:w-auto"
         />
         <select
@@ -165,6 +166,15 @@ export default async function AdminRegistrationsPage({
                 </td>
                 <td className="px-3 py-2.5">
                   {r.full_name}
+                  {r.poc_name && (
+                    <Link
+                      href={{ pathname: "/admin/registrations", query: { q: r.poc_name } }}
+                      title="Group POC — collecting the money for this registration. Click to see everyone under this POC."
+                      className="ml-2 rounded-full border border-amber-400/30 bg-amber-500/10 px-2 py-0.5 text-[11px] text-amber-300 hover:border-amber-300/60"
+                    >
+                      POC: {r.poc_name}
+                    </Link>
+                  )}
                   {r.group_id && r.registration_groups && r.registration_groups.attendee_count > 1 && (
                     <Link
                       href={{ pathname: "/admin/registrations", query: { group: r.group_id } }}
