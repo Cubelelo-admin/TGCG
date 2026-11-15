@@ -80,8 +80,13 @@ export async function POST(request: Request) {
     Date.now() - new Date(otpRow.verified_at).getTime() < OTP_VERIFIED_FRESHNESS_MINUTES * 60 * 1000;
 
   if (!verifiedRecently) {
+    // `code` lets the form drop its (now stale) verified state and send the
+    // user back to the verification step instead of showing a dead-end error.
     return NextResponse.json(
-      { error: "Please verify the first participant's phone number before checking out" },
+      {
+        error: "Please verify the booking contact's WhatsApp number before checking out.",
+        code: "PHONE_NOT_VERIFIED",
+      },
       { status: 400 }
     );
   }

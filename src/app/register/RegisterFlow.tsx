@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from "react";
 import { useRouter } from "next/navigation";
 import { useForm, type FieldErrors, type UseFormRegister } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -118,17 +118,26 @@ export default function RegisterFlow({
   const [childConfirmDraft, setChildConfirmDraft] = useState(false);
   const [childError, setChildError] = useState<string | null>(null);
 
-  // Phone-OTP verification for the primary (first) attendee only — Checkout
-  // is hard-gated on this server-side too (see api/register/route.ts).
-  // otpSentForPhone tracks *which* number the current code was sent to, so
-  // editing the phone field after sending doesn't leave a stale "enter code"
-  // box showing for a number that was never actually texted.
+  // Phone-OTP verification for the primary (first) attendee only. It's a
+  // mandatory first step: the rest of that attendee's form stays locked
+  // until it's done, and Checkout is hard-gated on it server-side too (see
+  // api/register/route.ts). otpSentForPhone tracks *which* number the
+  // current code was sent to, so changing the number after sending doesn't
+  // leave a stale "enter code" step showing for a number that was never
+  // actually messaged.
   const [otpSentForPhone, setOtpSentForPhone] = useState<string | null>(null);
   const [otpCode, setOtpCode] = useState("");
   const [otpSending, setOtpSending] = useState(false);
   const [otpVerifying, setOtpVerifying] = useState(false);
-  const [otpError, setOtpError] = useState<string | null>(null);
+  const [otpError, setOtpError] = useState<OtpError | null>(null);
+  const [otpNotice, setOtpNotice] = useState<string | null>(null);
   const [otpVerifiedPhone, setOtpVerifiedPhone] = useState<string | null>(null);
+  // Resend cooldown for the "Resend in 0:24" countdown. `key` bumps on every
+  // send so the countdown component remounts and restarts from `seconds`.
+  const [resendCooldown, setResendCooldown] = useState<{ seconds: number; key: number } | null>(null);
+  // Set when /api/register rejects Checkout because the verification went
+  // stale (server allows 60 min) — changes the recap's notice wording.
+  const [verificationExpired, setVerificationExpired] = useState(false);
 
   const draftCategory = useMemo(
     () => categories.find((c) => c.id === draftCategoryId) ?? null,
@@ -201,12 +210,33 @@ export default function RegisterFlow({
   const isPrimaryAttendee = editingIndex === 0 || (editingIndex === null && attendees.length === 0);
   const isPhoneVerified = Boolean(phoneValue) && phoneValue === otpVerifiedPhone;
   const showOtpCodeInput = Boolean(phoneValue) && phoneValue === otpSentForPhone && !isPhoneVerified;
+  // The mandatory gate: while the primary attendee's number is unverified,
+  // everything after the verification step (details, ticket, add-ons,
+  // consent, Save) stays locked.
+  const detailsLocked = showForm && isPrimaryAttendee && !isPhoneVerified;
   // Checkout's hard gate — attendees[0] must exist and match the verified phone.
   const primaryPhoneVerified = attendees.length > 0 && attendees[0].phone === otpVerifiedPhone;
+  // 1 = Verify number, 2 = Details, 3 = Review & pay.
+  const currentStep: 1 | 2 | 3 = detailsLocked
+    ? 1
+    : showForm || showChildForm
+      ? 2
+      : primaryPhoneVerified
+        ? 3
+        : 1;
 
   async function handleSendOtp() {
-    if (!phoneValue || !PHONE_REGEX.test(phoneValue)) return;
+    if (!PHONE_REGEX.test(phoneValue)) {
+      setOtpError({ message: "Enter a valid 10-digit mobile number." });
+      return;
+    }
+    if (attendees.some((a, i) => i !== editingIndex && a.phone === phoneValue)) {
+      setOtpError({ message: "This number is already used by another participant in this booking." });
+      return;
+    }
+    const isResend = otpSentForPhone === phoneValue;
     setOtpError(null);
+    setOtpNotice(null);
     setOtpSending(true);
     try {
       const res = await fetch("/api/otp/send", {
@@ -216,39 +246,77 @@ export default function RegisterFlow({
       });
       const json = await res.json().catch(() => ({}));
       if (!res.ok) {
-        setOtpError(json.error ?? "Could not send the code. Please try again.");
+        if (typeof json.retryAfterSeconds === "number") {
+          setResendCooldown((prev) => ({ seconds: json.retryAfterSeconds, key: (prev?.key ?? 0) + 1 }));
+        }
+        setOtpError({ message: json.error ?? "Could not send the code. Please try again." });
         return;
       }
       setOtpCode("");
       setOtpSentForPhone(phoneValue);
+      setResendCooldown((prev) => ({
+        seconds: typeof json.resendAfterSeconds === "number" ? json.resendAfterSeconds : 30,
+        key: (prev?.key ?? 0) + 1,
+      }));
+      if (isResend) setOtpNotice("New code sent on WhatsApp. Use the latest one.");
     } catch {
-      setOtpError("Could not send the code. Please try again.");
+      setOtpError({ message: "Could not send the code. Check your internet connection and try again." });
     } finally {
       setOtpSending(false);
     }
   }
 
-  async function handleVerifyOtp() {
-    if (!phoneValue || !otpCode) return;
+  async function handleVerifyOtp(code: string) {
+    if (!phoneValue || code.length !== 6 || otpVerifying) return;
     setOtpError(null);
+    setOtpNotice(null);
     setOtpVerifying(true);
     try {
       const res = await fetch("/api/otp/verify", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone: phoneValue, code: otpCode }),
+        body: JSON.stringify({ phone: phoneValue, code }),
       });
       const json = await res.json().catch(() => ({}));
       if (!res.ok) {
-        setOtpError(json.error ?? "Incorrect code");
+        setOtpError({
+          message: json.error ?? "That code doesn't match. Please try again.",
+          attemptsLeft: typeof json.attemptsLeft === "number" ? json.attemptsLeft : undefined,
+        });
         return;
       }
       setOtpVerifiedPhone(phoneValue);
+      setVerificationExpired(false);
+      setOtpSentForPhone(null);
+      setOtpCode("");
+      setResendCooldown(null);
     } catch {
-      setOtpError("Could not verify the code. Please try again.");
+      setOtpError({ message: "Could not check the code. Check your internet connection and try again." });
     } finally {
       setOtpVerifying(false);
     }
+  }
+
+  /** Digits only, max 6; a complete code (typed, pasted or autofilled) is checked straight away. */
+  function handleOtpCodeChange(raw: string) {
+    const digits = raw.replace(/\D/g, "").slice(0, 6);
+    setOtpCode(digits);
+    if (otpError) setOtpError(null);
+    if (digits.length === 6 && digits !== otpCode) void handleVerifyOtp(digits);
+  }
+
+  /**
+   * "Change" on the code-sent or verified step: back to the number field
+   * (pre-filled with the current number), dropping any verification — the
+   * form locks again until a number is verified.
+   */
+  function handleChangeNumber() {
+    setOtpVerifiedPhone(null);
+    setOtpSentForPhone(null);
+    setOtpCode("");
+    setOtpError(null);
+    setOtpNotice(null);
+    setResendCooldown(null);
   }
 
   // Scrolled into view whenever a fresh/edited draft form replaces what was
@@ -386,6 +454,9 @@ export default function RegisterFlow({
    * shortcut, not the source of truth.
    */
   function saveDraft(data: AttendeeFieldsInput): AttendeeCartItem[] | null {
+    // Unreachable through the UI (Save isn't rendered while detailsLocked),
+    // but keeps the gate from depending on markup alone.
+    if (isPrimaryAttendee && data.phone !== otpVerifiedPhone) return null;
     if (!draftCategory) {
       setCategoryError("Please select a ticket");
       return null;
@@ -463,7 +534,15 @@ export default function RegisterFlow({
       const json = await res.json();
 
       if (!res.ok) {
-        setServerError(json.error ?? "Something went wrong. Please try again.");
+        if (json.code === "PHONE_NOT_VERIFIED") {
+          // Server-side verification went stale — drop the client's verified
+          // state so the recap's "Verify now" notice takes over.
+          setOtpVerifiedPhone(null);
+          setVerificationExpired(true);
+          setServerError(null);
+        } else {
+          setServerError(json.error ?? "Something went wrong. Please try again.");
+        }
         setSubmitting(false);
         return;
       }
@@ -512,7 +591,7 @@ export default function RegisterFlow({
     }
   }
 
-  const summaryItems = otherAttendees.map((a, i) => {
+  const summaryItems: SummaryItem[] = otherAttendees.map((a, i) => {
     const originalIndex = attendees.indexOf(a);
     return {
       label: `${a.fullName} — ${categories.find((c) => c.id === a.categoryId)?.name ?? ""}`,
@@ -520,6 +599,8 @@ export default function RegisterFlow({
       onEdit: () => startEditAttendee(originalIndex),
       onRemove: () => removeAttendee(originalIndex),
       key: a.clientKey ?? i,
+      bookingContact:
+        originalIndex === 0 ? (a.phone === otpVerifiedPhone ? "verified" : "unverified") : undefined,
     };
   });
   if (childRunner) {
@@ -564,20 +645,40 @@ export default function RegisterFlow({
         addDisabled={attendees.length >= MAX_GROUP_SIZE}
         submitting={submitting}
         isPrimaryAttendee={isPrimaryAttendee}
-        phoneValue={phoneValue}
         onPhoneChange={setPhoneValue}
         tshirtSizeValue={tshirtSizeValue}
         onTshirtSizeChange={setTshirtSizeValue}
-        isPhoneVerified={isPhoneVerified}
-        showOtpCodeInput={showOtpCodeInput}
-        otpCode={otpCode}
-        onOtpCodeChange={setOtpCode}
-        otpSending={otpSending}
-        otpVerifying={otpVerifying}
-        otpError={otpError}
-        onSendOtp={() => void handleSendOtp()}
-        onVerifyOtp={() => void handleVerifyOtp()}
+        currentStep={currentStep}
+        detailsLocked={detailsLocked}
+        lockedNoticeExpanded={editingIndex === null && !showOtpCodeInput}
+        verificationCard={
+          isPrimaryAttendee ? (
+            <PhoneVerificationStep
+              register={register}
+              phoneError={errors.phone?.message}
+              phoneValue={phoneValue}
+              onPhoneChange={setPhoneValue}
+              isVerified={isPhoneVerified}
+              showCodeInput={showOtpCodeInput}
+              code={otpCode}
+              onCodeChange={handleOtpCodeChange}
+              sending={otpSending}
+              verifying={otpVerifying}
+              error={otpError}
+              notice={otpNotice}
+              resendCooldown={resendCooldown}
+              onSend={() => void handleSendOtp()}
+              onVerify={() => void handleVerifyOtp(otpCode)}
+              onChangeNumber={handleChangeNumber}
+              onCancel={attendees.length > 0 ? cancelDraft : undefined}
+            />
+          ) : null
+        }
         primaryPhoneVerified={primaryPhoneVerified}
+        primaryPhone={attendees[0]?.phone ?? null}
+        primaryName={attendees[0]?.fullName ?? null}
+        verificationExpired={verificationExpired}
+        onVerifyPrimary={() => startEditAttendee(0)}
         serverError={serverError}
         summaryTitle={summaryItems.length > 0 ? "So Far" : "Summary"}
         summaryItems={summaryItems}
@@ -628,20 +729,18 @@ function AttendeeStep({
   addDisabled,
   submitting,
   isPrimaryAttendee,
-  phoneValue,
   onPhoneChange,
   tshirtSizeValue,
   onTshirtSizeChange,
-  isPhoneVerified,
-  showOtpCodeInput,
-  otpCode,
-  onOtpCodeChange,
-  otpSending,
-  otpVerifying,
-  otpError,
-  onSendOtp,
-  onVerifyOtp,
+  currentStep,
+  detailsLocked,
+  lockedNoticeExpanded,
+  verificationCard,
   primaryPhoneVerified,
+  primaryPhone,
+  primaryName,
+  verificationExpired,
+  onVerifyPrimary,
   serverError,
   summaryTitle,
   summaryItems,
@@ -690,24 +789,25 @@ function AttendeeStep({
   submitting: boolean;
   /** Whether the currently-shown draft is the first attendee — only they need phone verification. */
   isPrimaryAttendee: boolean;
-  phoneValue: string;
   onPhoneChange: (value: string) => void;
   tshirtSizeValue: string;
   onTshirtSizeChange: (value: string) => void;
-  isPhoneVerified: boolean;
-  showOtpCodeInput: boolean;
-  otpCode: string;
-  onOtpCodeChange: (code: string) => void;
-  otpSending: boolean;
-  otpVerifying: boolean;
-  otpError: string | null;
-  onSendOtp: () => void;
-  onVerifyOtp: () => void;
+  currentStep: 1 | 2 | 3;
+  /** The primary attendee's number isn't verified yet — everything after the verification step is locked. */
+  detailsLocked: boolean;
+  /** Show the full locked-steps notice (section chips + group hint) rather than the compact one. */
+  lockedNoticeExpanded: boolean;
+  /** The verification step (primary attendee only), rendered above the attendee details; null otherwise. */
+  verificationCard: ReactNode;
   /** Checkout's hard gate — the first attendee's phone must be verified. */
   primaryPhoneVerified: boolean;
+  primaryPhone: string | null;
+  primaryName: string | null;
+  verificationExpired: boolean;
+  onVerifyPrimary: () => void;
   serverError: string | null;
   summaryTitle: string;
-  summaryItems: { label: string; amount: number; onEdit: () => void; onRemove: () => void; key: string | number }[];
+  summaryItems: SummaryItem[];
   tshirtCounts: { size: string; count: number }[];
   projectedTotal: number;
   projectedCount: number;
@@ -726,8 +826,16 @@ function AttendeeStep({
 }) {
   return (
     <div>
-      <form className="mx-auto max-w-xl space-y-6">
+      {/*
+        onSubmit is a no-op: every action here is a type="button" click, but
+        on the verification step the phone field can be the form's only
+        text input, where pressing Enter would otherwise trigger implicit
+        submission and reload the page.
+      */}
+      <form className="mx-auto max-w-xl space-y-6" onSubmit={(e) => e.preventDefault()}>
         <div ref={formTopRef} className="scroll-mt-6" />
+
+        <StepIndicator current={currentStep} />
 
         {summaryItems.length > 0 && (
           <SummaryCard
@@ -739,7 +847,13 @@ function AttendeeStep({
           />
         )}
 
-        {showForm && (
+        {showForm && verificationCard}
+
+        {showForm && detailsLocked && (
+          <LockedStepsNotice expanded={lockedNoticeExpanded} hasAddons={addons.length > 0} />
+        )}
+
+        {showForm && !detailsLocked && (
         <>
         <FormCard
           title={isEditing ? "Edit Attendee" : "Attendee Details"}
@@ -760,27 +874,20 @@ function AttendeeStep({
           <Field label="Full Name" required error={errors.fullName?.message}>
             <input {...register("fullName")} className={inputClass} />
           </Field>
-          <Field label="WhatsApp Contact Number" required error={errors.phone?.message}>
-            <input
-              {...register("phone", { onChange: (e) => onPhoneChange(e.target.value) })}
-              placeholder="10-digit mobile number"
-              className={inputClass}
-            />
-          </Field>
-
-          {isPrimaryAttendee && (
-            <OtpVerification
-              phoneValid={PHONE_REGEX.test(phoneValue)}
-              isPhoneVerified={isPhoneVerified}
-              showCodeInput={showOtpCodeInput}
-              code={otpCode}
-              onCodeChange={onOtpCodeChange}
-              sending={otpSending}
-              verifying={otpVerifying}
-              error={otpError}
-              onSend={onSendOtp}
-              onVerify={onVerifyOtp}
-            />
+          {/*
+            The primary attendee's number lives in the verification step
+            above (already verified by the time this card shows); every
+            other attendee enters theirs here, unverified.
+          */}
+          {!isPrimaryAttendee && (
+            <Field label="WhatsApp Contact Number" required error={errors.phone?.message}>
+              <input
+                {...register("phone", { onChange: (e) => onPhoneChange(e.target.value) })}
+                placeholder="10-digit mobile number"
+                inputMode="numeric"
+                className={inputClass}
+              />
+            </Field>
           )}
 
           <Field label="Gender" required error={errors.gender?.message}>
@@ -921,6 +1028,29 @@ function AttendeeStep({
               <p className="rounded-md bg-red-50 px-4 py-3 text-sm text-red-700">{serverError}</p>
             )}
 
+            {!primaryPhoneVerified && primaryPhone !== null && (
+              <div role="alert" className="rounded-md border border-[#fcd34d] bg-[#fffbeb] px-4 py-3">
+                <p className="text-sm font-bold text-[#92400e]">
+                  {verificationExpired
+                    ? "Your WhatsApp verification has expired"
+                    : "WhatsApp verification needed"}
+                </p>
+                <p className="mt-0.5 text-sm text-[#92400e]">
+                  Verify the booking contact&apos;s number
+                  {primaryName ? ` (${primaryName}${primaryPhone ? `, ${formatPhone(primaryPhone)}` : ""})` : ""}{" "}
+                  to check out.
+                </p>
+                <button
+                  type="button"
+                  onClick={onVerifyPrimary}
+                  className="mt-3 rounded-md px-4 py-2 text-sm font-semibold text-white"
+                  style={{ backgroundColor: ACCENT }}
+                >
+                  Verify now
+                </button>
+              </div>
+            )}
+
             <div className="flex flex-col gap-3 sm:flex-row">
               <button
                 type="button"
@@ -951,22 +1081,10 @@ function AttendeeStep({
                 {checkoutLabel}
               </button>
             </div>
-            {!primaryPhoneVerified && (
-              <p className="text-sm text-[#6b7280]">
-                Verify the first participant&apos;s phone number before checking out.
-                {summaryItems[0]?.onEdit && (
-                  <>
-                    {" "}
-                    <button
-                      type="button"
-                      onClick={summaryItems[0].onEdit}
-                      className="font-medium underline"
-                      style={{ color: ACCENT }}
-                    >
-                      Verify now
-                    </button>
-                  </>
-                )}
+            {primaryPhoneVerified && primaryPhone && (
+              <p className="flex items-center justify-center gap-1.5 text-[13px] text-[#4b5563]">
+                <TickIcon size={14} color="#16a34a" />
+                Booking confirmation goes to verified number {formatPhone(primaryPhone)}
               </p>
             )}
           </>
@@ -1026,87 +1144,485 @@ function AttendeeStep({
   );
 }
 
-function OtpVerification({
-  phoneValid,
-  isPhoneVerified,
+type OtpError = { message: string; attemptsLeft?: number };
+
+type SummaryItem = {
+  label: string;
+  amount: number;
+  onEdit?: () => void;
+  onRemove?: () => void;
+  key?: string | number;
+  /** Marks the booking's first attendee — the one whose WhatsApp number is verified. */
+  bookingContact?: "verified" | "unverified";
+};
+
+/** "9876543210" → "+91 98765 43210" — easier to check at a glance than ten run-together digits. */
+function formatPhone(phone: string): string {
+  return phone.length === 10 ? `+91 ${phone.slice(0, 5)} ${phone.slice(5)}` : `+91 ${phone}`;
+}
+
+const STEPS = ["Verify number", "Details", "Review & pay"] as const;
+
+/**
+ * "1 Verify number — 2 Details — 3 Review & pay". Inline from `sm` up; on
+ * phones each label sits under its number instead, since the inline row
+ * needs ~380px and the form can be as narrow as ~290px inside the iframe on
+ * a small phone.
+ */
+function StepIndicator({ current }: { current: 1 | 2 | 3 }) {
+  return (
+    <ol aria-label="Registration steps" className="flex items-start sm:items-center">
+      {STEPS.map((label, i) => {
+        const step = i + 1;
+        const done = step < current;
+        const active = step === current;
+        return (
+          <Fragment key={label}>
+            {i > 0 && (
+              <li
+                aria-hidden="true"
+                className="mx-1 mt-3 min-w-2 flex-1 sm:mx-2 sm:mt-0"
+                style={{ backgroundColor: step <= current ? "#16a34a" : "#d1d5db", height: step <= current ? 2 : 1 }}
+              />
+            )}
+            <li
+              aria-current={active ? "step" : undefined}
+              className="flex w-[84px] shrink-0 flex-col items-center gap-1 text-center sm:w-auto sm:flex-row sm:gap-1.5"
+            >
+              <span
+                className="flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold"
+                style={
+                  done
+                    ? { backgroundColor: "#16a34a", color: "#ffffff" }
+                    : active
+                      ? { backgroundColor: ACCENT, color: "#ffffff" }
+                      : { border: "1px solid #9ca3af", color: "#6b7280" }
+                }
+              >
+                {done ? <TickIcon size={14} label="Done" /> : step}
+              </span>
+              <span
+                className={`text-xs leading-tight sm:text-[13px] ${active ? "font-bold" : ""}`}
+                style={{ color: done ? "#166534" : active ? "#111827" : "#6b7280" }}
+              >
+                {label}
+              </span>
+            </li>
+          </Fragment>
+        );
+      })}
+    </ol>
+  );
+}
+
+/**
+ * Step 1 of the primary attendee's form — the mandatory WhatsApp OTP gate.
+ * Three states: enter number → enter code → verified (a compact green bar).
+ * The number input is react-hook-form's "phone" field; it unmounts in the
+ * later two states but its value stays in the form (shouldUnregister is
+ * off), and remounts pre-filled on "Change".
+ */
+function PhoneVerificationStep({
+  register,
+  phoneError,
+  phoneValue,
+  onPhoneChange,
+  isVerified,
   showCodeInput,
   code,
   onCodeChange,
   sending,
   verifying,
   error,
+  notice,
+  resendCooldown,
   onSend,
   onVerify,
+  onChangeNumber,
+  onCancel,
 }: {
-  phoneValid: boolean;
-  isPhoneVerified: boolean;
+  register: UseFormRegister<AttendeeFieldsInput>;
+  phoneError?: string;
+  phoneValue: string;
+  onPhoneChange: (value: string) => void;
+  isVerified: boolean;
   showCodeInput: boolean;
   code: string;
-  onCodeChange: (code: string) => void;
+  onCodeChange: (raw: string) => void;
   sending: boolean;
   verifying: boolean;
-  error: string | null;
+  error: OtpError | null;
+  notice: string | null;
+  resendCooldown: { seconds: number; key: number } | null;
   onSend: () => void;
   onVerify: () => void;
+  onChangeNumber: () => void;
+  /** Back to the saved-attendees recap; only offered when there is one. */
+  onCancel?: () => void;
 }) {
-  if (isPhoneVerified) {
+  if (isVerified) {
     return (
-      <p className="-mt-3 flex items-center gap-1.5 text-sm font-medium text-green-700">
-        <CheckIcon /> Phone number verified
-      </p>
+      <div role="status" className="flex items-center gap-3 rounded-md border border-[#86efac] bg-[#f0fdf4] px-4 py-3">
+        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#16a34a] text-white">
+          <TickIcon size={18} />
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-bold text-[#166534]">WhatsApp number verified</p>
+          <p className="text-[15px] font-semibold tracking-wide text-[#111827]">{formatPhone(phoneValue)}</p>
+        </div>
+        <button
+          type="button"
+          onClick={onChangeNumber}
+          className="py-2 text-sm font-semibold underline"
+          style={{ color: ACCENT }}
+        >
+          Change
+        </button>
+      </div>
     );
   }
 
+  const errorId = "otp-error";
+
   return (
-    <div className="-mt-3 space-y-2">
-      {!showCodeInput ? (
-        <button
-          type="button"
-          onClick={onSend}
-          disabled={!phoneValid || sending}
-          className="inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-50"
-          style={{ borderColor: "#25D366", color: "#0f5132", backgroundColor: "#dcf8e6" }}
-        >
-          {sending ? (
-            "Sending code..."
-          ) : (
-            <>
-              Send OTP on <WhatsAppIcon /> to verify this number
-            </>
+    <FormCard
+      title="Verify your WhatsApp number"
+      icon={<WhatsAppIcon size={18} />}
+      action={
+        <div className="flex items-center gap-3">
+          {onCancel && (
+            <button
+              type="button"
+              onClick={onCancel}
+              className="text-xs font-medium underline"
+              style={{ color: ACCENT }}
+            >
+              Cancel
+            </button>
           )}
-        </button>
-      ) : (
-        <div className="flex flex-wrap items-center gap-2">
-          <input
-            value={code}
-            onChange={(e) => onCodeChange(e.target.value)}
-            placeholder="6-digit code"
-            inputMode="numeric"
-            maxLength={6}
-            className={`${inputClass} max-w-[140px]`}
-          />
-          <button
-            type="button"
-            onClick={onVerify}
-            disabled={verifying || code.length === 0}
-            className="rounded-md border px-3 py-1.5 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-50"
-            style={{ borderColor: ACCENT, color: ACCENT }}
+          {/* Dropped on phones when Cancel is shown — the three don't fit on one line there. */}
+          <span
+            className={`rounded-full px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide ${
+              onCancel ? "hidden sm:inline-block" : ""
+            }`}
+            style={{ color: ACCENT, backgroundColor: "#efeaf8" }}
           >
-            {verifying ? "Verifying..." : "Verify"}
-          </button>
+            Required
+          </span>
+        </div>
+      }
+    >
+      {!showCodeInput ? (
+        <>
+          <p className="text-[15px] leading-relaxed text-[#374151]">
+            To register, first confirm the WhatsApp number of the person making this booking.
+            We&apos;ll send a <strong className="text-[#111827]">6-digit code</strong> to it on WhatsApp.
+          </p>
+
+          <div>
+            <label htmlFor="booking-phone" className="mb-1.5 block text-sm font-semibold text-[#374151]">
+              WhatsApp number <span className="text-red-600">*</span>
+            </label>
+            <div
+              className={`flex h-12 overflow-hidden rounded-lg border-[1.5px] bg-white ${
+                phoneError ? "border-red-600" : "border-[#d1d5db] focus-within:border-[#5b3fa0]"
+              }`}
+            >
+              <span className="flex items-center border-r border-[#e5e7eb] bg-[#f9fafb] px-3 text-base font-semibold text-[#374151]">
+                +91
+              </span>
+              <input
+                id="booking-phone"
+                {...register("phone", { onChange: (e) => onPhoneChange(e.target.value) })}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    onSend();
+                  }
+                }}
+                placeholder="10-digit mobile number"
+                inputMode="numeric"
+                autoComplete="tel-national"
+                aria-invalid={phoneError ? true : undefined}
+                className="min-w-0 flex-1 border-0 bg-transparent px-3 text-[17px] tracking-wide text-[#111827] outline-none placeholder:text-base placeholder:tracking-normal placeholder:text-[#9ca3af]"
+              />
+            </div>
+            {phoneError ? (
+              <p className={errorClass}>{phoneError}</p>
+            ) : (
+              <p className="mt-1.5 text-[13px] text-[#6b7280]">
+                Your booking confirmation will also be sent to this number.
+              </p>
+            )}
+          </div>
+
           <button
             type="button"
             onClick={onSend}
             disabled={sending}
-            className="text-xs font-medium underline disabled:cursor-not-allowed disabled:opacity-50"
-            style={{ color: ACCENT }}
+            className="flex h-12 w-full items-center justify-center gap-2 rounded-lg text-base font-semibold text-white transition disabled:cursor-not-allowed disabled:opacity-60"
+            style={{ backgroundColor: ACCENT }}
           >
-            Resend code
+            {sending ? (
+              "Sending code..."
+            ) : (
+              <>
+                <WhatsAppIcon size={18} color="#ffffff" /> Send code on WhatsApp
+              </>
+            )}
           </button>
-        </div>
+
+          {error && <OtpErrorBox id={errorId} error={error} />}
+        </>
+      ) : (
+        <>
+          <div className="flex items-center gap-3 rounded-lg border border-[#bbf7d0] bg-[#f0fdf4] px-3.5 py-3">
+            <WhatsAppIcon size={22} color="#16a34a" />
+            <div className="min-w-0 flex-1">
+              <p className="text-[13px] text-[#166534]">Code sent on WhatsApp to</p>
+              <p className="text-[17px] font-bold tracking-wide text-[#111827]">{formatPhone(phoneValue)}</p>
+            </div>
+            <button
+              type="button"
+              onClick={onChangeNumber}
+              className="py-2 text-sm font-semibold underline"
+              style={{ color: ACCENT }}
+            >
+              Change
+            </button>
+          </div>
+
+          <div>
+            <label htmlFor="otp-code" className="mb-2 block text-sm font-semibold text-[#374151]">
+              Enter the 6-digit code <span className="text-red-600">*</span>
+            </label>
+            <OtpCodeInput
+              id="otp-code"
+              value={code}
+              onChange={onCodeChange}
+              invalid={Boolean(error)}
+              describedBy={error ? errorId : undefined}
+              onEnter={onVerify}
+            />
+          </div>
+
+          {error && <OtpErrorBox id={errorId} error={error} />}
+          {notice && !error && (
+            <p role="status" className="flex items-center gap-1.5 text-sm text-[#166534]">
+              <TickIcon size={14} color="#16a34a" /> {notice}
+            </p>
+          )}
+
+          <button
+            type="button"
+            onClick={onVerify}
+            disabled={verifying || code.length !== 6}
+            className="h-12 w-full rounded-lg text-base font-semibold text-white transition disabled:cursor-not-allowed disabled:opacity-60"
+            style={{ backgroundColor: ACCENT }}
+          >
+            {verifying ? "Verifying..." : "Verify & continue"}
+          </button>
+
+          <ResendCodeButton
+            key={resendCooldown?.key ?? 0}
+            cooldownSeconds={resendCooldown?.seconds ?? 0}
+            sending={sending}
+            onResend={onSend}
+          />
+
+          <ul className="list-disc space-y-1.5 rounded-lg bg-[#f9fafb] py-3 pl-8 pr-3.5 text-[13px] leading-snug text-[#374151]">
+            <li>
+              Open WhatsApp on the phone that uses <strong>{formatPhone(phoneValue)}</strong>. The code
+              arrives as a message.
+            </li>
+            <li>
+              The code is valid for <strong>10 minutes</strong>.
+            </li>
+            <li>
+              Asked for more than one code? Use the <strong>latest</strong> one.
+            </li>
+          </ul>
+        </>
       )}
-      {error && <p className={errorClass}>{error}</p>}
+    </FormCard>
+  );
+}
+
+/**
+ * Six digit boxes backed by ONE real input laid invisibly on top — so
+ * paste, SMS/WhatsApp autofill (autocomplete="one-time-code") and
+ * backspace all behave like a normal text field, while the boxes make each
+ * digit easy to read and check.
+ */
+function OtpCodeInput({
+  id,
+  value,
+  onChange,
+  invalid,
+  describedBy,
+  onEnter,
+}: {
+  id: string;
+  value: string;
+  onChange: (raw: string) => void;
+  invalid: boolean;
+  describedBy?: string;
+  onEnter: () => void;
+}) {
+  const [focused, setFocused] = useState(false);
+  const activeIndex = Math.min(value.length, 5);
+
+  return (
+    <div className="relative max-w-[304px]">
+      <div aria-hidden="true" className="flex gap-2">
+        {Array.from({ length: 6 }, (_, i) => {
+          const digit = value[i] ?? "";
+          const active = focused && i === activeIndex;
+          return (
+            <span
+              key={i}
+              className="flex h-[52px] max-w-11 flex-1 items-center justify-center rounded-lg text-[22px] font-semibold text-[#111827]"
+              style={{
+                border: `${active ? 2 : 1.5}px solid ${
+                  invalid ? "#dc2626" : active ? ACCENT : digit ? "#9ca3af" : "#d1d5db"
+                }`,
+                backgroundColor: invalid ? "#fef2f2" : "#ffffff",
+              }}
+            >
+              {digit}
+            </span>
+          );
+        })}
+      </div>
+      <input
+        id={id}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        onFocus={() => setFocused(true)}
+        onBlur={() => setFocused(false)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            onEnter();
+          }
+        }}
+        inputMode="numeric"
+        autoComplete="one-time-code"
+        aria-invalid={invalid || undefined}
+        aria-describedby={describedBy}
+        className="absolute inset-0 h-full w-full cursor-text text-base opacity-0"
+      />
     </div>
+  );
+}
+
+/**
+ * "Didn't get the code? Resend in 0:24" — counts down from
+ * `cooldownSeconds` (the server's resend cooldown) and then enables. The
+ * parent remounts it via `key` on every send, which restarts the count.
+ */
+function ResendCodeButton({
+  cooldownSeconds,
+  sending,
+  onResend,
+}: {
+  cooldownSeconds: number;
+  sending: boolean;
+  onResend: () => void;
+}) {
+  const [secondsLeft, setSecondsLeft] = useState(cooldownSeconds);
+
+  useEffect(() => {
+    if (cooldownSeconds <= 0) return;
+    const endsAt = Date.now() + cooldownSeconds * 1000;
+    const id = window.setInterval(() => {
+      const left = Math.max(0, Math.ceil((endsAt - Date.now()) / 1000));
+      setSecondsLeft(left);
+      if (left === 0) window.clearInterval(id);
+    }, 250);
+    return () => window.clearInterval(id);
+  }, [cooldownSeconds]);
+
+  const waiting = secondsLeft > 0;
+  const countdown = `${Math.floor(secondsLeft / 60)}:${String(secondsLeft % 60).padStart(2, "0")}`;
+
+  return (
+    <div className="flex items-center justify-center gap-1.5 text-sm text-[#4b5563]">
+      <span>Didn&apos;t get the code?</span>
+      <button
+        type="button"
+        onClick={onResend}
+        disabled={waiting || sending}
+        className={`py-2 text-sm font-semibold ${waiting || sending ? "cursor-not-allowed text-[#6b7280]" : "underline"}`}
+        style={waiting || sending ? undefined : { color: ACCENT }}
+      >
+        {sending ? "Sending..." : waiting ? `Resend in ${countdown}` : "Resend code"}
+      </button>
+    </div>
+  );
+}
+
+function OtpErrorBox({ id, error }: { id: string; error: OtpError }) {
+  const attemptsLeft = error.attemptsLeft;
+  return (
+    <div id={id} role="alert" className="flex items-start gap-2.5 rounded-lg border border-[#fecaca] bg-[#fef2f2] px-3.5 py-3">
+      <AlertIcon />
+      <p className="text-sm leading-snug text-[#991b1b]">
+        {error.message}
+        {attemptsLeft !== undefined && attemptsLeft > 0 && (
+          <>
+            {" "}
+            <strong>
+              {attemptsLeft} attempt{attemptsLeft === 1 ? "" : "s"} left.
+            </strong>
+          </>
+        )}
+      </p>
+    </div>
+  );
+}
+
+/** Stands in for the rest of the primary attendee's form until their number is verified. */
+function LockedStepsNotice({ expanded, hasAddons }: { expanded: boolean; hasAddons: boolean }) {
+  const sections = ["Attendee details", "Select ticket", ...(hasAddons ? ["Add-ons"] : []), "Consent"];
+  return (
+    <>
+      <section
+        aria-label="Locked until your number is verified"
+        className="rounded-md border-[1.5px] border-dashed border-[#d1d5db] bg-[#f9fafb] p-4"
+      >
+        <div className="flex items-start gap-3">
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#e5e7eb] text-[#4b5563]">
+            <LockIcon />
+          </span>
+          <div>
+            <p className="text-sm font-bold text-[#374151]">Next: participant details, ticket &amp; payment</p>
+            <p className="text-[13px] text-[#6b7280]">These unlock once your number is verified.</p>
+          </div>
+        </div>
+        {expanded && (
+          <div className="mt-3 flex flex-wrap gap-1.5 pl-12">
+            {sections.map((s) => (
+              <span
+                key={s}
+                className="rounded-full border border-[#e5e7eb] bg-white px-2.5 py-0.5 text-xs text-[#4b5563]"
+              >
+                {s}
+              </span>
+            ))}
+          </div>
+        )}
+      </section>
+      {expanded && (
+        <p className="flex gap-2 text-[13px] leading-relaxed text-[#4b5563]">
+          <InfoIcon />
+          <span>
+            Registering a group? Only the first participant verifies. You can add the others after
+            this step.
+          </span>
+        </p>
+      )}
+    </>
   );
 }
 
@@ -1248,7 +1764,7 @@ function SummaryCard({
   itemCount,
 }: {
   title?: string;
-  items?: { label: string; amount: number; onEdit?: () => void; onRemove?: () => void; key?: string | number }[];
+  items?: SummaryItem[];
   tshirtCounts?: { size: string; count: number }[];
   total: number;
   itemCount: number;
@@ -1266,6 +1782,16 @@ function SummaryCard({
                   <span className="min-w-0 truncate">{item.label}</span>
                   <span className="shrink-0">₹{item.amount.toLocaleString("en-IN")}</span>
                 </div>
+                {item.bookingContact === "verified" && (
+                  <span className="mt-1 inline-flex items-center gap-1 rounded-full border border-[#bbf7d0] bg-[#f0fdf4] px-2 py-0.5 text-xs font-semibold text-[#166534]">
+                    <TickIcon size={12} /> Booking contact · WhatsApp verified
+                  </span>
+                )}
+                {item.bookingContact === "unverified" && (
+                  <span className="mt-1 inline-flex items-center gap-1 rounded-full border border-[#fcd34d] bg-[#fffbeb] px-2 py-0.5 text-xs font-semibold text-[#92400e]">
+                    Booking contact · not verified
+                  </span>
+                )}
                 {(item.onEdit || item.onRemove) && (
                   <div className="mt-0.5 flex gap-3">
                     {item.onEdit && (
@@ -1492,18 +2018,58 @@ function ChevronDownIcon({ open }: { open: boolean }) {
   );
 }
 
-function CheckIcon() {
+/** Check mark in currentColor (or `color`). Decorative unless given a `label`. */
+function TickIcon({ size = 16, color, label }: { size?: number; color?: string; label?: string }) {
   return (
-    <svg width="18" height="18" viewBox="0 0 24 24">
-      <circle cx="12" cy="12" r="12" fill="#22c55e" opacity="0.15" />
-      <path d="M7 12.5l3 3 7-7" stroke="#16a34a" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke={color ?? "currentColor"}
+      strokeWidth="3"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="shrink-0"
+      {...(label ? { role: "img", "aria-label": label } : { "aria-hidden": true })}
+    >
+      <path d="M5 12.5l4.5 4.5L19 7.5" />
     </svg>
   );
 }
 
-function WhatsAppIcon() {
+function LockIcon() {
   return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="#25D366" aria-label="WhatsApp">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <rect x="5" y="11" width="14" height="10" rx="2" />
+      <path d="M8 11V7a4 4 0 0 1 8 0v4" />
+    </svg>
+  );
+}
+
+function InfoIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="mt-0.5 shrink-0">
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 11v5" />
+      <path d="M12 8h.01" />
+    </svg>
+  );
+}
+
+function AlertIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#b91c1c" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="mt-px shrink-0">
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 7.5v5.5" />
+      <path d="M12 16.5h.01" />
+    </svg>
+  );
+}
+
+function WhatsAppIcon({ size = 16, color = "#25D366" }: { size?: number; color?: string }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill={color} aria-hidden="true" className="shrink-0">
       <path d="M12 2C6.48 2 2 6.48 2 12c0 1.85.5 3.58 1.35 5.07L2 22l5.06-1.33A9.94 9.94 0 0 0 12 22c5.52 0 10-4.48 10-10S17.52 2 12 2Zm0 18.1c-1.62 0-3.14-.44-4.44-1.2l-.32-.19-3.16.83.84-3.09-.2-.32A8.09 8.09 0 0 1 3.9 12c0-4.47 3.63-8.1 8.1-8.1s8.1 3.63 8.1 8.1-3.63 8.1-8.1 8.1Zm4.46-6.07c-.24-.12-1.44-.71-1.66-.79-.22-.08-.39-.12-.55.12-.16.24-.63.79-.78.95-.14.16-.29.18-.53.06-.24-.12-1.02-.38-1.94-1.2-.72-.64-1.2-1.43-1.35-1.67-.14-.24-.02-.37.11-.49.11-.11.24-.29.36-.43.12-.14.16-.24.24-.4.08-.16.04-.3-.02-.42-.06-.12-.55-1.33-.76-1.82-.2-.48-.4-.42-.55-.42-.14-.01-.3-.01-.47-.01-.16 0-.42.06-.65.3-.22.24-.85.83-.85 2.03s.87 2.36 1 2.52c.12.16 1.71 2.61 4.15 3.66.58.25 1.03.4 1.38.51.58.18 1.11.16 1.53.1.47-.07 1.44-.59 1.64-1.16.2-.57.2-1.06.14-1.16-.06-.1-.22-.16-.46-.28Z" />
     </svg>
   );

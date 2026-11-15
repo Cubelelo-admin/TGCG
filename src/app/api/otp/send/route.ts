@@ -24,13 +24,13 @@ export async function POST(request: Request) {
     typeof body.phoneCountryCode === "string" && body.phoneCountryCode ? body.phoneCountryCode : "+91";
 
   if (!PHONE_REGEX.test(phone)) {
-    return NextResponse.json({ error: "Enter a valid 10-digit mobile number" }, { status: 400 });
+    return NextResponse.json({ error: "Enter a valid 10-digit mobile number." }, { status: 400 });
   }
 
   const campaignName = process.env.AISENSY_OTP_CAMPAIGN;
   if (!campaignName) {
     return NextResponse.json(
-      { error: "Phone verification isn't available right now. Please try again later." },
+      { error: "WhatsApp verification is temporarily unavailable. Please try again in a few minutes." },
       { status: 503 }
     );
   }
@@ -45,21 +45,34 @@ export async function POST(request: Request) {
     .limit(1)
     .maybeSingle();
 
-  if (recent && Date.now() - new Date(recent.created_at).getTime() < OTP_RESEND_COOLDOWN_SECONDS * 1000) {
-    return NextResponse.json(
-      { error: "Please wait a moment before requesting another code" },
-      { status: 429 }
-    );
+  if (recent) {
+    const cooldownLeftMs =
+      OTP_RESEND_COOLDOWN_SECONDS * 1000 - (Date.now() - new Date(recent.created_at).getTime());
+    if (cooldownLeftMs > 0) {
+      // retryAfterSeconds drives the client's "Resend in 0:12" countdown.
+      const retryAfterSeconds = Math.ceil(cooldownLeftMs / 1000);
+      return NextResponse.json(
+        {
+          error: `Please wait ${retryAfterSeconds} seconds before requesting another code.`,
+          retryAfterSeconds,
+        },
+        { status: 429 }
+      );
+    }
   }
 
   const code = generateOtpCode();
-  const { error: insertError } = await supabase.from("phone_otp_verifications").insert({
-    phone,
-    phone_country_code: phoneCountryCode,
-    code_hash: hashOtpCode(code),
-    expires_at: new Date(Date.now() + OTP_TTL_MINUTES * 60 * 1000).toISOString(),
-  });
-  if (insertError) {
+  const { data: inserted, error: insertError } = await supabase
+    .from("phone_otp_verifications")
+    .insert({
+      phone,
+      phone_country_code: phoneCountryCode,
+      code_hash: hashOtpCode(code),
+      expires_at: new Date(Date.now() + OTP_TTL_MINUTES * 60 * 1000).toISOString(),
+    })
+    .select("id")
+    .single();
+  if (insertError || !inserted) {
     console.error("phone_otp_verifications insert failed", insertError);
     return NextResponse.json({ error: "Could not start verification. Please try again." }, { status: 500 });
   }
@@ -87,11 +100,18 @@ export async function POST(request: Request) {
     });
   } catch (err) {
     console.error("OTP WhatsApp send failed", err);
+    // Nothing reached the user, so drop the row — otherwise it would both
+    // trip the resend cooldown above and shadow any earlier still-valid code.
+    await supabase.from("phone_otp_verifications").delete().eq("id", inserted.id);
     return NextResponse.json(
-      { error: "Could not send the verification code. Please try again." },
+      { error: "Could not send the code on WhatsApp. Make sure this number uses WhatsApp, then try again." },
       { status: 502 }
     );
   }
 
-  return NextResponse.json({ ok: true });
+  return NextResponse.json({
+    ok: true,
+    resendAfterSeconds: OTP_RESEND_COOLDOWN_SECONDS,
+    expiresInMinutes: OTP_TTL_MINUTES,
+  });
 }
