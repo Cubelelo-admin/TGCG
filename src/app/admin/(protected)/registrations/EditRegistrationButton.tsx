@@ -184,12 +184,12 @@ export default function EditRegistrationButton({
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
           <form
             onSubmit={onSubmit}
-            className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-2xl border border-white/10 bg-neutral-900 p-5 text-neutral-50 sm:p-6"
+            className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl border border-white/10 bg-neutral-900 p-5 text-neutral-50 sm:p-6"
           >
             <h2 className="text-lg font-bold">Edit registration</h2>
             {loading && <p className="mt-2 text-xs text-neutral-400">Loading full record…</p>}
 
-            <div className="mt-4 grid gap-3">
+            <div className="mt-4 grid grid-cols-1 gap-3">
               <Field label="Full name">
                 <input
                   required
@@ -349,7 +349,7 @@ export default function EditRegistrationButton({
                   </div>
 
                   {showKyc && (
-                    <fieldset className="grid gap-3 rounded-lg border border-white/10 p-3">
+                    <fieldset className="grid grid-cols-1 gap-3 rounded-lg border border-white/10 p-3">
                       <legend className="px-1 text-xs text-neutral-400">
                         Prize-money KYC{selectedCategory?.requires_kyc ? " (required for this category)" : ""}
                       </legend>
@@ -504,9 +504,9 @@ function CategoryChangePanel({
   const amount = Number(adj.amount) || 0;
 
   return (
-    <div className="grid gap-3 rounded-lg border border-sky-400/30 bg-sky-500/[0.06] p-3 text-sm">
+    <div className="grid grid-cols-1 gap-3 rounded-lg border border-sky-400/30 bg-sky-500/[0.06] p-3 text-sm">
       <div>
-        <p className="font-medium text-sky-200">
+        <p className="break-words font-medium text-sky-200">
           {from?.name ?? "Current category"} → {to?.name ?? "New category"}
         </p>
         <p className="mt-0.5 text-xs text-neutral-400">
@@ -665,7 +665,7 @@ function formFrom(r: FullRegistration) {
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <label className="block">
+    <label className="block min-w-0">
       <span className="mb-1 block text-xs text-neutral-400">{label}</span>
       {children}
     </label>
