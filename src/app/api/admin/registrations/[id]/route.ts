@@ -10,7 +10,9 @@ import {
   panRegex,
   phoneRegex,
   TSHIRT_SIZES,
+  validateKycRequired,
 } from "@/lib/registration-schema";
+import { MANUAL_PAYMENT_MODES } from "@/lib/manual-payment";
 
 export const runtime = "nodejs";
 
@@ -33,6 +35,17 @@ const baseUpdateSchema = z.object({
   ticketCategoryId: z.string().uuid().optional(),
   // Group POC (0021) — empty string clears it.
   pocName: z.string().trim().max(120).optional().or(z.literal("")),
+  // Offline settlement of the price difference when a PAID registration
+  // changes category (0024). amount is signed: + collected, - refunded.
+  categoryAdjustment: z
+    .object({
+      amount: z.number().min(-1_000_000).max(1_000_000),
+      mode: z.enum(MANUAL_PAYMENT_MODES),
+      reference: z.string().trim().max(120).optional().or(z.literal("")),
+      note: z.string().trim().max(500).optional().or(z.literal("")),
+      pocName: z.string().trim().max(120).optional().or(z.literal("")),
+    })
+    .optional(),
 });
 
 // Empty string clears the field. These are optional here so an admin can
@@ -103,6 +116,7 @@ type CurrentCategory = {
   hidden_from_picker: boolean;
   bib_prefix: string | null;
   bib_fixed_label: string | null;
+  price_inr: number;
 } | null;
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -117,7 +131,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   const { data: current } = await supabase
     .from("registrations")
     .select(
-      "id, event_id, ticket_category_id, ticket_categories(group, hidden_from_picker, bib_prefix, bib_fixed_label)"
+      "id, event_id, ticket_category_id, payment_status, aadhar_number, bank_name_location, bank_account_number, bank_ifsc, ticket_categories(group, hidden_from_picker, bib_prefix, bib_fixed_label, price_inr)"
     )
     .eq("id", id)
     .maybeSingle();
@@ -165,7 +179,14 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     update.accepted_rules = data.acceptedTerms;
   }
 
-  let bibNumberOverride: string | null | undefined;
+  type Adjustment = {
+    amount: number;
+    mode: string | null;
+    reference: string | null;
+    note: string | null;
+    poc: string | null;
+  };
+  let categoryChange: { newCategoryId: string; resetBib: boolean; adjustment: Adjustment } | null = null;
 
   if (data.ticketCategoryId && data.ticketCategoryId !== current.ticket_category_id) {
     if (isChildRunner) {
@@ -174,7 +195,9 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 
     const { data: newCategory } = await supabase
       .from("ticket_categories")
-      .select("id, event_id, group, hidden_from_picker, bib_prefix, bib_fixed_label, is_active")
+      .select(
+        "id, event_id, name, group, hidden_from_picker, bib_prefix, bib_fixed_label, is_active, requires_kyc, price_inr"
+      )
       .eq("id", data.ticketCategoryId)
       .maybeSingle();
 
@@ -184,28 +207,86 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     if (newCategory.hidden_from_picker) {
       return NextResponse.json({ error: "Can't switch a registration into Child Runner" }, { status: 400 });
     }
-    if (!currentCategory || newCategory.group !== currentCategory.group) {
-      return NextResponse.json(
-        { error: "Can only switch to another category in the same competitive/non-competitive group" },
-        { status: 400 }
+    // Competitive <-> non-competitive is allowed (0024); for a paid
+    // registration the price difference is settled offline and recorded.
+
+    const isPaid = current.payment_status === "paid";
+
+    // Moving a paid runner into a prize-money category skips the checkout
+    // that normally enforces KYC, so enforce it here. (Unpaid rows get the
+    // same check at mark-paid time — see missingRegistrationFields.)
+    if (isPaid && newCategory.requires_kyc) {
+      const pick = (sent: string | undefined, stored: string | null) => (sent !== undefined ? sent : (stored ?? ""));
+      const kycError = validateKycRequired(
+        {
+          aadharNumber: pick(data.aadharNumber, current.aadhar_number),
+          bankNameLocation: pick(data.bankNameLocation, current.bank_name_location),
+          bankAccountNumber: pick(data.bankAccountNumber, current.bank_account_number),
+          bankIfsc: pick(data.bankIfsc, current.bank_ifsc),
+        },
+        true
       );
+      if (kycError) {
+        return NextResponse.json({ error: `${newCategory.name}: ${kycError}` }, { status: 400 });
+      }
     }
 
-    update.ticket_category_id = newCategory.id;
+    // The price difference always comes from the catalog, never the client.
+    const priceDiff = Number(newCategory.price_inr) - Number(currentCategory?.price_inr ?? 0);
+    let adjustment: Adjustment = { amount: 0, mode: null, reference: null, note: null, poc: null };
 
-    // Different distance/pool — the old BIB no longer matches. Clear it so
-    // the set_bib_number trigger reassigns one from the new category's pool
-    // on this same UPDATE, instead of leaving a BIB drawn from the wrong
-    // distance's pool on the ticket. The old number goes back into
+    if (isPaid) {
+      const adj = data.categoryAdjustment;
+      if (priceDiff !== 0) {
+        if (!adj) {
+          return NextResponse.json(
+            { error: "Record how the price difference was settled (amount, mode and POC)" },
+            { status: 400 }
+          );
+        }
+        if (!adj.pocName) {
+          return NextResponse.json({ error: "POC name is required for the price difference" }, { status: 400 });
+        }
+        if ((adj.mode === "upi" || adj.mode === "bank_transfer") && !adj.reference) {
+          return NextResponse.json(
+            { error: "Transaction / UTR reference is required for UPI and bank transfers" },
+            { status: 400 }
+          );
+        }
+        // Collected for an upgrade, refunded for a downgrade — never the wrong way round.
+        if ((priceDiff > 0 && adj.amount < 0) || (priceDiff < 0 && adj.amount > 0)) {
+          return NextResponse.json(
+            { error: priceDiff > 0 ? "Upgrade: enter the amount collected" : "Downgrade: enter the amount refunded" },
+            { status: 400 }
+          );
+        }
+      }
+      if (adj) {
+        adjustment = {
+          amount: priceDiff === 0 ? 0 : adj.amount,
+          mode: priceDiff === 0 ? null : adj.mode,
+          reference: adj.reference || null,
+          note: adj.note || null,
+          poc: adj.pocName || null,
+        };
+      }
+    }
+
+    // Different distance/pool — the old BIB no longer matches. The RPC
+    // clears it so the set_bib_number trigger reassigns one from the new
+    // category's pool on the same UPDATE, instead of leaving a BIB drawn from
+    // the wrong distance's pool on the ticket. The old number goes back into
     // bib_released and is reissued to the next runner of that distance
     // (0020_reuse_retired_bibs.sql).
-    const poolChanged =
-      newCategory.bib_prefix !== currentCategory.bib_prefix ||
-      newCategory.bib_fixed_label !== currentCategory.bib_fixed_label;
-    if (poolChanged) bibNumberOverride = null;
+    const resetBib =
+      newCategory.bib_prefix !== currentCategory?.bib_prefix ||
+      newCategory.bib_fixed_label !== currentCategory?.bib_fixed_label;
+
+    categoryChange = { newCategoryId: newCategory.id, resetBib, adjustment };
   }
 
-  update.bib_number = bibNumberOverride !== undefined ? bibNumberOverride : data.bibNumber || null;
+  // When the category change re-issues the BIB, leave bib_number to the RPC.
+  if (!categoryChange?.resetBib) update.bib_number = data.bibNumber || null;
 
   const { error } = await supabase.from("registrations").update(update).eq("id", id);
 
@@ -221,6 +302,34 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     }
     console.error("admin registration update failed", error);
     return NextResponse.json({ error: "Update failed" }, { status: 500 });
+  }
+
+  if (categoryChange) {
+    // Category + BIB re-issue + money trail, in one transaction (0024).
+    const { error: changeError } = await supabase.rpc("admin_change_category", {
+      p_id: id,
+      p_expected_category: current.ticket_category_id,
+      p_new_category: categoryChange.newCategoryId,
+      p_reset_bib: categoryChange.resetBib,
+      p_amount: categoryChange.adjustment.amount,
+      p_mode: categoryChange.adjustment.mode,
+      p_ref: categoryChange.adjustment.reference,
+      p_note: categoryChange.adjustment.note,
+      p_poc: categoryChange.adjustment.poc,
+      p_admin: session.email,
+    });
+    if (changeError) {
+      console.error("admin_change_category failed", id, changeError);
+      const concurrent = changeError.message?.includes("category_changed_concurrently");
+      return NextResponse.json(
+        {
+          error: concurrent
+            ? "Someone else changed this registration's category just now — refresh and try again."
+            : "Other details were saved, but the category change failed. Try again.",
+        },
+        { status: concurrent ? 409 : 500 }
+      );
+    }
   }
 
   return NextResponse.json({ ok: true });

@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { GENDERS, TSHIRT_SIZES } from "@/lib/registration-schema";
 import type { TicketCategory } from "@/lib/types";
+import { MANUAL_PAYMENT_MODE_LABELS, MANUAL_PAYMENT_MODES, type ManualPaymentMode } from "@/lib/manual-payment";
 
 const inputClass =
   "w-full rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2 text-sm focus:border-emerald-400 focus:outline-none";
@@ -23,6 +24,7 @@ export type EditableRegistration = {
   bib_number: string | null;
   checked_in: boolean;
   poc_name?: string | null;
+  payment_status?: string;
   ticket_category_id: string;
   ticket_categories: { name: string; group: string; hidden_from_picker: boolean } | null;
 };
@@ -42,15 +44,17 @@ export default function EditRegistrationButton({
   // Child Runner has no phone/gender/city/t-shirt of its own (never
   // collected — see 0014_child_runner.sql) and its category is fixed: it's
   // the only category with hidden_from_picker, so it never appears as a
-  // switch target either.
+  // switch target either. Every other category is a valid target, across
+  // competitive and non-competitive (0024).
   const isChildRunner = registration.ticket_categories?.hidden_from_picker ?? false;
-  const currentGroup = registration.ticket_categories?.group;
-  const sameGroupCategories = categories.filter(
-    (c) => !c.hidden_from_picker && c.group === currentGroup
-  );
+  const switchableCategories = categories.filter((c) => !c.hidden_from_picker);
+  const categoryGroups = (["competitive", "non_competitive"] as const)
+    .map((group) => ({ group, options: switchableCategories.filter((c) => c.group === group) }))
+    .filter((g) => g.options.length > 0);
 
   const [loading, setLoading] = useState(false);
   const [form, setForm] = useState(() => formFrom(registration));
+  const [adj, setAdj] = useState(() => emptyAdjustment(registration.poc_name));
 
   // The listing only carries the basics; KYC/DOB/emergency contact etc. are
   // fetched on open so they aren't shipped to the page for every row.
@@ -62,7 +66,9 @@ export default function EditRegistrationButton({
       const res = await fetch(`/api/admin/registrations/${registration.id}`);
       const body = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(body.error ?? "Could not load registration");
-      setForm(formFrom(body.registration as FullRegistration));
+      const full = body.registration as FullRegistration;
+      setForm(formFrom(full));
+      setAdj(emptyAdjustment(full.poc_name));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not load registration");
     } finally {
@@ -71,6 +77,32 @@ export default function EditRegistrationButton({
   }
 
   const selectedCategory = categories.find((c) => c.id === form.ticketCategoryId);
+  const originalCategory = categories.find((c) => c.id === registration.ticket_category_id);
+  const categoryChanged = form.ticketCategoryId !== registration.ticket_category_id;
+  const isPaid = registration.payment_status === "paid";
+  // Display only — the server recomputes the difference from the catalog.
+  const priceDiff =
+    selectedCategory && originalCategory
+      ? Number(selectedCategory.price_inr) - Number(originalCategory.price_inr)
+      : null;
+  const needsSettlement = !isChildRunner && categoryChanged && isPaid && priceDiff !== 0;
+  const isRefund = priceDiff !== null && priceDiff < 0;
+  const adjNeedsRef = adj.mode === "upi" || adj.mode === "bank_transfer";
+  const adjAmount = Number(adj.amount);
+  const settlementValid =
+    !needsSettlement ||
+    (adj.amount !== "" &&
+      adjAmount >= 0 &&
+      adj.poc.trim() !== "" &&
+      (!adjNeedsRef || adj.reference.trim() !== "") &&
+      adj.confirmed);
+
+  function changeCategory(id: string) {
+    setForm((f) => ({ ...f, ticketCategoryId: id }));
+    const next = categories.find((c) => c.id === id);
+    const diff = next && originalCategory ? Number(next.price_inr) - Number(originalCategory.price_inr) : 0;
+    setAdj((a) => ({ ...a, amount: String(Math.abs(diff)), confirmed: false }));
+  }
   const showKyc =
     !isChildRunner &&
     (selectedCategory?.requires_kyc ||
@@ -103,8 +135,18 @@ export default function EditRegistrationButton({
       body.bankIfsc = form.bankIfsc;
       body.panNumber = form.panNumber;
       body.acceptedTerms = form.acceptedTerms;
-      if (form.ticketCategoryId !== registration.ticket_category_id) {
+      if (categoryChanged) {
         body.ticketCategoryId = form.ticketCategoryId;
+        if (isPaid) {
+          body.categoryAdjustment = {
+            // Entered as a positive number; the sign says which way the money moved.
+            amount: needsSettlement ? (isRefund ? -adjAmount : adjAmount) : 0,
+            mode: adj.mode,
+            reference: adj.reference,
+            note: adj.note,
+            pocName: adj.poc,
+          };
+        }
       }
     }
 
@@ -185,17 +227,44 @@ export default function EditRegistrationButton({
                 ) : (
                   <select
                     value={form.ticketCategoryId}
-                    onChange={(e) => setForm((f) => ({ ...f, ticketCategoryId: e.target.value }))}
+                    onChange={(e) => changeCategory(e.target.value)}
                     className={inputClass}
                   >
-                    {sameGroupCategories.map((c) => (
-                      <option key={c.id} value={c.id} className={optionClass}>
-                        {c.name}
+                    {!originalCategory && (
+                      <option value={registration.ticket_category_id} className={optionClass}>
+                        {registration.ticket_categories?.name ?? "Current category"} (inactive)
                       </option>
+                    )}
+                    {categoryGroups.map(({ group, options }) => (
+                      <optgroup
+                        key={group}
+                        label={group === "competitive" ? "Competitive" : "Non-competitive"}
+                        className={optionClass}
+                      >
+                        {options.map((c) => (
+                          <option key={c.id} value={c.id} className={optionClass}>
+                            {c.name} — ₹{Number(c.price_inr).toLocaleString("en-IN")}
+                          </option>
+                        ))}
+                      </optgroup>
                     ))}
                   </select>
                 )}
               </Field>
+
+              {!isChildRunner && categoryChanged && (
+                <CategoryChangePanel
+                  from={originalCategory}
+                  to={selectedCategory}
+                  isPaid={isPaid}
+                  priceDiff={priceDiff}
+                  needsSettlement={needsSettlement}
+                  isRefund={isRefund}
+                  adj={adj}
+                  setAdj={setAdj}
+                  needsRef={adjNeedsRef}
+                />
+              )}
 
               {!isChildRunner && (
                 <>
@@ -377,7 +446,7 @@ export default function EditRegistrationButton({
               </button>
               <button
                 type="submit"
-                disabled={saving || loading}
+                disabled={saving || loading || !settlementValid}
                 className="rounded-full bg-emerald-500 px-4 py-2 text-sm font-semibold text-neutral-950 hover:bg-emerald-400 disabled:opacity-50"
               >
                 {saving ? "Saving..." : "Save changes"}
@@ -387,6 +456,171 @@ export default function EditRegistrationButton({
         </div>
       )}
     </>
+  );
+}
+
+type AdjustmentForm = {
+  amount: string;
+  mode: ManualPaymentMode;
+  reference: string;
+  note: string;
+  poc: string;
+  confirmed: boolean;
+};
+
+function emptyAdjustment(pocName?: string | null): AdjustmentForm {
+  return { amount: "", mode: "upi", reference: "", note: "", poc: pocName ?? "", confirmed: false };
+}
+
+const rupees = (n: number) => `₹${n.toLocaleString("en-IN")}`;
+
+/**
+ * Category change summary + offline settlement of the price difference
+ * (same idea as "Mark paid": money taken outside Razorpay, with the POC who
+ * handled it recorded against the registration).
+ */
+function CategoryChangePanel({
+  from,
+  to,
+  isPaid,
+  priceDiff,
+  needsSettlement,
+  isRefund,
+  adj,
+  setAdj,
+  needsRef,
+}: {
+  from: TicketCategory | undefined;
+  to: TicketCategory | undefined;
+  isPaid: boolean;
+  priceDiff: number | null;
+  needsSettlement: boolean;
+  isRefund: boolean;
+  adj: AdjustmentForm;
+  setAdj: React.Dispatch<React.SetStateAction<AdjustmentForm>>;
+  needsRef: boolean;
+}) {
+  const crossGroup = from && to && from.group !== to.group ? { from, to } : null;
+  const amount = Number(adj.amount) || 0;
+
+  return (
+    <div className="grid gap-3 rounded-lg border border-sky-400/30 bg-sky-500/[0.06] p-3 text-sm">
+      <div>
+        <p className="font-medium text-sky-200">
+          {from?.name ?? "Current category"} → {to?.name ?? "New category"}
+        </p>
+        <p className="mt-0.5 text-xs text-neutral-400">
+          {from && to && (
+            <>
+              {rupees(Number(from.price_inr))} → {rupees(Number(to.price_inr))} ·{" "}
+            </>
+          )}
+          {priceDiff === null
+            ? "difference computed from the catalog on save"
+            : priceDiff === 0
+              ? "same price"
+              : priceDiff > 0
+                ? `runner owes ${rupees(priceDiff)}`
+                : `runner is owed ${rupees(-priceDiff)}`}
+        </p>
+        {crossGroup && (
+          <p className="mt-1 text-xs text-amber-300">
+            Switching {crossGroup.from.group === "competitive" ? "competitive → non-competitive" : "non-competitive → competitive"}.
+            {crossGroup.to.requires_kyc && " Prize-money KYC (Aadhar + bank details) is required below."}
+          </p>
+        )}
+      </div>
+
+      {!isPaid && (
+        <p className="text-xs text-neutral-400">
+          Not paid yet — no adjustment needed. The new category&apos;s price applies when the booking is paid
+          (or marked paid).
+        </p>
+      )}
+
+      {isPaid && !needsSettlement && (
+        <p className="text-xs text-neutral-400">No price difference — nothing to collect or refund.</p>
+      )}
+
+      {needsSettlement && (
+        <>
+          <p className="text-xs text-neutral-400">
+            Paid registration: settle the difference offline and record it here. It&apos;s counted under
+            &ldquo;Collected directly&rdquo; and against the POC below.
+          </p>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label={isRefund ? "Amount refunded (₹)" : "Amount collected (₹)"}>
+              <input
+                type="number"
+                min={0}
+                step="0.01"
+                required
+                value={adj.amount}
+                onChange={(e) => setAdj((a) => ({ ...a, amount: e.target.value, confirmed: false }))}
+                className={inputClass}
+              />
+            </Field>
+            <Field label="POC (handled the money)">
+              <input
+                required
+                value={adj.poc}
+                onChange={(e) => setAdj((a) => ({ ...a, poc: e.target.value }))}
+                maxLength={120}
+                placeholder="Required"
+                className={inputClass}
+              />
+            </Field>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Mode">
+              <select
+                value={adj.mode}
+                onChange={(e) => setAdj((a) => ({ ...a, mode: e.target.value as ManualPaymentMode }))}
+                className={inputClass}
+              >
+                {MANUAL_PAYMENT_MODES.map((m) => (
+                  <option key={m} value={m} className={optionClass}>
+                    {MANUAL_PAYMENT_MODE_LABELS[m]}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            <Field label={`UPI txn ID / UTR ${needsRef ? "(required)" : "(optional)"}`}>
+              <input
+                required={needsRef}
+                value={adj.reference}
+                onChange={(e) => setAdj((a) => ({ ...a, reference: e.target.value }))}
+                maxLength={120}
+                className={inputClass}
+              />
+            </Field>
+          </div>
+          <Field label="Note (optional)">
+            <input
+              value={adj.note}
+              onChange={(e) => setAdj((a) => ({ ...a, note: e.target.value }))}
+              maxLength={500}
+              placeholder="e.g. Upgrade requested on call; difference collected by Ravi"
+              className={inputClass}
+            />
+          </Field>
+          {priceDiff !== null && amount !== Math.abs(priceDiff) && (
+            <p className="text-xs text-amber-400">
+              Differs from the price difference of {rupees(Math.abs(priceDiff))} — add a note saying why.
+            </p>
+          )}
+          <label className="flex items-start gap-2 text-sm text-neutral-300">
+            <input
+              type="checkbox"
+              checked={adj.confirmed}
+              onChange={(e) => setAdj((a) => ({ ...a, confirmed: e.target.checked }))}
+              className="mt-0.5 h-4 w-4 rounded border-white/20 bg-white/[0.04]"
+            />
+            I&apos;ve verified {rupees(amount)} was {isRefund ? "refunded to the runner" : "received"} offline.
+          </label>
+        </>
+      )}
+    </div>
   );
 }
 

@@ -31,6 +31,8 @@ export default async function AdminDashboardPage() {
           <p className="mt-1 text-xs text-neutral-400">
             {totals.direct.count} paid · ₹{totals.manual.amount.toLocaleString("en-IN")} manual override · ₹
             {totals.bulkImport.amount.toLocaleString("en-IN")} bulk import
+            {totals.categoryAdjustments.count > 0 &&
+              ` · ₹${totals.categoryAdjustments.amount.toLocaleString("en-IN")} category changes`}
           </p>
         </Link>
       </div>
@@ -41,7 +43,7 @@ export default async function AdminDashboardPage() {
         <>
           <h2 className="mt-10 font-semibold text-lg">By Group POC</h2>
           <p className="mt-1 text-sm text-neutral-400">
-            Bulk-imported registrations, grouped by the POC responsible for collecting their money.
+            Bulk-imported registrations and category-change differences, grouped by the POC responsible for collecting the money.
           </p>
           <div className="mt-4 overflow-x-auto rounded-xl border border-white/10">
             <table className="w-full text-sm">
@@ -57,7 +59,7 @@ export default async function AdminDashboardPage() {
                   <tr key={p.pocName} className="border-t border-white/10">
                     <td className="px-4 py-3">
                       <Link
-                        href={{ pathname: "/admin/registrations", query: { q: p.pocName } }}
+                        href={{ pathname: "/admin/registrations", query: { q: p.pocName, field: "poc" } }}
                         className="underline decoration-white/30 hover:decoration-white"
                       >
                         {p.pocName}

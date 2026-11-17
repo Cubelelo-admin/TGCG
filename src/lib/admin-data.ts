@@ -1,6 +1,26 @@
 import "server-only";
 import { createServiceClient } from "@/lib/supabase/server";
 import { TSHIRT_SIZES } from "@/lib/registration-schema";
+import { buildRegistrationSearchFilter, type SearchField } from "@/lib/registration-search";
+
+/** One offline money movement for a category change (0024_category_change_adjustments.sql). */
+export interface RegistrationAdjustment {
+  id: string;
+  registration_id: string;
+  from_category_name: string | null;
+  to_category_name: string | null;
+  price_diff_inr: number;
+  amount_inr: number;
+  mode: string | null;
+  reference: string | null;
+  note: string | null;
+  poc_name: string | null;
+  created_by: string | null;
+  created_at: string;
+}
+
+export const ADJUSTMENT_COLUMNS =
+  "id, registration_id, from_category_name, to_category_name, price_diff_inr, amount_inr, mode, reference, note, poc_name, created_by, created_at";
 
 export interface RegistrationRow {
   id: string;
@@ -27,6 +47,7 @@ export interface RegistrationRow {
   poc_name: string | null;
   registration_groups: { attendee_count: number; organizer_email: string; booking_code: string | null } | null;
   ticket_categories: { name: string; group: string; hidden_from_picker: boolean } | null;
+  adjustments: RegistrationAdjustment[];
 }
 
 export type PaymentTotals = {
@@ -37,6 +58,8 @@ export type PaymentTotals = {
   direct: { count: number; amount: number };
   manual: { count: number; amount: number };
   bulkImport: { count: number; amount: number };
+  /** Category-change differences settled offline (net; refunds negative). Part of `direct`. */
+  categoryAdjustments: { count: number; amount: number };
 };
 
 /** Paid totals split by payment method — aggregated in Postgres (see 0019_manual_payments.sql). */
@@ -54,14 +77,20 @@ export async function getPaymentTotals(eventId: string): Promise<PaymentTotals> 
   const razorpay = pick("razorpay");
   const manual = pick("manual");
   const bulkImport = pick("bulk_import");
-  const direct = { count: manual.count + bulkImport.count, amount: manual.amount + bulkImport.amount };
+  const categoryAdjustments = pick("category_adjustment");
+  // `count` stays "paid registrations" — an adjustment isn't a new registration.
+  const direct = {
+    count: manual.count + bulkImport.count,
+    amount: manual.amount + bulkImport.amount + categoryAdjustments.amount,
+  };
   return {
-    paidCount: razorpay.count + direct.count,
+    paidCount: razorpay.count + manual.count + bulkImport.count,
     revenue: razorpay.amount + direct.amount,
     razorpay,
     direct,
     manual,
     bulkImport,
+    categoryAdjustments,
   };
 }
 
@@ -145,6 +174,7 @@ export const PAYMENT_METHOD_FILTERS = ["razorpay", "direct", "manual", "bulk_imp
 export async function listRegistrations(params: {
   eventId: string;
   search?: string;
+  searchField?: SearchField;
   status?: string;
   groupId?: string;
   method?: string;
@@ -178,12 +208,13 @@ export async function listRegistrations(params: {
   if (params.groupId) {
     query = query.eq("group_id", params.groupId);
   }
-  if (params.search) {
-    const term = params.search.trim();
-    query = query.or(
-      `full_name.ilike.%${term}%,email.ilike.%${term}%,phone.ilike.%${term}%,registration_code.ilike.%${term}%,poc_name.ilike.%${term}%`
-    );
-  }
+  const searchFilter = await buildRegistrationSearchFilter(
+    supabase,
+    params.eventId,
+    params.search,
+    params.searchField
+  );
+  if (searchFilter) query = query.or(searchFilter);
 
   const { data, count, error } = await query;
   if (error) {
@@ -191,5 +222,39 @@ export async function listRegistrations(params: {
     return { rows: [] as RegistrationRow[], count: 0, page, pageSize };
   }
 
-  return { rows: (data ?? []) as unknown as RegistrationRow[], count: count ?? 0, page, pageSize };
+  const rows = (data ?? []) as unknown as Omit<RegistrationRow, "adjustments">[];
+  const adjustments = await listAdjustments(rows.map((r) => r.id));
+  return {
+    rows: rows.map((r) => ({ ...r, adjustments: adjustments.get(r.id) ?? [] })),
+    count: count ?? 0,
+    page,
+    pageSize,
+  };
+}
+
+/**
+ * Category-change adjustments for the given registrations, oldest first.
+ * Fetched separately rather than embedded so the listing keeps working
+ * (just without adjustments) if migration 0024 hasn't been applied yet.
+ */
+async function listAdjustments(registrationIds: string[]) {
+  const byRegistration = new Map<string, RegistrationAdjustment[]>();
+  if (registrationIds.length === 0) return byRegistration;
+
+  const supabase = createServiceClient();
+  const { data, error } = await supabase
+    .from("registration_adjustments")
+    .select(ADJUSTMENT_COLUMNS)
+    .in("registration_id", registrationIds)
+    .order("created_at", { ascending: true });
+  if (error) {
+    console.error("listAdjustments failed", error);
+    return byRegistration;
+  }
+  for (const a of (data ?? []) as RegistrationAdjustment[]) {
+    const list = byRegistration.get(a.registration_id) ?? [];
+    list.push({ ...a, price_diff_inr: Number(a.price_diff_inr), amount_inr: Number(a.amount_inr) });
+    byRegistration.set(a.registration_id, list);
+  }
+  return byRegistration;
 }

@@ -3,6 +3,7 @@ import { getBulkImportCategories } from "@/lib/catalog";
 import { getAdminEvent } from "@/lib/admin-event";
 import { getPaymentTotals, listRegistrations, PAYMENT_METHOD_FILTERS, type RegistrationRow } from "@/lib/admin-data";
 import { MANUAL_PAYMENT_MODE_LABELS, PAYMENT_METHOD_LABELS, type ManualPaymentMode } from "@/lib/manual-payment";
+import { parseSearchField, SEARCH_FIELDS } from "@/lib/registration-search";
 import ResendWaButton from "./ResendWaButton";
 import EditRegistrationButton from "./EditRegistrationButton";
 import BulkUploadButton from "./BulkUploadButton";
@@ -20,9 +21,10 @@ const METHOD_FILTER_LABELS: Record<(typeof PAYMENT_METHOD_FILTERS)[number], stri
 export default async function AdminRegistrationsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; status?: string; method?: string; group?: string; page?: string }>;
+  searchParams: Promise<{ q?: string; field?: string; status?: string; method?: string; group?: string; page?: string }>;
 }) {
-  const { q, status, method: rawMethod, group: groupId, page } = await searchParams;
+  const { q, field: rawField, status, method: rawMethod, group: groupId, page } = await searchParams;
+  const field = parseSearchField(rawField);
   const method = (PAYMENT_METHOD_FILTERS as readonly string[]).includes(rawMethod ?? "") ? rawMethod : undefined;
   const { event } = await getAdminEvent();
   if (!event) return <p className="text-neutral-400">No active event found.</p>;
@@ -32,6 +34,7 @@ export default async function AdminRegistrationsPage({
     listRegistrations({
       eventId: event.id,
       search: q,
+      searchField: field,
       status,
       method,
       groupId,
@@ -44,6 +47,7 @@ export default async function AdminRegistrationsPage({
   const totalPages = Math.max(1, Math.ceil(count / pageSize));
   const exportHref = `/api/admin/export?${new URLSearchParams({
     ...(q ? { q } : {}),
+    ...(q && field !== "all" ? { field } : {}),
     ...(status ? { status } : {}),
     ...(method ? { method } : {}),
   }).toString()}`;
@@ -75,6 +79,8 @@ export default async function AdminRegistrationsPage({
           <p className="text-xs text-neutral-400">
             {totals.direct.count} paid · ₹{totals.manual.amount.toLocaleString("en-IN")} manual · ₹
             {totals.bulkImport.amount.toLocaleString("en-IN")} bulk import
+            {totals.categoryAdjustments.count > 0 &&
+              ` · ₹${totals.categoryAdjustments.amount.toLocaleString("en-IN")} category changes`}
           </p>
         </Link>
       </div>
@@ -90,12 +96,24 @@ export default async function AdminRegistrationsPage({
 
       <form className="mt-6 flex flex-wrap gap-3" method="get">
         <input
-          type="text"
+          type="search"
           name="q"
           defaultValue={q}
-          placeholder="Search name, email, phone, registration ID, POC"
+          placeholder="Search any field: name, phone, BIB, reg./group ID, category, POC, city, Aadhar, UTR, DOB…"
           className="w-full min-w-0 flex-1 rounded-lg border border-white/10 bg-white/[0.04] px-3.5 py-2 text-sm focus:border-emerald-400 focus:outline-none sm:w-auto"
         />
+        <select
+          name="field"
+          defaultValue={field}
+          aria-label="Search in"
+          className="w-full rounded-lg border border-white/10 bg-neutral-900 px-3.5 py-2 text-sm text-neutral-50 focus:border-emerald-400 focus:outline-none sm:w-auto"
+        >
+          {Object.entries(SEARCH_FIELDS).map(([key, label]) => (
+            <option key={key} value={key} className="bg-neutral-900 text-neutral-50">
+              {key === "all" ? "Search in: all fields" : label}
+            </option>
+          ))}
+        </select>
         <select
           name="status"
           defaultValue={status ?? ""}
@@ -168,7 +186,7 @@ export default async function AdminRegistrationsPage({
                   {r.full_name}
                   {r.poc_name && (
                     <Link
-                      href={{ pathname: "/admin/registrations", query: { q: r.poc_name } }}
+                      href={{ pathname: "/admin/registrations", query: { q: r.poc_name, field: "poc" } }}
                       title="Group POC — collecting the money for this registration. Click to see everyone under this POC."
                       className="ml-2 rounded-full border border-amber-400/30 bg-amber-500/10 px-2 py-0.5 text-[11px] text-amber-300 hover:border-amber-300/60"
                     >
@@ -198,6 +216,7 @@ export default async function AdminRegistrationsPage({
                 </td>
                 <td className="whitespace-nowrap px-3 py-2.5">
                   ₹{Number(r.amount_inr).toLocaleString("en-IN")}
+                  <AdjustmentFlag row={r} />
                 </td>
                 <td className="whitespace-nowrap px-3 py-2.5 text-neutral-400">
                   {new Date(r.created_at).toLocaleDateString("en-IN")}
@@ -233,6 +252,7 @@ export default async function AdminRegistrationsPage({
                 pathname: "/admin/registrations",
                 query: {
                   ...(q ? { q } : {}),
+                  ...(q && field !== "all" ? { field } : {}),
                   ...(status ? { status } : {}),
                   ...(method ? { method } : {}),
                   ...(groupId ? { group: groupId } : {}),
@@ -299,6 +319,42 @@ function DirectPaymentFlag({ row }: { row: RegistrationRow }) {
       className="cursor-help rounded-full border border-sky-400/40 bg-sky-500/15 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-sky-300"
     >
       Direct · {label}
+    </span>
+  );
+}
+
+/** Category changes on this registration, with the offline difference settled. */
+function AdjustmentFlag({ row }: { row: RegistrationRow }) {
+  if (row.adjustments.length === 0) return null;
+
+  const net = row.adjustments.reduce((sum, a) => sum + a.amount_inr, 0);
+  const details = row.adjustments
+    .map((a) =>
+      [
+        `${a.from_category_name ?? "?"} → ${a.to_category_name ?? "?"}`,
+        a.amount_inr > 0
+          ? `Collected ₹${a.amount_inr.toLocaleString("en-IN")}`
+          : a.amount_inr < 0
+            ? `Refunded ₹${(-a.amount_inr).toLocaleString("en-IN")}`
+            : "No price difference",
+        a.mode && (MANUAL_PAYMENT_MODE_LABELS[a.mode as ManualPaymentMode] ?? a.mode),
+        a.reference && `Ref: ${a.reference}`,
+        a.poc_name && `POC: ${a.poc_name}`,
+        a.created_by && `By: ${a.created_by}`,
+        `On: ${new Date(a.created_at).toLocaleString("en-IN")}`,
+        a.note && `Note: ${a.note}`,
+      ]
+        .filter(Boolean)
+        .join("\n")
+    )
+    .join("\n\n");
+
+  return (
+    <span
+      title={details}
+      className="ml-1.5 cursor-help rounded-full border border-sky-400/40 bg-sky-500/15 px-2 py-0.5 text-[11px] font-semibold text-sky-300"
+    >
+      {net === 0 ? "Cat. changed" : `${net > 0 ? "+" : "−"}₹${Math.abs(net).toLocaleString("en-IN")} adj.`}
     </span>
   );
 }
