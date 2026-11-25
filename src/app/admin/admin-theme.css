@@ -1,111 +1,170 @@
 /*
- * Cubelelo design system for /admin (same tokens as the kit-pickup plan artifact):
- * Barlow Condensed headings, Inter body, JetBrains Mono codes, teal = action/ok,
- * orange = problem, amber = warning, light by default, dark via the OS setting.
+ * Cubelelo design system ("Dock") for /admin. Source: the Cubelelo design system
+ * artifact, guidelines/DESIGN-SYSTEM-SPEC.md (v1.2). Values below are the spec's:
+ *
+ *   Font       Lexend 400/500/600 only. Body 14/18, page title 20/26 (600).
+ *   Neutral    ink #111927, secondary #4D5761, muted #6C737F, disabled #9DA4AE
+ *   Surfaces   page #F8F9FC, card #FFFFFF, secondary #F3F4F6
+ *   Lines      inputs #D2D6DB, cards/dividers #E5E7EB
+ *   Primary    dark button #0D121C with white text (the accent never marks selection)
+ *   Accent     Cubelelo orange #FF9800: focus rings and focus borders only
+ *   Status     soft tints (StatusPill): active/expired/warning/info/pending
+ *   Light only: the spec defines no dark theme.
  *
  * The admin screens are written with Tailwind's neutral/emerald/red/amber/sky
- * palette. Rather than rewrite every class, this scope re-points those palette
- * variables at the design tokens, so every admin screen (and any future one)
- * follows the system automatically. Public pages are not under .ds.
+ * classes. Rather than rewrite every class, this scope re-points them at the
+ * tokens above, so existing and future admin screens follow the system.
+ * Public pages are not under .ds.
  */
 .ds {
-  --bg: #f3f5f7;
-  --surface: #ffffff;
-  --sunk: #e9edf1;
-  --ink: #15191f;
-  --muted: #5a6575;
-  --line: #d6dce3;
-  --old: #c4461a;
-  --new: #0d7566;
-  --warn: #946000;
-  --info: #1f5fae;
+  --ink: #111927;
+  --ink-2: #4d5761;
+  --muted: #6c737f;
+  --page: #f8f9fc;
+  --card: #ffffff;
+  --sunk: #f3f4f6;
+  --line: #d2d6db;
+  --line-2: #e5e7eb;
+  --primary: #0d121c;
+  --primary-hover: #1f2937;
+  --accent: #ff9800;
+  --link: #1570ef;
+
+  --tint-active: #dcfae6;
+  --on-active: #074d31;
+  --tint-expired: #fee4e2;
+  --on-expired: #7a271a;
+  --tint-warning: #fdead7;
+  --on-warning: #772917;
+  --tint-info: #d1e9ff;
+  --on-info: #194185;
+
   color-scheme: light;
-}
 
-@media (prefers-color-scheme: dark) {
-  .ds {
-    --bg: #0f1317;
-    --surface: #171c22;
-    --sunk: #1f252d;
-    --ink: #e7ecf1;
-    --muted: #9da8b6;
-    --line: #2c343e;
-    --old: #ff7a4b;
-    --new: #3cc4ac;
-    --warn: #e3ac3c;
-    --info: #7db4f0;
-    color-scheme: dark;
-  }
-}
-
-.ds {
   /* surfaces */
-  --color-neutral-950: var(--bg);
-  --color-neutral-900: var(--surface);
+  --color-neutral-950: var(--page);
+  --color-neutral-900: var(--card);
   --color-neutral-800: var(--sunk);
   /* text */
   --color-neutral-50: var(--ink);
   --color-neutral-100: var(--ink);
   --color-neutral-200: var(--ink);
-  --color-neutral-300: color-mix(in oklab, var(--ink) 80%, var(--muted));
-  --color-neutral-400: var(--muted);
+  --color-neutral-300: var(--ink-2);
+  --color-neutral-400: var(--ink-2);
   --color-neutral-500: var(--muted);
   --color-neutral-600: var(--muted);
-  /* translucent borders/fills (white/10, white/[0.04] ...) read as ink in either theme */
+  /* translucent borders / fills (white/10, white/20, white/[0.04] ...) read as ink */
   --color-white: var(--ink);
-  /* status colors */
-  --color-emerald-300: var(--new);
-  --color-emerald-400: var(--new);
-  --color-emerald-500: var(--new);
-  --color-red-300: var(--old);
-  --color-red-400: var(--old);
-  --color-red-500: var(--old);
-  --color-amber-300: var(--warn);
-  --color-amber-400: var(--warn);
-  --color-amber-500: var(--warn);
-  --color-sky-200: var(--info);
-  --color-sky-300: var(--info);
-  --color-sky-400: var(--info);
-  --color-sky-500: var(--info);
 
-  --font-mono: var(--font-ds-mono), ui-monospace, "Cascadia Mono", Consolas, monospace;
+  --font-mono: ui-monospace, "Cascadia Mono", Consolas, monospace;
 
-  background: var(--bg);
+  background: var(--page);
   color: var(--ink);
   font-family: var(--font-ds-body), system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-size: 14px;
+  line-height: 18px;
 }
 
+/* Type scale: page title 20/26 600, card/section title 18/24 600, small title 16/20 600. */
 .ds h1,
 .ds h2,
 .ds h3 {
-  font-family: var(--font-ds-display), "Arial Narrow", sans-serif;
-  font-weight: 700;
-  line-height: 1.05;
+  font-weight: 600;
   text-wrap: balance;
 }
 .ds h1 {
-  font-size: clamp(1.9rem, 4vw, 2.5rem);
+  font-size: 20px;
+  line-height: 26px;
 }
 .ds h2 {
-  font-size: 1.6rem;
+  font-size: 18px;
+  line-height: 24px;
 }
 .ds h3 {
-  font-size: 1.25rem;
+  font-size: 16px;
+  line-height: 20px;
+}
+.ds table {
+  font-variant-numeric: tabular-nums;
 }
 
+/* Focus: accent ring and accent border (the only place the accent appears). */
 .ds :focus-visible {
-  outline: 2px solid var(--new);
+  outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
 
-/* Solid-teal buttons keep readable text in both themes. */
+/* ---- Status tints (StatusPill pairs) ------------------------------------- */
+.ds [class*="bg-emerald-500/"] {
+  background: var(--tint-active);
+}
+.ds [class*="text-emerald-"] {
+  color: var(--on-active);
+}
+.ds [class*="bg-red-500/"] {
+  background: var(--tint-expired);
+}
+.ds [class*="text-red-"] {
+  color: var(--on-expired);
+}
+.ds [class*="bg-amber-500/"] {
+  background: var(--tint-warning);
+}
+.ds [class*="text-amber-"] {
+  color: var(--on-warning);
+}
+.ds [class*="bg-sky-500/"] {
+  background: var(--tint-info);
+}
+.ds [class*="text-sky-"] {
+  color: var(--on-info);
+}
+.ds [class*="border-emerald-"][class*="/"] {
+  border-color: color-mix(in srgb, var(--on-active) 30%, transparent);
+}
+.ds [class*="border-red-"] {
+  border-color: color-mix(in srgb, var(--on-expired) 35%, transparent);
+}
+.ds [class*="border-amber-"] {
+  border-color: color-mix(in srgb, var(--on-warning) 35%, transparent);
+}
+.ds [class*="border-sky-"] {
+  border-color: color-mix(in srgb, var(--on-info) 30%, transparent);
+}
+
+/* ---- Primary action: dark button, white text ---------------------------- */
 .ds .bg-emerald-500,
 .ds .bg-emerald-400 {
-  color: var(--surface);
+  background: var(--primary);
+  color: #fff;
 }
 .ds .bg-emerald-500 *,
 .ds .bg-emerald-400 * {
   color: inherit;
+}
+.ds .hover\:bg-emerald-400:hover {
+  background: var(--primary-hover);
+}
+.ds .bg-sky-500,
+.ds .bg-sky-400,
+.ds .bg-sky-300,
+.ds .hover\:bg-sky-300:hover {
+  background: var(--link);
+  color: #fff;
+}
+
+/* Inputs: focus border = accent (the spec's focus rule). */
+.ds .focus\:border-emerald-400:focus {
+  border-color: var(--accent);
+}
+
+/* Cards: white, 1px #E5E7EB, as on the portal. */
+.ds [class*="bg-white/[0.0"] {
+  background-color: var(--card);
+}
+/* Table header row: #F3F4F6, as the DataTable spec. */
+.ds thead[class*="bg-white"] {
+  background-color: var(--sunk);
 }
 
 @media print {
