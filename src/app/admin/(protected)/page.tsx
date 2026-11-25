@@ -1,3 +1,4 @@
+import { requireAdmin } from "@/lib/admin-auth";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { getAdminEvent } from "@/lib/admin-event";
@@ -6,6 +7,7 @@ import { Card, EmptyState, Icon, KpiCard, KpiRow, PageHeader } from "@/component
 import { CategoryPanel, PocPanel } from "./dashboard-panels";
 
 export default async function AdminDashboardPage() {
+  await requireAdmin();
   const { event } = await getAdminEvent();
   if (!event) {
     return (

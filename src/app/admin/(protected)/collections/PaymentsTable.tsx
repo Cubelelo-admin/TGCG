@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { DataTable, FilterChip, IdLink, Pagination, StatusPill, type ColumnDef, type StatusTone } from "@/components/ds";
+import { DataTable, FilterChip, Pagination, StatusPill, type ColumnDef, type StatusTone } from "@/components/ds";
 
 export type PaymentKindFilter = "all" | "manual" | "bulk_import" | "category_change";
 
@@ -39,7 +39,11 @@ const FILTERS: { value: PaymentKindFilter; label: string }[] = [
   { value: "category_change", label: "Category changes" },
 ];
 
-const LINK = "text-12 text-link underline decoration-dashed decoration-1 underline-offset-4 hover:text-[#175CD3]";
+/**
+ * In-table text link for the collections tables: DS IdLink's style (same hover colour) at 12px to match the
+ * table body. Shared with BreakdownCard so the two tables can't drift apart.
+ */
+export const TABLE_LINK = "text-12 text-link underline decoration-dashed decoration-1 underline-offset-4 hover:text-[#175CD3]";
 
 /** The individual direct payments, newest first; the server sends one page at a time. */
 export function PaymentsTable({
@@ -86,15 +90,12 @@ export function PaymentsTable({
       header: "Reg. ID",
       render: (r) =>
         r.registrationCode ? (
-          <IdLink
-            onClick={() =>
-              router.push(
-                `/admin/registrations?${new URLSearchParams({ q: r.registrationCode!, field: "registration_code" }).toString()}`
-              )
-            }
+          <Link
+            href={`/admin/registrations?${new URLSearchParams({ q: r.registrationCode, field: "registration_code" }).toString()}`}
+            className={`whitespace-nowrap ${TABLE_LINK}`}
           >
             {r.registrationCode}
-          </IdLink>
+          </Link>
         ) : (
           <span className="text-ink-muted">—</span>
         ),
@@ -136,7 +137,7 @@ export function PaymentsTable({
       header: "POC",
       render: (r) =>
         r.poc ? (
-          <Link href={`/admin/registrations?${new URLSearchParams({ q: r.poc, field: "poc" }).toString()}`} className={LINK}>
+          <Link href={`/admin/registrations?${new URLSearchParams({ q: r.poc, field: "poc" }).toString()}`} className={TABLE_LINK}>
             {r.poc}
           </Link>
         ) : (

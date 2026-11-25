@@ -1,3 +1,4 @@
+import { requireAdmin } from "@/lib/admin-auth";
 import Link from "next/link";
 import { getAdminEvent } from "@/lib/admin-event";
 import { getKitOverview } from "@/lib/kit";
@@ -20,6 +21,7 @@ const LABEL_LINKS: { href: string; label: string }[] = [
 ];
 
 export default async function KitPage() {
+  await requireAdmin();
   const { event } = await getAdminEvent();
   if (!event) return <EmptyState title="No event found." />;
 

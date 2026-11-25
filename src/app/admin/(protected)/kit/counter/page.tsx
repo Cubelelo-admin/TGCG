@@ -1,8 +1,10 @@
+import { requireAdmin } from "@/lib/admin-auth";
 import { getAdminEvent } from "@/lib/admin-event";
 import { EmptyState, PageHeader } from "@/components/ds";
 import CounterStation from "./CounterStation";
 
 export default async function KitCounterPage() {
+  await requireAdmin();
   const { event } = await getAdminEvent();
   if (!event) return <EmptyState title="No event found." />;
 

@@ -1,3 +1,4 @@
+import { requireAdmin } from "@/lib/admin-auth";
 import { getAdminEvent } from "@/lib/admin-event";
 import { getRecentExceptions } from "@/lib/kit";
 import { Card, EmptyState, PageHeader } from "@/components/ds";
@@ -5,6 +6,7 @@ import ExceptionsDesk from "./ExceptionsDesk";
 import ExceptionLog, { type ExceptionLogRow } from "./ExceptionLog";
 
 export default async function KitExceptionsPage() {
+  await requireAdmin();
   const { event } = await getAdminEvent();
   if (!event) return <EmptyState title="No event found." />;
 

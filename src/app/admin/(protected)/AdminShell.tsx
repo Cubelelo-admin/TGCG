@@ -16,6 +16,8 @@ const NAV: NavEntry[] = [
   { key: "dashboard", label: "Dashboard", href: "/admin", icon: "dashboard" },
   { key: "registrations", label: "Registrations", href: "/admin/registrations", icon: "registrations" },
   { key: "kit", label: "Kit", href: "/admin/kit", icon: "kit" },
+  { key: "kit-desk", label: "Desk", href: "/admin/kit/desk", icon: "qr", sub: true },
+  { key: "kit-picker", label: "Picker", href: "/admin/kit/picker", icon: "package", sub: true },
   { key: "kit-pick", label: "Pick", href: "/admin/kit/pick", icon: "box", sub: true },
   { key: "kit-handover", label: "Handover", href: "/admin/kit/handover", icon: "handover", sub: true },
   { key: "kit-counter", label: "Counter", href: "/admin/kit/counter", icon: "userCheck", sub: true },
@@ -23,6 +25,15 @@ const NAV: NavEntry[] = [
   { key: "kit-labels", label: "Labels", href: "/admin/kit/labels", icon: "label", sub: true },
 ];
 const BOTTOM_NAV: NavEntry[] = [{ key: "configuration", label: "Configuration", href: "/admin/assets", icon: "configuration" }];
+
+export type ShellRole = "admin" | "desk" | "picker";
+
+/** Expo volunteers see only their own station (the pages enforce it too, see requireStation). */
+function navFor(role: ShellRole): { top: NavEntry[]; bottom: NavEntry[] } {
+  if (role === "admin") return { top: NAV, bottom: BOTTOM_NAV };
+  const key = role === "desk" ? "kit-desk" : "kit-picker";
+  return { top: NAV.filter((e) => e.key === key).map((e) => ({ ...e, sub: false })), bottom: [] };
+}
 
 /** The sidebar item for a path: the longest nav href that is the path or a parent of it. */
 function activeKeyFor(pathname: string): string {
@@ -74,15 +85,20 @@ function logoFor(collapsed: boolean) {
  */
 export default function AdminShell({
   email,
+  role,
   events,
   selectedSlug,
   children,
 }: {
   email: string;
+  role: ShellRole;
   events: AdminEventOption[];
   selectedSlug: string | null;
   children: ReactNode;
 }) {
+  const nav = navFor(role);
+  const brandName = role === "admin" ? "TGCG Admin" : role === "desk" ? "TGCG Desk" : "TGCG Picker";
+  const selectedEvent = events.find((e) => e.slug === selectedSlug);
   const pathname = usePathname();
   const activeKey = activeKeyFor(pathname);
   const [collapsed, setCollapsed] = useState(false);
@@ -104,11 +120,11 @@ export default function AdminShell({
       {/* Desktop / tablet: in-flow sidebar */}
       <div className="hidden shrink-0 md:block print:hidden">
         <Sidebar
-          items={toNavItems(NAV, collapsed)}
-          bottomItems={toNavItems(BOTTOM_NAV, collapsed)}
+          items={toNavItems(nav.top, collapsed)}
+          bottomItems={toNavItems(nav.bottom, collapsed)}
           activeKey={activeKey}
           logo={logoFor(collapsed)}
-          brandName="TGCG Admin"
+          brandName={brandName}
           collapsed={collapsed}
           onToggleCollapse={() => setCollapsed((c) => !c)}
         />
@@ -125,12 +141,12 @@ export default function AdminShell({
           />
           <div className="relative h-full shadow-dock-xl">
             <Sidebar
-              items={toNavItems(NAV, false)}
-              bottomItems={toNavItems(BOTTOM_NAV, false)}
+              items={toNavItems(nav.top, false)}
+              bottomItems={toNavItems(nav.bottom, false)}
               activeKey={activeKey}
               onSelect={() => setMobileOpen(false)}
               logo={logoFor(false)}
-              brandName="TGCG Admin"
+              brandName={brandName}
               onToggleCollapse={() => setMobileOpen(false)}
             />
           </div>
@@ -149,7 +165,12 @@ export default function AdminShell({
             <Icon name="menu" size={20} />
           </button>
           <div className="min-w-0 flex-1">
-            <EventSwitcher events={events} selectedSlug={selectedSlug} />
+            {/* Switching events is admin-only (the server action checks it too). */}
+            {role === "admin" ? (
+              <EventSwitcher events={events} selectedSlug={selectedSlug} />
+            ) : (
+              <p className="truncate px-2 text-14 font-medium text-ink">{selectedEvent?.name ?? ""}</p>
+            )}
           </div>
           <AccountMenu email={email} initial={initial} />
         </header>

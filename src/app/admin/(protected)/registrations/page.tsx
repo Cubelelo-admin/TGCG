@@ -1,3 +1,4 @@
+import { requireAdmin } from "@/lib/admin-auth";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { getBulkImportCategories } from "@/lib/catalog";
@@ -50,6 +51,7 @@ export default async function AdminRegistrationsPage({
 }: {
   searchParams: Promise<{ q?: string; field?: string; status?: string; method?: string; group?: string; page?: string }>;
 }) {
+  await requireAdmin();
   const { q, field: rawField, status, method: rawMethod, group: groupId, page } = await searchParams;
   const field = parseSearchField(rawField);
   const method = (PAYMENT_METHOD_FILTERS as readonly string[]).includes(rawMethod ?? "") ? rawMethod : undefined;
@@ -88,6 +90,8 @@ export default async function AdminRegistrationsPage({
     ...(method ? { method } : {}),
   }).toString()}`;
 
+  const directSelected = method === "direct" && status === "paid";
+
   const pageHref = (p: number) => ({
     pathname: "/admin/registrations",
     query: {
@@ -122,7 +126,7 @@ export default async function AdminRegistrationsPage({
             tone="green"
             label="Total collected"
             value={`₹${totals.revenue.toLocaleString("en-IN")}`}
-            caption={`${totals.paidCount} paid`}
+            caption={`${totals.paidCount.toLocaleString("en-IN")} paid`}
           />
         </KpiSlot>
         <KpiSlot>
@@ -130,16 +134,26 @@ export default async function AdminRegistrationsPage({
             tone="green"
             label="Via Razorpay"
             value={`₹${totals.razorpay.amount.toLocaleString("en-IN")}`}
-            caption={`${totals.razorpay.count} paid`}
+            caption={`${totals.razorpay.count.toLocaleString("en-IN")} paid`}
           />
         </KpiSlot>
         <Link
-          href={{ pathname: "/admin/registrations", query: { method: "direct", status: "paid" } }}
+          href={
+            directSelected
+              ? "/admin/registrations"
+              : { pathname: "/admin/registrations", query: { method: "direct", status: "paid" } }
+          }
+          aria-current={directSelected ? "true" : undefined}
+          title={
+            directSelected
+              ? "Filtered to payments collected directly. Click to clear the filter."
+              : "Show only payments collected directly"
+          }
           className="group flex min-w-[220px] flex-1 rounded-16 transition-shadow hover:shadow-dock-xl focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
         >
           <KpiCard
             tone="orange"
-            selected={method === "direct" && status === "paid"}
+            selected={directSelected}
             label={
               <span className="flex w-full items-center justify-between gap-2">
                 Collected directly (not Razorpay)
@@ -149,7 +163,7 @@ export default async function AdminRegistrationsPage({
             value={`₹${totals.direct.amount.toLocaleString("en-IN")}`}
             caption={
               <>
-                {totals.direct.count} paid · ₹{totals.manual.amount.toLocaleString("en-IN")} manual · ₹
+                {totals.direct.count.toLocaleString("en-IN")} paid · ₹{totals.manual.amount.toLocaleString("en-IN")} manual override · ₹
                 {totals.bulkImport.amount.toLocaleString("en-IN")} bulk import
                 {totals.categoryAdjustments.count > 0 &&
                   ` · ₹${totals.categoryAdjustments.amount.toLocaleString("en-IN")} category changes`}
@@ -430,7 +444,7 @@ function DirectPaymentFlag({ row }: { row: RegistrationRow }) {
 
   return (
     <span title={details} className="cursor-help">
-      <StatusPill tone="info">Direct · {label}</StatusPill>
+      <StatusPill tone={row.payment_method === "manual" ? "warning" : "info"}>Direct · {label}</StatusPill>
     </span>
   );
 }
@@ -463,7 +477,7 @@ function AdjustmentFlag({ row }: { row: RegistrationRow }) {
 
   return (
     <span title={details} className="ml-1.5 cursor-help">
-      <StatusPill tone="info">
+      <StatusPill tone="pending">
         {net === 0 ? "Cat. changed" : `${net > 0 ? "+" : "−"}₹${Math.abs(net).toLocaleString("en-IN")} adj.`}
       </StatusPill>
     </span>

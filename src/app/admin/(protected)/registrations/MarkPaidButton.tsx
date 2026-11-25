@@ -154,7 +154,7 @@ export default function MarkPaidButton({ registrationId, name }: { registrationI
             </Button>
             {!done && (
               <Button type="submit" form={formId} size="sm" variant="dark" disabled={!canSubmit || saving}>
-                {saving ? "Confirming..." : "Confirm payment"}
+                {saving ? "Confirming…" : "Confirm payment"}
               </Button>
             )}
           </>

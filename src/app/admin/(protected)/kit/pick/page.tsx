@@ -1,7 +1,9 @@
+import { requireAdmin } from "@/lib/admin-auth";
 import { PageHeader } from "@/components/ds";
 import PickStation from "./PickStation";
 
 export default async function KitPickPage({ searchParams }: { searchParams: Promise<{ box?: string }> }) {
+  await requireAdmin();
   const { box } = await searchParams;
 
   return (

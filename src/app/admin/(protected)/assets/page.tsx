@@ -1,14 +1,20 @@
+import { requireAdmin } from "@/lib/admin-auth";
 import Link from "next/link";
 import { listSiteAssets } from "@/lib/site-assets";
 import { getWaGroupSettings } from "@/lib/app-settings";
 import { Banner, EmptyState, Icon, PageHeader } from "@/components/ds";
 import UploadAssetCard from "./UploadAssetCard";
 import WhatsAppGroupsCard from "./WhatsAppGroupsCard";
+import VolunteersCard, { type Volunteer } from "./VolunteersCard";
+import { createServiceClient } from "@/lib/supabase/server";
+import type { IconName } from "@/components/ds";
 
 const TABS = [
   { id: "race-assets", label: "Race Assets" },
   { id: "wa-group", label: "WA Group" },
+  { id: "volunteers", label: "Volunteers" },
 ] as const;
+const TAB_ICONS: Record<TabId, IconName> = { "race-assets": "file", "wa-group": "whatsapp", volunteers: "users" };
 type TabId = (typeof TABS)[number]["id"];
 
 export default async function AdminConfigurationPage({
@@ -16,8 +22,9 @@ export default async function AdminConfigurationPage({
 }: {
   searchParams: Promise<{ tab?: string }>;
 }) {
+  await requireAdmin();
   const { tab } = await searchParams;
-  const activeTab: TabId = tab === "wa-group" ? "wa-group" : "race-assets";
+  const activeTab: TabId = TABS.find((t) => t.id === tab)?.id ?? "race-assets";
 
   return (
     <div>
@@ -39,7 +46,7 @@ export default async function AdminConfigurationPage({
                   : "border-transparent text-ink-tertiary hover:text-ink"
               }`}
             >
-              <Icon name={t.id === "race-assets" ? "file" : "whatsapp"} size={16} />
+              <Icon name={TAB_ICONS[t.id]} size={16} />
               {t.label}
             </Link>
           );
@@ -47,7 +54,7 @@ export default async function AdminConfigurationPage({
       </div>
 
       <div className="mt-5">
-        {activeTab === "race-assets" ? <RaceAssetsTab /> : <WaGroupTab />}
+        {activeTab === "race-assets" ? <RaceAssetsTab /> : activeTab === "wa-group" ? <WaGroupTab /> : <VolunteersTab />}
       </div>
     </div>
   );
@@ -93,4 +100,24 @@ async function RaceAssetsTab() {
 async function WaGroupTab() {
   const waGroupSettings = await getWaGroupSettings();
   return <WhatsAppGroupsCard settings={waGroupSettings} />;
+}
+
+async function VolunteersTab() {
+  const { data, error } = await createServiceClient()
+    .from("admin_allowlist")
+    .select("email, role, added_at")
+    .order("added_at", { ascending: true });
+  if (error) {
+    console.error("volunteers load failed", error);
+    return (
+      <Banner tone="danger" title="Could not load volunteers">
+        Refresh the page; if it keeps failing, check the server logs.
+      </Banner>
+    );
+  }
+  const rows = (data ?? []) as { email: string; role: string; added_at: string }[];
+  const volunteers: Volunteer[] = rows
+    .filter((r) => r.role === "desk" || r.role === "picker")
+    .map((r) => ({ email: r.email, role: r.role as Volunteer["role"], addedAt: r.added_at }));
+  return <VolunteersCard volunteers={volunteers} adminCount={rows.filter((r) => r.role === "admin").length} />;
 }

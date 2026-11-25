@@ -1,8 +1,10 @@
+import { requireAdmin } from "@/lib/admin-auth";
 import { getAdminEvent } from "@/lib/admin-event";
 import { EmptyState, PageHeader } from "@/components/ds";
 import HandoverStation from "./HandoverStation";
 
 export default async function KitHandoverPage() {
+  await requireAdmin();
   const { event } = await getAdminEvent();
   if (!event) return <EmptyState title="No event found." />;
 

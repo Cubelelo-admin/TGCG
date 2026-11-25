@@ -16,6 +16,7 @@ export function inr(n: number) {
 
 export const toPaise = (n: number) => Math.round(n * 100);
 const count = (n: number) => n.toLocaleString("en-IN");
+const plural = (n: number, word: string) => `${count(n)} ${word}${n === 1 ? "" : "s"}`;
 
 export interface BreakdownColumn {
   header: string;
@@ -28,7 +29,7 @@ export interface BreakdownRow {
   label: string;
   caption?: string;
   href?: string;
-  /** Table cells after the label column (the last one is the bucket total). */
+  /** Table cells after the label column (the first one is the bucket total, so it stays visible in a narrow card). */
   cells: string[];
   /** Bucket total in ₹ (bar length) and its text. */
   amount: number;
@@ -100,14 +101,28 @@ function bucketer() {
 const sumPaise = (bs: Bucket[], pick: (b: Bucket) => number) => bs.reduce((s, b) => s + pick(b), 0);
 const bucketTotal = (b: Bucket) => b.manual + b.bulk + b.adjustment;
 
-function row(b: Bucket, cells: string[], caption?: string): BreakdownRow {
+/** `cells` are the columns after the bucket total; the total is put first here. */
+function row(b: Bucket, cells: string[], caption: string): BreakdownRow {
   const paise = bucketTotal(b);
-  return { key: b.key, label: b.label, caption, href: b.href, cells, amount: paise / 100, amountText: inr(paise / 100) };
+  // A bucket can net negative when a category-change refund is its only entry (empty bar).
+  const fullCaption = paise < 0 ? `${caption} · net refund` : caption;
+  return {
+    key: b.key,
+    label: b.label,
+    caption: fullCaption,
+    href: b.href,
+    cells: [inr(paise / 100), ...cells],
+    amount: paise / 100,
+    amountText: inr(paise / 100),
+  };
 }
 
-function registrationsHref(q: string, field: string) {
-  return `/admin/registrations?${new URLSearchParams({ q, field }).toString()}`;
+function registrationsHref(params: Record<string, string>) {
+  return `/admin/registrations?${new URLSearchParams(params).toString()}`;
 }
+
+/** Payment count, manual, bulk and category-change cells (after the total). */
+const kindCells = (x: Bucket) => [count(x.n), inr(x.manual / 100), inr(x.bulk / 100), inr(x.adjustment / 100)];
 
 const modeLabel = (mode: string | null) =>
   mode ? (MANUAL_PAYMENT_MODE_LABELS[mode as ManualPaymentMode] ?? mode) : "Mode not recorded";
@@ -116,26 +131,20 @@ const modeLabel = (mode: string | null) =>
 export function byMode(payments: DirectPayment[]): Breakdown {
   const b = bucketer();
   for (const p of payments) {
-    if (p.kind === "bulk_import") b.add("bulk", "Bulk import (offline, no mode stored)", p, { last: true });
+    if (p.kind === "bulk_import") b.add("bulk", "Bulk import", p, { last: true });
     else b.add(p.mode ?? "none", modeLabel(p.mode), p, { last: !p.mode });
   }
   const list = b.list();
   return {
     columns: [
       { header: "Mode" },
+      { header: "Total", align: "right" },
       { header: "Payments", align: "right" },
       { header: "Manual override", align: "right" },
       { header: "Bulk import", align: "right" },
       { header: "Category changes", align: "right" },
-      { header: "Total", align: "right" },
     ],
-    rows: list.map((x) =>
-      row(
-        x,
-        [count(x.n), inr(x.manual / 100), inr(x.bulk / 100), inr(x.adjustment / 100), inr(bucketTotal(x) / 100)],
-        `${count(x.n)} payment${x.n === 1 ? "" : "s"}`
-      )
-    ),
+    rows: list.map((x) => row(x, kindCells(x), `${plural(x.n, "payment")}${x.key === "bulk" ? " · no mode stored" : ""}`)),
     totalCells: totals(list),
   };
 }
@@ -144,40 +153,50 @@ export function byMode(payments: DirectPayment[]): Breakdown {
 export function byRecorder(payments: DirectPayment[]): Breakdown {
   const b = bucketer();
   for (const p of payments) {
-    if (p.kind === "bulk_import") b.add("bulk", "Bulk import (recorder not stored)", p, { last: true });
-    else if (p.recordedBy) b.add(`by:${p.recordedBy}`, p.recordedBy, p, { href: registrationsHref(p.recordedBy, "payment") });
+    if (p.kind === "bulk_import") b.add("bulk", "Bulk import", p, { last: true });
+    // A search for the admin's email among paid registrations (payment fields + category changes), not an exact
+    // reproduction of the row: the search also matches the email in refs/notes.
+    else if (p.recordedBy)
+      b.add(`by:${p.recordedBy}`, p.recordedBy, p, { href: registrationsHref({ q: p.recordedBy, field: "payment", status: "paid" }) });
     else b.add("none", "Not recorded", p, { last: true });
   }
   const list = b.list();
   return {
     columns: [
       { header: "Recorded by" },
+      { header: "Total", align: "right" },
       { header: "Payments", align: "right" },
       { header: "Manual override", align: "right" },
       { header: "Bulk import", align: "right" },
       { header: "Category changes", align: "right" },
-      { header: "Total", align: "right" },
     ],
-    rows: list.map((x) =>
-      row(
-        x,
-        [count(x.n), inr(x.manual / 100), inr(x.bulk / 100), inr(x.adjustment / 100), inr(bucketTotal(x) / 100)],
-        `${count(x.n)} payment${x.n === 1 ? "" : "s"}`
-      )
-    ),
+    rows: list.map((x) => row(x, kindCells(x), `${plural(x.n, "payment")}${x.key === "bulk" ? " · recorder not stored" : ""}`)),
     totalCells: totals(list),
   };
 }
 
 /** The registration's current category; category-change differences count under the category moved to. */
 export function byCategory(payments: DirectPayment[]): Breakdown {
+  // Category changes can sit on a registration first paid through Razorpay. For a category with any
+  // such change, the link can't add method=direct, or the list would drop that registration.
+  const directRegIds = new Set(payments.filter((p) => p.kind !== "category_change").map((p) => p.registrationId));
+  const hasRazorpayChange = new Set(
+    payments
+      .filter((p) => p.kind === "category_change" && p.category && !directRegIds.has(p.registrationId))
+      .map((p) => p.category as string)
+  );
   const b = bucketer();
   for (const p of payments) {
     const name = p.category ?? "Unknown category";
     b.add(`cat:${name}`, name, p, {
       last: !p.category,
       href: p.category
-        ? `/admin/registrations?${new URLSearchParams({ q: p.category, field: "category", method: "direct", status: "paid" }).toString()}`
+        ? registrationsHref({
+            q: p.category,
+            field: "category",
+            ...(hasRazorpayChange.has(p.category) ? {} : { method: "direct" }),
+            status: "paid",
+          })
         : undefined,
     });
   }
@@ -185,17 +204,17 @@ export function byCategory(payments: DirectPayment[]): Breakdown {
   return {
     columns: [
       { header: "Category" },
+      { header: "Total", align: "right" },
       { header: "Paid regs", align: "right" },
       { header: "Manual override", align: "right" },
       { header: "Bulk import", align: "right" },
       { header: "Category changes", align: "right" },
-      { header: "Total", align: "right" },
     ],
     rows: list.map((x) =>
       row(
         x,
-        [count(x.regIds.size), inr(x.manual / 100), inr(x.bulk / 100), inr(x.adjustment / 100), inr(bucketTotal(x) / 100)],
-        `${count(x.regIds.size)} paid${x.adjustmentCount ? ` · ${count(x.adjustmentCount)} category change${x.adjustmentCount === 1 ? "" : "s"}` : ""}`
+        [count(x.regIds.size), inr(x.manual / 100), inr(x.bulk / 100), inr(x.adjustment / 100)],
+        `${count(x.regIds.size)} paid${x.adjustmentCount ? ` · ${plural(x.adjustmentCount, "category change")}` : ""}`
       )
     ),
     totalCells: totals(list, (bs) => count(bs.reduce((s, x) => s + x.regIds.size, 0))),
@@ -220,7 +239,8 @@ export function byPoc(data: DirectCollections, pocTotals: PocTotal[]): PocBreakd
   const b = bucketer();
   for (const p of data.payments) {
     // != null, not truthiness: poc_totals groups any non-null name, blank included.
-    if (p.pocName != null) b.add(`poc:${p.pocName}`, p.pocName || "(blank POC)", p, { href: registrationsHref(p.pocName, "poc") });
+    if (p.pocName != null)
+      b.add(`poc:${p.pocName}`, p.pocName || "(blank POC)", p, { href: registrationsHref({ q: p.pocName, field: "poc" }) });
     else b.add("none", "No POC recorded", p, { last: true });
   }
   const list = b.list();
@@ -253,39 +273,41 @@ export function byPoc(data: DirectCollections, pocTotals: PocTotal[]): PocBreakd
   return {
     columns: [
       { header: "POC" },
-      { header: "Registrations", align: "right" },
+      { header: "Collected directly", align: "right" },
+      // poc_totals' count: paid registrations + registrations with a category change (one runner can be both),
+      // so it can exceed the paid-registration count in the KPI above.
+      { header: "Regs + changes", align: "right" },
       { header: "Bulk import", align: "right" },
       { header: "Manual override", align: "right" },
       { header: "Category changes", align: "right" },
-      { header: "Collected directly", align: "right" },
     ],
     rows: list.map((x) =>
       row(
         x,
-        [count(directCount(x)), inr(x.bulk / 100), inr(x.manual / 100), inr(x.adjustment / 100), inr(bucketTotal(x) / 100)],
-        `${count(directCount(x))} registration${directCount(x) === 1 ? "" : "s"}`
+        [count(directCount(x)), inr(x.bulk / 100), inr(x.manual / 100), inr(x.adjustment / 100)],
+        `${plural(x.regIds.size, "paid reg")}${x.adjustedRegIds.size ? ` · ${plural(x.adjustedRegIds.size, "category change")}` : ""}`
       )
     ),
     totalCells: [
+      inr(sumPaise(list, bucketTotal) / 100),
       count(list.reduce((s, x) => s + directCount(x), 0)),
       inr(sumPaise(list, (x) => x.bulk) / 100),
       inr(sumPaise(list, (x) => x.manual) / 100),
       inr(sumPaise(list, (x) => x.adjustment) / 100),
-      inr(sumPaise(list, bucketTotal) / 100),
     ],
     razorpayTagged: data.razorpayPocTagged,
     mismatches,
   };
 }
 
-/** Standard total row: payments, manual, bulk, adjustments, total. */
+/** Standard total row: total, payments, manual, bulk, adjustments. */
 function totals(list: Bucket[], first: (bs: Bucket[]) => string = (bs) => count(bs.reduce((s, x) => s + x.n, 0))) {
   return [
+    inr(sumPaise(list, bucketTotal) / 100),
     first(list),
     inr(sumPaise(list, (x) => x.manual) / 100),
     inr(sumPaise(list, (x) => x.bulk) / 100),
     inr(sumPaise(list, (x) => x.adjustment) / 100),
-    inr(sumPaise(list, bucketTotal) / 100),
   ];
 }
 

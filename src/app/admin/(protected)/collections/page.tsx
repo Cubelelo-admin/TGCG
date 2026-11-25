@@ -1,3 +1,4 @@
+import { requireAdmin } from "@/lib/admin-auth";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { getAdminEvent } from "@/lib/admin-event";
@@ -22,6 +23,7 @@ export default async function CollectionsPage({
 }: {
   searchParams: Promise<{ page?: string; type?: string }>;
 }) {
+  await requireAdmin();
   const { page: rawPage, type: rawType } = await searchParams;
   const { event } = await getAdminEvent();
   if (!event) {
@@ -110,8 +112,10 @@ export default async function CollectionsPage({
 
       <KpiRow>
         <KpiSlot>
+          {/* Orange like the dashboard / registrations "Collected directly" cards that link here; strong = the hero. */}
           <KpiCard
-            tone="green"
+            tone="orange"
+            strong
             label="Total collected directly"
             value={inr(totals.direct.amount)}
             caption={`${plural(totals.direct.count, "paid registration")}${
@@ -121,7 +125,7 @@ export default async function CollectionsPage({
         </KpiSlot>
         <KpiSlot>
           <KpiCard
-            tone="orange"
+            tone="blue"
             label="Manual override"
             hint="Pending or failed registrations an admin marked paid after collecting the money directly (UPI, cash, bank transfer)."
             value={inr(totals.manual.amount)}
@@ -130,7 +134,7 @@ export default async function CollectionsPage({
         </KpiSlot>
         <KpiSlot>
           <KpiCard
-            tone="blue"
+            tone="grey"
             label="Bulk import"
             hint="Offline / paper registrations uploaded in bulk; the money is collected by each group's POC."
             value={inr(totals.bulkImport.amount)}
@@ -139,7 +143,7 @@ export default async function CollectionsPage({
         </KpiSlot>
         <KpiSlot>
           <KpiCard
-            tone="grey"
+            tone="bordered"
             label="Category changes"
             hint="Price differences settled offline when a paid runner moved category (refunds count as negative)."
             value={inr(totals.categoryAdjustments.amount)}
@@ -159,18 +163,19 @@ export default async function CollectionsPage({
         card&apos;s Total row equals {inr(totals.direct.amount)}.
       </p>
 
+      {/* All four bars are orange: each chart splits the same orange "collected directly" total. */}
       <div className="mb-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
         <BreakdownCard
           title="By payment mode"
           description="How the money came in. Manual overrides and category changes record a mode; bulk imports don't."
           breakdown={modes}
-          color={CHART_COLORS.green}
+          color={CHART_COLORS.orange}
         />
         <BreakdownCard
           title="By who recorded it"
-          description="The admin who marked a payment paid or recorded a category change. Bulk uploads don't store the uploader."
+          description="The admin who marked a payment paid or recorded a category change. Bulk uploads don't store the uploader. Each name links to a search of paid registrations for that admin."
           breakdown={recorders}
-          color={CHART_COLORS.blue}
+          color={CHART_COLORS.orange}
         />
         <BreakdownCard
           title="By POC"
@@ -191,21 +196,13 @@ export default async function CollectionsPage({
           title="By category"
           description="By each runner's current category. A category-change difference counts under the category the runner moved to."
           breakdown={categories}
-          color={CHART_COLORS.blue}
+          color={CHART_COLORS.orange}
         />
       </div>
 
       <Card
         title="Payments"
-        actions={
-          <>
-            <span className="text-12 text-ink-tertiary">{plural(payments.length, "payment")} · newest first</span>
-            <Link href={DIRECT_PAID_HREF} className={buttonClass({ size: "sm" })}>
-              View all in Registrations
-              <Icon name="arrowRight" size={14} />
-            </Link>
-          </>
-        }
+        actions={<span className="text-12 text-ink-tertiary">{plural(payments.length, "payment")} · newest first</span>}
       >
         <PaymentsTable
           rows={pageRows}
@@ -259,6 +256,10 @@ function PocFootnote({
 }) {
   return (
     <div className="flex flex-col gap-1">
+      <p>
+        &ldquo;Regs + changes&rdquo; counts paid registrations plus registrations with a category change, as the
+        dashboard does, so a runner who also changed category counts twice.
+      </p>
       {taggedCount === 0 ? (
         mismatches.length === 0 && <p>Each POC&apos;s registrations and amount match the dashboard&apos;s By Group POC table.</p>
       ) : (

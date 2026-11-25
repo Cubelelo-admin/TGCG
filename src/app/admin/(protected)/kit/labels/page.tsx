@@ -1,3 +1,4 @@
+import { requireAdmin } from "@/lib/admin-auth";
 import QRCode from "qrcode";
 import Link from "next/link";
 import { getAdminEvent } from "@/lib/admin-event";
@@ -15,6 +16,7 @@ export default async function KitLabelsPage({
 }: {
   searchParams: Promise<{ type?: string; group?: string }>;
 }) {
+  await requireAdmin();
   const { type = "bags", group } = await searchParams;
   const { event } = await getAdminEvent();
   if (!event) return <EmptyState title="No event found." />;
