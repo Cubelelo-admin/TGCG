@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { BarChart, Card, CHART_COLORS, InfoHint, ViewToggle, type BarDatum, type ChartTableView } from "@/components/ds";
+import { BarChart, Card, CHART_COLORS, DonutChart, InfoHint, ViewToggle, type BarDatum, type ChartTableView } from "@/components/ds";
 import {
   CategoryTable,
   PocTable,
@@ -14,8 +14,8 @@ import {
 const inr = (n: number) => n.toLocaleString("en-IN");
 
 /**
- * By Category card with a Chart | Table toggle. Both side-by-side cards open as Chart so the
- * shared toggle reads the same on first load.
+ * By Category card with a Bar | Pie | Table toggle. Both side-by-side cards open as the bar chart
+ * so the shared toggle reads the same on first load. Pie shows each category's share of tickets.
  */
 export function CategoryPanel({ rows, className = "" }: { rows: CategoryRow[]; className?: string }) {
   const [view, setView] = useState<ChartTableView>("chart");
@@ -24,10 +24,12 @@ export function CategoryPanel({ rows, className = "" }: { rows: CategoryRow[]; c
     <Card
       title="By Category"
       className={`min-w-0 ${className}`}
-      actions={<ViewToggle value={view} onChange={setView} ariaLabel="By category view" />}
+      actions={<ViewToggle value={view} onChange={setView} ariaLabel="By category view" views={["chart", "pie", "table"]} />}
     >
       {view === "chart" ? (
         <BarChart data={data} ariaLabel="Tickets sold per category" emptyLabel="No categories" />
+      ) : view === "pie" ? (
+        <DonutChart data={data} totalLabel="tickets" ariaLabel="Share of tickets by category" emptyLabel="No categories" />
       ) : (
         <CategoryTable rows={rows} />
       )}

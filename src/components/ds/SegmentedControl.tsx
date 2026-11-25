@@ -82,10 +82,11 @@ export function SegmentedControl<T extends string>({ options, value, onChange, a
   );
 }
 
-export type ChartTableView = 'chart' | 'table';
+export type ChartTableView = 'chart' | 'pie' | 'table';
 
 const VIEW_OPTIONS: SegmentOption<ChartTableView>[] = [
   { value: 'chart', label: 'Chart', icon: 'chart' },
+  { value: 'pie', label: 'Pie', icon: 'pie' },
   { value: 'table', label: 'Table', icon: 'table' },
 ];
 
@@ -97,11 +98,17 @@ interface ViewToggleProps {
   size?: 'sm' | 'md';
   /** Icons only (labels become tooltips / accessible names). */
   iconOnly?: boolean;
+  /** Which views to offer, in this order (default Chart | Table). With 'pie', 'chart' reads "Bar". */
+  views?: ChartTableView[];
   className?: string;
 }
 
-/** Chart | Table preset of SegmentedControl. */
-export function ViewToggle({ value, onChange, ariaLabel = 'View as', size = 'sm', iconOnly = false, className }: ViewToggleProps) {
-  const options = iconOnly ? VIEW_OPTIONS.map((o) => ({ ...o, hideLabel: true })) : VIEW_OPTIONS;
+/** Chart | Table (or Bar | Pie | Table) preset of SegmentedControl. */
+export function ViewToggle({ value, onChange, ariaLabel = 'View as', size = 'sm', iconOnly = false, views = ['chart', 'table'], className }: ViewToggleProps) {
+  const picked = views
+    .map((v) => VIEW_OPTIONS.find((o) => o.value === v))
+    .filter((o): o is SegmentOption<ChartTableView> => Boolean(o))
+    .map((o) => (o.value === 'chart' && views.includes('pie') ? { ...o, label: 'Bar' } : o));
+  const options = iconOnly ? picked.map((o) => ({ ...o, hideLabel: true })) : picked;
   return <SegmentedControl options={options} value={value} onChange={onChange} ariaLabel={ariaLabel} size={size} className={className} />;
 }

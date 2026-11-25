@@ -73,3 +73,13 @@ export function daysAgo(today: Date, n: number): string {
 
 // Dock chart tokens, validated (categorical, light): green, blue, orange.
 export const CHART_COLORS = { green: '#079455', blue: '#1570EF', orange: '#EF6820' };
+
+/**
+ * Categorical series colours for part-to-whole charts (DonutChart), in a FIXED order: the order
+ * is what keeps neighbouring slices apart for colour-blind readers (validated, light surface:
+ * worst adjacent CVD ΔE 11.8, normal-vision ΔE 20.5). Assign by entity, never cycle; a 9th part
+ * folds into "Other" (CHART_OTHER). Slots 2–5 sit under 3:1 on white, so a chart using them must
+ * name every part in a visible legend or offer a table.
+ */
+export const CHART_CATEGORICAL = ['#257de0', '#f47230', '#00b894', '#f2a600', '#ee7fac', '#008a17', '#6a4ce2', '#ec4647'] as const;
+export const CHART_OTHER = '#9CA3AF';

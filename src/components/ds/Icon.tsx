@@ -96,6 +96,7 @@ const paths = {
   trophy: <path d="M8 4h8v5a4 4 0 0 1-8 0zM8 6H4a4 4 0 0 0 4 4M16 6h4a4 4 0 0 1-4 4M12 13v4M8 21h8M10 17h4v4h-4z" />,
   table: <path d="M4 5h16v14H4zM4 10h16M4 15h16M10 5v14" />,
   chart: <path d="M4 4v16h16M8 8h9M8 12h12M8 16h6" />,
+  pie: <path d="M21 12a9 9 0 1 1-9-9v9zM15.5 3.7a9 9 0 0 1 4.8 4.8h-4.8z" />,
   list: <path d="M9 6h11M9 12h11M9 18h11M4 6h.01M4 12h.01M4 18h.01" />,
   menu: <path d="M4 6h16M4 12h16M4 18h16" />,
   minus: <path d="M5 12h14" />,
