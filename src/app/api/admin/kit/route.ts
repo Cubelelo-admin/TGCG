@@ -2,7 +2,8 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getAdminSession } from "@/lib/admin-auth";
 import { createServiceClient } from "@/lib/supabase/server";
-import { loadBox, loadGroupBoxes, lookupRunner } from "@/lib/kit";
+import { loadBox, loadGroupBoxes, lookupRunner, searchDeskRunners } from "@/lib/kit";
+import { TSHIRT_SIZES } from "@/lib/registration-schema";
 
 export const runtime = "nodejs";
 
@@ -32,6 +33,18 @@ const bodySchema = z.discriminatedUnion("action", [
   }),
   z.object({ action: z.literal("lookup"), eventId, code }),
   z.object({ action: z.literal("collect"), bagCode: code, registrationId: z.string().uuid() }),
+  z.object({ action: z.literal("desk-search"), eventId, term: z.string().trim().min(2, "Type at least 2 characters").max(100) }),
+  z.object({
+    action: z.literal("swap-size"),
+    registrationId: z.string().uuid(),
+    size: z.enum(TSHIRT_SIZES),
+    reason: z.string().trim().max(200).optional(),
+  }),
+  z.object({
+    action: z.literal("desk-collect"),
+    registrationId: z.string().uuid(),
+    reason: z.string().trim().min(3, "A reason is required").max(200),
+  }),
 ]);
 
 type RpcResult = { ok: boolean; message?: string } & Record<string, unknown>;
@@ -161,6 +174,24 @@ export async function POST(request: Request) {
       if (!runner) return NextResponse.json({ ok: false, message: "No paid runner found for that pass or BIB" });
       return NextResponse.json({ ok: true, runner });
     }
+
+    case "desk-search":
+      return NextResponse.json({ ok: true, runners: await searchDeskRunners(body.eventId, body.term) });
+
+    case "swap-size":
+      return rpc("kit_swap_size", {
+        p_reg_id: body.registrationId,
+        p_size: body.size,
+        p_reason: body.reason ?? null,
+        p_admin: session.email,
+      });
+
+    case "desk-collect":
+      return rpc("kit_desk_collect", {
+        p_reg_id: body.registrationId,
+        p_reason: body.reason,
+        p_admin: session.email,
+      });
 
     case "collect":
       return rpc("kit_collect", { p_bag_code: body.bagCode, p_reg_id: body.registrationId, p_admin: session.email });

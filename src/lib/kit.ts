@@ -1,5 +1,6 @@
 import "server-only";
 import { createServiceClient } from "@/lib/supabase/server";
+import { buildRegistrationSearchFilter } from "@/lib/registration-search";
 
 /**
  * Flow B kit distribution (supabase/migrations/0025_kit_flow_b.sql).
@@ -165,6 +166,97 @@ export async function lookupRunner(eventId: string, scan: string): Promise<KitRu
     bagStatus: bag?.status ?? null,
     shelfAddress: bag?.shelf_address ?? null,
   };
+}
+
+export interface DeskRunner extends KitRunnerLookup {
+  paymentStatus: string;
+  phone: string | null;
+  boxScanned: number | null;
+  boxTotal: number | null;
+}
+
+/**
+ * Exceptions desk search: any runner of the event, paid or not, found the same
+ * way as the registrations page (name, phone, BIB, pass code, POC ... any field).
+ */
+export async function searchDeskRunners(eventId: string, term: string): Promise<DeskRunner[]> {
+  const supabase = createServiceClient();
+  const filter = await buildRegistrationSearchFilter(supabase, eventId, term, "all");
+  if (!filter) return [];
+
+  const { data, error } = await supabase
+    .from("registrations")
+    .select(
+      "id, full_name, phone, payment_status, registration_code, bib_number, tshirt_size, aadhar_number, kit_channel, kit_group, ticket_categories(name), kit_boxes(code, status, shelf_address, kind, kit_items(scanned_at))"
+    )
+    .eq("event_id", eventId)
+    .or(filter)
+    .order("full_name")
+    .limit(10);
+  if (error) {
+    console.error("desk search failed", error);
+    return [];
+  }
+
+  return (data ?? []).map((row) => {
+    const boxes = (row.kit_boxes ?? []) as unknown as {
+      code: string;
+      status: KitBoxStatus;
+      shelf_address: string | null;
+      kind: string;
+      kit_items: { scanned_at: string | null }[];
+    }[];
+    const bag = boxes.find((b) => b.kind === "expo_bag") ?? null;
+    const cat = row.ticket_categories as unknown as { name: string } | null;
+    const aadhar = (row.aadhar_number as string | null)?.replace(/\D/g, "") ?? "";
+    return {
+      registrationId: row.id,
+      name: row.full_name,
+      registrationCode: row.registration_code,
+      bib: row.bib_number,
+      category: cat?.name ?? null,
+      tshirt: row.tshirt_size,
+      idLast4: aadhar.length >= 4 ? aadhar.slice(-4) : null,
+      channel: row.kit_channel,
+      kitGroup: row.kit_group,
+      bagCode: bag?.code ?? null,
+      bagStatus: bag?.status ?? null,
+      shelfAddress: bag?.shelf_address ?? null,
+      paymentStatus: row.payment_status,
+      phone: row.phone,
+      boxScanned: bag ? bag.kit_items.filter((i) => i.scanned_at).length : null,
+      boxTotal: bag ? bag.kit_items.length : null,
+    };
+  });
+}
+
+export interface KitLogEntry {
+  id: number;
+  action: string;
+  ok: boolean;
+  detail: string | null;
+  actor: string | null;
+  createdAt: string;
+}
+
+/** Latest desk exceptions + rejected scans, newest first. */
+export async function getRecentExceptions(eventId: string): Promise<KitLogEntry[]> {
+  const supabase = createServiceClient();
+  const { data } = await supabase
+    .from("kit_log")
+    .select("id, action, ok, detail, actor, created_at")
+    .eq("event_id", eventId)
+    .or("action.eq.exception,ok.eq.false")
+    .order("id", { ascending: false })
+    .limit(20);
+  return (data ?? []).map((r) => ({
+    id: r.id,
+    action: r.action,
+    ok: r.ok,
+    detail: r.detail,
+    actor: r.actor,
+    createdAt: r.created_at,
+  }));
 }
 
 export async function getKitOverview(eventId: string) {

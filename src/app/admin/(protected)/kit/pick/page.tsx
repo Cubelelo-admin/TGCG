@@ -1,6 +1,8 @@
 import PickStation from "./PickStation";
 
-export default function KitPickPage() {
+export default async function KitPickPage({ searchParams }: { searchParams: Promise<{ box?: string }> }) {
+  const { box } = await searchParams;
+
   return (
     <div className="mx-auto max-w-3xl">
       <h1 className="text-2xl font-bold">Pick &amp; pack</h1>
@@ -9,7 +11,7 @@ export default function KitPickPage() {
         Ready by itself when the last item is in.
       </p>
       <div className="mt-6">
-        <PickStation />
+        <PickStation initialBox={box} />
       </div>
     </div>
   );

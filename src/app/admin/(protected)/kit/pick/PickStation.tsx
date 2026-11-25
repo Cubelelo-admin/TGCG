@@ -1,15 +1,20 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import ScanInput, { ResultBanner, postKit, type Banner } from "../ScanInput";
 import type { KitBoxSummary } from "@/lib/kit";
 
 const SIZE_ORDER = ["XS", "S", "M", "L", "XL", "XXL", "XXXL"];
 
-export default function PickStation() {
+export default function PickStation({ initialBox }: { initialBox?: string }) {
   const [box, setBox] = useState<KitBoxSummary | null>(null);
   const [banner, setBanner] = useState<Banner>(null);
   const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    // Deep link from the exceptions desk (?box=KB-000123): open that bag straight away.
+    if (initialBox) void openBox(initialBox);
+  }, [initialBox]);
 
   async function openBox(code: string) {
     setBusy(true);

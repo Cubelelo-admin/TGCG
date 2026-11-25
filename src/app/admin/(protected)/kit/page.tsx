@@ -29,6 +29,7 @@ export default async function KitPage() {
           ["/admin/kit/pick", "Pick & pack"],
           ["/admin/kit/handover", "Stage / day-0 handover"],
           ["/admin/kit/counter", "Expo counter"],
+          ["/admin/kit/exceptions", "Exceptions desk"],
           ["/admin/kit/labels?type=bags", "Print bag labels"],
           ["/admin/kit/labels?type=groups", "Print group-box labels"],
           ["/admin/kit/labels?type=bins", "Print bin labels"],
