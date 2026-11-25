@@ -47,7 +47,10 @@ export default async function AdminProtectedLayout({
             <Link href="/admin/registrations" className="whitespace-nowrap text-neutral-400 hover:text-neutral-200">
               Registrations
             </Link>
-            <Link href="/admin/assets" className="whitespace-nowrap text-neutral-400 hover:text-neutral-200">
+            <Link href="/admin/kit" className="whitespace-nowrap text-neutral-400 hover:text-neutral-200">
+              Kit
+            </Link>
+            <Link href="/admin/assets"className="whitespace-nowrap text-neutral-400 hover:text-neutral-200">
               Configuration
             </Link>
           </nav>
