@@ -35,21 +35,18 @@ type ItemRow = {
 
 export async function loadBox(code: string): Promise<KitBoxSummary | null> {
   const supabase = createServiceClient();
+  // One round trip: the box with its items embedded (a box holds ≤ ~60 items,
+  // far under the 1000-row response cap).
   const { data: box } = await supabase
     .from("kit_boxes")
-    .select("id, code, kind, status, kit_group, box_no, shelf_address, registrations(full_name)")
+    .select(
+      "code, kind, status, kit_group, box_no, shelf_address, registrations(full_name), kit_items(kind, size, scanned_at, registrations(full_name, bib_number))"
+    )
     .eq("code", code.trim().toUpperCase())
     .maybeSingle();
   if (!box) return null;
 
-  // A group box holds ≤ ~60 items, far under the 1000-row response cap.
-  const { data: items } = await supabase
-    .from("kit_items")
-    .select("kind, size, scanned_at, registrations(full_name, bib_number)")
-    .eq("box_id", box.id)
-    .limit(1000);
-
-  const rows = (items ?? []) as unknown as ItemRow[];
+  const rows = (box.kit_items ?? []) as unknown as ItemRow[];
   const missingShirts: Record<string, number> = {};
   let missingPacks = 0;
   const missingBibs: { bib: string; name: string }[] = [];

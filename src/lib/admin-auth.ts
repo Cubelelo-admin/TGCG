@@ -33,12 +33,12 @@ const isAllowlisted = unstable_cache(
  */
 export async function getAdminSession(): Promise<AdminSession | null> {
   const authClient = await createServerAuthClient();
-  const {
-    data: { user },
-  } = await authClient.auth.getUser();
+  // Local JWT verification: no Auth-server round trip per request (see middleware-client.ts).
+  const { data } = await authClient.auth.getClaims();
+  const email = typeof data?.claims?.email === "string" ? data.claims.email : null;
 
-  if (!user?.email) return null;
+  if (!email) return null;
 
-  const authorized = await isAllowlisted(user.email.toLowerCase());
-  return { email: user.email, authorized };
+  const authorized = await isAllowlisted(email.toLowerCase());
+  return { email, authorized };
 }

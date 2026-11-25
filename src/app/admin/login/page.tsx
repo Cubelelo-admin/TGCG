@@ -40,7 +40,7 @@ export default function AdminLoginPage() {
           type="button"
           onClick={signInWithGoogle}
           disabled={loading}
-          className="mt-6 flex w-full items-center justify-center gap-2.5 rounded-full bg-white px-6 py-2.5 text-sm font-semibold text-neutral-900 transition hover:bg-neutral-100 disabled:opacity-50"
+          className="mt-6 flex w-full items-center justify-center gap-2.5 rounded-full bg-[#fff] px-6 py-2.5 text-sm font-semibold text-[#15191f] ring-1 ring-[#d6dce3] transition hover:bg-[#f3f5f7] disabled:opacity-50"
         >
           <GoogleIcon />
           {loading ? "Redirecting…" : "Continue with Google"}

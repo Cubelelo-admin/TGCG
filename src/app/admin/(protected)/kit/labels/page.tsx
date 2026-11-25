@@ -94,7 +94,7 @@ export default async function KitLabelsPage({
         {labels.map((l) => (
           <div
             key={l.code}
-            className="flex break-inside-avoid items-center gap-3 rounded border border-neutral-400 bg-white p-2 text-black"
+            className="flex break-inside-avoid items-center gap-3 rounded border border-[#999] bg-[#fff] p-2 text-[#000]"
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={l.qr} alt={l.code} width={84} height={84} className="shrink-0" />

@@ -116,33 +116,23 @@ export type TshirtCount = { size: string; count: number };
 /**
  * T-shirts to order: paid registrations per size, in size-chart order, plus
  * an "Other" bucket for any value outside the standard list (e.g. a typo
- * from an older import) so the total always matches. Each size is a
- * head-only exact count, so this stays correct past PostgREST's 1000-row
- * response cap without a dedicated RPC. Child Runner has no T-shirt
- * (tshirt_size is null) and isn't counted.
+ * from an older import) so the total always matches. One grouped count in
+ * Postgres (0026_tshirt_counts.sql), exact past PostgREST's 1000-row cap.
+ * Child Runner has no T-shirt (tshirt_size is null) and isn't counted.
  */
 export async function getTshirtCounts(eventId: string): Promise<TshirtCount[]> {
   const supabase = createServiceClient();
-  const base = () =>
-    supabase
-      .from("registrations")
-      .select("id", { count: "exact", head: true })
-      .eq("event_id", eventId)
-      .eq("payment_status", "paid");
+  const { data, error } = await supabase.rpc("tshirt_counts", { p_event_id: eventId });
+  if (error) console.error("tshirt_counts failed", error);
 
-  const [sized, other] = await Promise.all([
-    Promise.all(TSHIRT_SIZES.map((size) => base().eq("tshirt_size", size))),
-    base()
-      .not("tshirt_size", "is", null)
-      .not("tshirt_size", "in", `(${TSHIRT_SIZES.join(",")})`),
-  ]);
-
-  const counts: TshirtCount[] = TSHIRT_SIZES.map((size, i) => {
-    if (sized[i].error) console.error("tshirt count failed", size, sized[i].error);
-    return { size, count: sized[i].count ?? 0 };
-  });
-  if (other.error) console.error("tshirt count failed (other)", other.error);
-  if (other.count) counts.push({ size: "Other", count: other.count });
+  const bySize = new Map<string, number>();
+  for (const r of (data ?? []) as { tshirt_size: string; paid_count: number }[]) {
+    bySize.set(r.tshirt_size, Number(r.paid_count));
+  }
+  const counts: TshirtCount[] = TSHIRT_SIZES.map((size) => ({ size, count: bySize.get(size) ?? 0 }));
+  const known = new Set<string>(TSHIRT_SIZES);
+  const other = [...bySize.entries()].filter(([size]) => !known.has(size)).reduce((n, [, c]) => n + c, 0);
+  if (other) counts.push({ size: "Other", count: other });
   return counts;
 }
 
