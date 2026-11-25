@@ -60,8 +60,17 @@ export async function POST(request: Request) {
   }
 
   switch (body.action) {
-    case "generate":
-      return rpc("kit_generate_boxes", { p_event_id: body.eventId, p_box_size: body.boxSize ?? 20 });
+    case "generate": {
+      const { data, error } = await supabase.rpc("kit_generate_boxes", {
+        p_event_id: body.eventId,
+        p_box_size: body.boxSize ?? 20,
+      });
+      if (error) {
+        console.error("kit_generate_boxes failed", error);
+        return NextResponse.json({ ok: false, message: "Could not generate boxes" }, { status: 500 });
+      }
+      return NextResponse.json({ ok: true, ...(data as { bags: number; groupBoxes: number }) });
+    }
 
     case "set-channel": {
       // Only runners with no box yet: once a runner is boxed, changing channel would orphan their items.
