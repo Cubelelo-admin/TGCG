@@ -17,6 +17,7 @@ const bodySchema = z.discriminatedUnion("action", [
     pocName: z.string().trim().min(1).max(200),
     channel: z.enum(["expo", "corporate"]),
   }),
+  z.object({ action: z.literal("reset"), eventId, pocName: z.string().trim().min(1).max(200).optional() }),
   z.object({ action: z.literal("box"), boxCode: code }),
   z.object({ action: z.literal("scan"), boxCode: code, code }),
   z.object({ action: z.literal("stage"), boxCode: code }),
@@ -111,6 +112,13 @@ export async function POST(request: Request) {
             : `${free.length} updated`,
       });
     }
+
+    case "reset":
+      return rpc("kit_reset_unscanned", {
+        p_event_id: body.eventId,
+        p_poc: body.pocName ?? null,
+        p_admin: session.email,
+      });
 
     case "box": {
       const box = await loadBox(body.boxCode);

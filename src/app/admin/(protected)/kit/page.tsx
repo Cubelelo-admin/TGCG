@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { getAdminEvent } from "@/lib/admin-event";
 import { getKitOverview } from "@/lib/kit";
-import { ChannelToggle, GenerateBoxesButton } from "./KitControls";
+import { ChannelToggle, GenerateBoxesButton, ResetBoxesButton } from "./KitControls";
 
 const STATUSES = ["open", "ready", "staged", "handed_over", "collected"] as const;
 
@@ -63,7 +63,10 @@ export default async function KitPage() {
             late registrations.
           </p>
         </div>
-        <GenerateBoxesButton eventId={event.id} />
+        <div className="flex flex-wrap items-start gap-3">
+          <ResetBoxesButton eventId={event.id} />
+          <GenerateBoxesButton eventId={event.id} />
+        </div>
       </div>
 
       <h2 className="mt-10 text-lg font-semibold">Groups (by POC)</h2>
@@ -88,12 +91,17 @@ export default async function KitPage() {
                 <td className="px-4 py-3">{Number(p.paid_count)}</td>
                 <td className="px-4 py-3">{Number(p.boxed_count)}</td>
                 <td className="px-4 py-3">
-                  <ChannelToggle
-                    eventId={event.id}
-                    pocName={p.poc_name}
-                    corporate={Number(p.corporate_count)}
-                    total={Number(p.paid_count)}
-                  />
+                  <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+                    <ChannelToggle
+                      eventId={event.id}
+                      pocName={p.poc_name}
+                      corporate={Number(p.corporate_count)}
+                      total={Number(p.paid_count)}
+                    />
+                    {Number(p.boxed_count) > 0 && (
+                      <ResetBoxesButton eventId={event.id} pocName={p.poc_name} label="Reset boxes" />
+                    )}
+                  </div>
                 </td>
               </tr>
             ))}

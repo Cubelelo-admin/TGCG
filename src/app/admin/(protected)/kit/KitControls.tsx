@@ -33,6 +33,58 @@ export function GenerateBoxesButton({ eventId }: { eventId: string }) {
   );
 }
 
+/** Deletes boxes nobody has started packing (event-wide, or one POC group) so channels can be changed. */
+export function ResetBoxesButton({
+  eventId,
+  pocName,
+  label = "Reset unscanned boxes",
+}: {
+  eventId: string;
+  pocName?: string;
+  label?: string;
+}) {
+  const router = useRouter();
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
+
+  async function run() {
+    const scope = pocName ? `for ${pocName}` : "for the whole event";
+    if (
+      !confirm(
+        `Delete every box ${scope} that has nothing scanned into it?\n\nBoxes with any scanned item, and boxes already ready, staged, handed over or collected, are kept. You can then change channels and generate again.`
+      )
+    )
+      return;
+    setBusy(true);
+    setMsg(null);
+    const res = await postKit<{ deleted?: number; kept?: number }>({ action: "reset", eventId, pocName });
+    setBusy(false);
+    setMsg(
+      res.ok
+        ? `Removed ${res.deleted} unscanned boxes${res.kept ? `, kept ${res.kept} in progress` : ""}`
+        : (res.message ?? "Failed")
+    );
+    router.refresh();
+  }
+
+  return (
+    <div>
+      <button
+        onClick={run}
+        disabled={busy}
+        className={
+          pocName
+            ? "text-xs underline decoration-white/30 hover:decoration-white disabled:opacity-50"
+            : "rounded-lg border border-white/20 px-4 py-2 text-sm font-semibold hover:bg-white/10 disabled:opacity-50"
+        }
+      >
+        {busy ? "Resetting..." : label}
+      </button>
+      {msg && <p className={pocName ? "text-xs text-amber-400" : "mt-2 text-sm text-neutral-300"}>{msg}</p>}
+    </div>
+  );
+}
+
 export function ChannelToggle({
   eventId,
   pocName,
