@@ -1,10 +1,27 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Button, Card, DataTable, Icon, StatusPill, type ColumnDef } from "@/components/ds";
 import ScanInput, { ResultBanner, postKit, type Banner } from "../ScanInput";
 import type { KitBoxSummary } from "@/lib/kit";
 
 const SIZE_ORDER = ["XS", "S", "M", "L", "XL", "XXL", "XXXL"];
+
+type MissingBib = KitBoxSummary["missingBibs"][number];
+
+const bibColumns: ColumnDef<MissingBib>[] = [
+  {
+    key: "bib",
+    header: "BIB",
+    width: 96,
+    render: (b) => <span className="font-mono text-14 font-medium">{b.bib}</span>,
+  },
+  {
+    key: "name",
+    header: "Runner",
+    render: (b) => <span className="block truncate text-ink-tertiary">{b.name}</span>,
+  },
+];
 
 export default function PickStation({ initialBox }: { initialBox?: string }) {
   const [box, setBox] = useState<KitBoxSummary | null>(null);
@@ -66,7 +83,9 @@ export default function PickStation({ initialBox }: { initialBox?: string }) {
     return (
       <div className="space-y-4">
         <ResultBanner banner={banner} />
-        <ScanInput label="1. Scan the box / bag label" onScan={openBox} disabled={busy} />
+        <Card>
+          <ScanInput label="1. Scan the box / bag label" onScan={openBox} disabled={busy} />
+        </Card>
       </div>
     );
   }
@@ -79,71 +98,101 @@ export default function PickStation({ initialBox }: { initialBox?: string }) {
 
   return (
     <div className="space-y-4">
-      <div className="rounded-xl border border-white/10 p-4">
-        <div className="flex flex-wrap items-baseline justify-between gap-2">
-          <p className="font-mono text-xl font-bold">{box.code}</p>
-          <p className="text-sm text-neutral-400">
-            {box.kind === "expo_bag"
-              ? `Expo bag · ${box.runnerName ?? ""}`
-              : `${box.kitGroup} · Box ${box.boxNo}`}
+      <Card>
+        <div className="flex flex-wrap items-start justify-between gap-2">
+          <div className="flex min-w-0 items-center gap-3">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-8 bg-surface-tertiary text-ink">
+              <Icon name={box.kind === "expo_bag" ? "package" : "box"} size={20} />
+            </span>
+            <div className="min-w-0">
+              <p className="break-all font-mono text-20 font-semibold text-ink">{box.code}</p>
+              <p className="text-14 text-ink-tertiary">
+                {box.kind === "expo_bag"
+                  ? `Expo bag · ${box.runnerName ?? ""}`
+                  : `${box.kitGroup} · Box ${box.boxNo}`}
+              </p>
+            </div>
+          </div>
+          {isReady && <StatusPill tone="active">Ready</StatusPill>}
+        </div>
+
+        <div className="mt-5 flex items-baseline justify-between gap-3">
+          <p className="text-32 font-semibold text-ink">
+            {box.scanned} of {box.total}
           </p>
+          <p className="text-14 text-ink-muted">{pct}%</p>
         </div>
-        <div className="mt-3 h-3 overflow-hidden rounded-full bg-white/10">
-          <div className="h-full bg-emerald-400 transition-all" style={{ width: `${pct}%` }} />
+        <div
+          className="mt-2 h-3 overflow-hidden rounded-full bg-surface-tertiary"
+          role="progressbar"
+          aria-valuemin={0}
+          aria-valuemax={box.total}
+          aria-valuenow={box.scanned}
+          aria-label="Items scanned"
+        >
+          <div
+            className={`h-full rounded-full transition-all ${isReady ? "bg-[#079455]" : "bg-dark"}`}
+            style={{ width: `${pct}%` }}
+          />
         </div>
-        <p className="mt-2 text-2xl font-bold">
-          {box.scanned} of {box.total}
-          {isReady && <span className="ml-3 text-emerald-300">Ready</span>}
-        </p>
-      </div>
+      </Card>
 
       <ResultBanner banner={banner} />
 
       {isReady ? (
-        <button
-          onClick={nextBox}
-          className="w-full rounded-lg bg-emerald-500 px-4 py-4 text-lg font-bold text-neutral-950 hover:bg-emerald-400"
-        >
+        <Button variant="dark" onClick={nextBox} className="h-14! w-full text-16!">
           Next box
-        </button>
+          <Icon name="arrowRight" size={18} />
+        </Button>
       ) : (
         <>
-          <ScanInput label="2. Scan BIB, T-shirt bin (TS-M) or PACK" onScan={scanItem} disabled={busy} />
+          <Card>
+            <ScanInput label="2. Scan BIB, T-shirt bin (TS-M) or PACK" onScan={scanItem} disabled={busy} />
+          </Card>
 
-          <div className="grid gap-3 sm:grid-cols-3">
-            <div className="rounded-xl border border-white/10 p-3 sm:col-span-2">
-              <p className="text-sm font-semibold text-neutral-300">BIBs to go ({box.missingBibs.length})</p>
-              <ul className="mt-2 max-h-56 space-y-1 overflow-y-auto font-mono text-sm">
-                {box.missingBibs.map((b) => (
-                  <li key={b.bib} className="flex justify-between gap-3">
-                    <span>{b.bib}</span>
-                    <span className="truncate text-neutral-400">{b.name}</span>
-                  </li>
-                ))}
-                {box.missingBibs.length === 0 && <li className="text-neutral-500">All BIBs in</li>}
-              </ul>
-            </div>
-            <div className="rounded-xl border border-white/10 p-3">
-              <p className="text-sm font-semibold text-neutral-300">T-shirts to go</p>
-              <ul className="mt-2 space-y-1 font-mono text-sm">
-                {shirts.map(([size, n]) => (
-                  <li key={size} className="flex justify-between">
-                    <span>TS-{size}</span>
-                    <span>× {n}</span>
-                  </li>
-                ))}
-                {shirts.length === 0 && <li className="text-neutral-500">All in</li>}
-              </ul>
-              <p className="mt-3 flex justify-between font-mono text-sm">
+          <div className="grid gap-4 sm:grid-cols-3">
+            <Card title={`BIBs to go (${box.missingBibs.length})`} className="min-w-0 sm:col-span-2">
+              {box.missingBibs.length === 0 ? (
+                <p className="flex items-center gap-2 text-14 text-ink-muted">
+                  <Icon name="checkCircle" size={16} />
+                  All BIBs in
+                </p>
+              ) : (
+                <DataTable
+                  columns={bibColumns}
+                  rows={box.missingBibs}
+                  rowKey={(b) => b.bib}
+                  maxHeight={224}
+                  minWidth={0}
+                />
+              )}
+            </Card>
+            <Card title="T-shirts to go" className="min-w-0">
+              {shirts.length === 0 ? (
+                <p className="flex items-center gap-2 text-14 text-ink-muted">
+                  <Icon name="checkCircle" size={16} />
+                  All in
+                </p>
+              ) : (
+                <ul className="divide-y divide-line-secondary rounded-8 border border-line">
+                  {shirts.map(([size, n]) => (
+                    <li key={size} className="flex items-center justify-between px-3 py-2.5 font-mono text-14 text-ink">
+                      <span>TS-{size}</span>
+                      <span className="font-semibold">× {n}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              <div className="mt-3 flex items-center justify-between rounded-8 bg-surface-tertiary px-3 py-2.5 font-mono text-14 text-ink">
                 <span>PACK</span>
-                <span>× {box.missingPacks}</span>
-              </p>
-            </div>
+                <span className="font-semibold">× {box.missingPacks}</span>
+              </div>
+            </Card>
           </div>
 
-          <button onClick={nextBox} className="text-sm text-neutral-400 underline hover:text-neutral-200">
+          <Button onClick={nextBox} className="h-12! w-full">
             Leave this box and scan another
-          </button>
+          </Button>
         </>
       )}
     </div>

@@ -2,30 +2,30 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { ResultBanner, postKit, type Banner } from "../ScanInput";
+import { ResultBanner, postKit, type Banner as ResultBannerState } from "../ScanInput";
 import type { DeskRunner } from "@/lib/kit";
+import {
+  Banner,
+  Button,
+  Card,
+  EmptyState,
+  FieldLabel,
+  Icon,
+  Modal,
+  SearchInput,
+  StatusPill,
+  TextField,
+  buttonClass,
+  inputClass,
+  type StatusTone,
+} from "@/components/ds";
 
 const SIZES = ["XS", "S", "M", "L", "XL", "XXL", "XXXL"];
-const inputClass =
-  "w-full rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2 text-sm focus:border-emerald-400 focus:outline-none";
-const primaryBtn =
-  "rounded-lg bg-emerald-500 px-3 py-2 text-sm font-bold text-neutral-950 hover:bg-emerald-400 disabled:opacity-50";
-const ghostBtn = "rounded-lg border border-white/20 px-3 py-2 text-sm font-semibold hover:bg-white/10 disabled:opacity-50";
-
-function Chip({ tone, children }: { tone: "ok" | "warn" | "bad" | "plain"; children: React.ReactNode }) {
-  const cls = {
-    ok: "bg-emerald-500/15 text-emerald-400",
-    warn: "bg-amber-500/15 text-amber-400",
-    bad: "bg-red-500/15 text-red-400",
-    plain: "bg-white/10 text-neutral-300",
-  }[tone];
-  return <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${cls}`}>{children}</span>;
-}
 
 export default function ExceptionsDesk({ eventId }: { eventId: string }) {
   const [term, setTerm] = useState("");
   const [runners, setRunners] = useState<DeskRunner[] | null>(null);
-  const [banner, setBanner] = useState<Banner>(null);
+  const [banner, setBanner] = useState<ResultBannerState>(null);
   const [busy, setBusy] = useState(false);
 
   async function search(t = term) {
@@ -39,29 +39,38 @@ export default function ExceptionsDesk({ eventId }: { eventId: string }) {
 
   return (
     <div className="space-y-4">
-      <form
-        onSubmit={(e) => {
-          e.preventDefault();
-          setBanner(null);
-          void search();
-        }}
-        className="flex gap-2"
-      >
-        <input
-          value={term}
-          onChange={(e) => setTerm(e.target.value)}
-          autoFocus
-          placeholder="Name, mobile, BIB, pass code, POC..."
-          className={inputClass}
-        />
-        <button className={primaryBtn} disabled={busy || term.trim().length < 2}>
-          Search
-        </button>
-      </form>
+      <Card>
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            setBanner(null);
+            void search();
+          }}
+          className="flex flex-wrap gap-2"
+        >
+          <SearchInput
+            type="text"
+            value={term}
+            onChange={(e) => setTerm(e.target.value)}
+            autoFocus
+            placeholder="Name, mobile, BIB, pass code, POC..."
+            aria-label="Search runners"
+            className="min-w-[220px] flex-1"
+          />
+          <Button variant="dark" disabled={busy || term.trim().length < 2}>
+            <Icon name="search" size={16} />
+            Search
+          </Button>
+        </form>
+      </Card>
 
       <ResultBanner banner={banner} />
 
-      {runners?.length === 0 && <p className="text-sm text-neutral-400">No runner found.</p>}
+      {runners?.length === 0 && (
+        <Card>
+          <EmptyState title="No runner found." />
+        </Card>
+      )}
 
       {runners?.map((r) => (
         <RunnerCard
@@ -85,12 +94,19 @@ function RunnerCard({
 }: {
   runner: DeskRunner;
   eventId: string;
-  onDone: (b: Banner) => void;
+  onDone: (b: ResultBannerState) => void;
 }) {
   const [busy, setBusy] = useState(false);
   const [size, setSize] = useState("");
   const [swapReason, setSwapReason] = useState("");
   const [collectReason, setCollectReason] = useState("");
+  const [dialog, setDialogState] = useState<"swap" | "collect" | null>(null);
+  const [dialogError, setDialogError] = useState<string | null>(null);
+
+  function setDialog(d: "swap" | "collect" | null) {
+    setDialogError(null);
+    setDialogState(d);
+  }
 
   const paid = r.paymentStatus === "paid";
   const corporate = r.channel === "corporate";
@@ -100,6 +116,9 @@ function RunnerCard({
     setBusy(true);
     const res = await postKit<{ bags?: number; groupBoxes?: number }>(body);
     setBusy(false);
+    // Keep the dialog open on failure so staff can correct the size/reason and retry.
+    if (res.ok) setDialog(null);
+    else setDialogError(res.message ?? "Failed");
     onDone({
       ok: res.ok,
       text: res.ok
@@ -108,124 +127,207 @@ function RunnerCard({
     });
   }
 
+  const bagTone: StatusTone = collected || r.bagStatus === "ready" ? "active" : "warning";
+  const canSwap = paid && !!r.tshirt && !collected;
+  const canCollect = paid && !corporate && !collected;
+  const canCreateBag = paid && !corporate && !r.bagCode;
+  const canPack = paid && !corporate && !!r.bagCode && r.bagStatus === "open";
+  const fieldId = `desk-${r.registrationId}`;
+
   return (
-    <div className="rounded-xl border border-white/10 p-4">
-      <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <p className="text-xl font-bold">
-          {r.name} <span className="font-mono text-base text-neutral-400">{r.bib ?? ""}</span>
-        </p>
-        <p className="font-mono text-sm text-neutral-400">{r.registrationCode ?? "no pass yet"}</p>
+    <Card>
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <div className="min-w-0">
+          <h2 className="flex flex-wrap items-baseline gap-2 text-18 font-semibold text-ink">
+            {r.name}
+            <span className="font-mono text-14 font-normal text-ink-muted">{r.bib ?? ""}</span>
+          </h2>
+          <p className="mt-1 text-14 text-ink-tertiary">
+            {r.category} · T-shirt {r.tshirt ?? "-"} · {r.phone ?? "no phone"}
+            {r.idLast4 ? ` · ID last 4: ${r.idLast4}` : ""}
+          </p>
+        </div>
+        <p className="font-mono text-14 text-ink-muted">{r.registrationCode ?? "no pass yet"}</p>
       </div>
-      <p className="mt-1 text-sm text-neutral-400">
-        {r.category} · T-shirt {r.tshirt ?? "-"} · {r.phone ?? "no phone"}
-        {r.idLast4 ? ` · ID last 4: ${r.idLast4}` : ""}
-      </p>
 
       <div className="mt-3 flex flex-wrap gap-2">
-        <Chip tone={paid ? "ok" : "bad"}>{paid ? "Paid" : r.paymentStatus}</Chip>
-        <Chip tone={corporate ? "warn" : "plain"}>{corporate ? `Corporate: ${r.kitGroup}` : "Expo"}</Chip>
+        <StatusPill tone={paid ? "active" : "expired"}>{paid ? "Paid" : r.paymentStatus}</StatusPill>
+        <StatusPill tone={corporate ? "warning" : "pending"}>{corporate ? `Corporate: ${r.kitGroup}` : "Expo"}</StatusPill>
         {r.bagCode ? (
-          <Chip tone={collected ? "ok" : r.bagStatus === "ready" ? "ok" : "warn"}>
+          <StatusPill tone={bagTone}>
             Bag {r.bagCode}: {r.bagStatus?.replace("_", " ")}
             {r.bagStatus === "open" && r.boxTotal ? ` (${r.boxScanned}/${r.boxTotal})` : ""}
-          </Chip>
+          </StatusPill>
         ) : paid && !corporate ? (
-          <Chip tone="bad">No bag packed</Chip>
+          <StatusPill tone="expired">No bag packed</StatusPill>
         ) : null}
-        {r.shelfAddress && <Chip tone="plain">{r.shelfAddress}</Chip>}
+        {r.shelfAddress && <StatusPill tone="pending">{r.shelfAddress}</StatusPill>}
       </div>
 
-      <div className="mt-4 space-y-4">
+      <div className="mt-4 space-y-3">
         {!paid && (
-          <div className="rounded-lg border border-amber-400/40 bg-amber-500/10 p-3 text-sm text-amber-400">
-            Not paid. Collect payment and mark it paid in Registrations, then come back to create the bag.{" "}
-            <Link
-              href={{ pathname: "/admin/registrations", query: { q: r.name, field: "name" } }}
-              className="font-semibold underline"
-            >
-              Open in Registrations
-            </Link>
-          </div>
+          <Banner tone="danger">
+            <span className="text-14">
+              Not paid. Collect payment and mark it paid in Registrations, then come back to create the bag.
+            </span>
+            <div className="mt-2">
+              <Link
+                href={{ pathname: "/admin/registrations", query: { q: r.name, field: "name" } }}
+                className={buttonClass({ variant: "outline", size: "sm" })}
+              >
+                Open in Registrations
+              </Link>
+            </div>
+          </Banner>
         )}
 
         {paid && corporate && (
-          <p className="text-sm text-neutral-400">
+          <p className="text-14 text-ink-tertiary">
             Corporate runner: the kit goes in a group box to the company rep on day 0, not through this desk.
           </p>
         )}
 
-        {paid && !corporate && !r.bagCode && (
-          <div className="flex flex-wrap items-center gap-3">
-            <p className="text-sm text-neutral-400">Late sign-up or paid after boxes were generated.</p>
-            <button disabled={busy} onClick={() => run({ action: "generate", eventId })} className={primaryBtn}>
+        {canCreateBag && (
+          <p className="text-14 text-ink-tertiary">Late sign-up or paid after boxes were generated.</p>
+        )}
+
+        {collected && (
+          <p className="flex items-center gap-1.5 text-14 font-medium text-on-tint-green">
+            <Icon name="checkCircle" size={16} />
+            Kit already collected.
+          </p>
+        )}
+      </div>
+
+      {(canCreateBag || canPack || canSwap || canCollect) && (
+        <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-line-secondary pt-4">
+          {canCreateBag && (
+            <Button variant="dark" disabled={busy} onClick={() => run({ action: "generate", eventId })}>
+              <Icon name="package" size={16} />
               Create bag
-            </button>
-          </div>
-        )}
+            </Button>
+          )}
 
-        {paid && !corporate && r.bagCode && r.bagStatus === "open" && (
-          <Link href={{ pathname: "/admin/kit/pick", query: { box: r.bagCode } }} className={`${primaryBtn} inline-block`}>
-            Pack it now
-          </Link>
-        )}
+          {canPack && (
+            <Link
+              href={{ pathname: "/admin/kit/pick", query: { box: r.bagCode } }}
+              className={buttonClass({ variant: "dark" })}
+            >
+              <Icon name="scan" size={16} />
+              Pack it now
+            </Link>
+          )}
 
-        {paid && r.tshirt && !collected && (
-          <div>
-            <p className="text-sm font-semibold text-neutral-300">Swap T-shirt size (currently {r.tshirt})</p>
-            <div className="mt-2 flex flex-wrap items-center gap-2">
-              <select value={size} onChange={(e) => setSize(e.target.value)} className={`${inputClass} !w-28`}>
-                <option value="" className="bg-neutral-900">
-                  New size
-                </option>
+          {canSwap && (
+            <Button disabled={busy} onClick={() => setDialog("swap")}>
+              <Icon name="shirt" size={16} />
+              Swap size
+            </Button>
+          )}
+
+          {canCollect && (
+            <Button disabled={busy} onClick={() => setDialog("collect")}>
+              <Icon name="handover" size={16} />
+              Mark collected
+            </Button>
+          )}
+        </div>
+      )}
+
+      {canSwap && (
+        <Modal
+          open={dialog === "swap"}
+          title="Swap T-shirt size"
+          subtitle={`${r.name} · currently ${r.tshirt}`}
+          icon="shirt"
+          onClose={() => setDialog(null)}
+          footer={
+            <>
+              <Button size="sm" onClick={() => setDialog(null)}>
+                Cancel
+              </Button>
+              <Button
+                size="sm"
+                variant="dark"
+                disabled={busy || !size}
+                onClick={() => run({ action: "swap-size", registrationId: r.registrationId, size, reason: swapReason })}
+              >
+                Swap size
+              </Button>
+            </>
+          }
+        >
+          <div className="space-y-4 pt-4">
+            {dialogError && <Banner tone="danger">{dialogError}</Banner>}
+            <div>
+              <FieldLabel label="New size" required htmlFor={`${fieldId}-size`} />
+              <select
+                id={`${fieldId}-size`}
+                value={size}
+                onChange={(e) => setSize(e.target.value)}
+                className={inputClass}
+              >
+                <option value="">New size</option>
                 {SIZES.filter((s) => s !== r.tshirt).map((s) => (
-                  <option key={s} value={s} className="bg-neutral-900">
+                  <option key={s} value={s}>
                     {s}
                   </option>
                 ))}
               </select>
-              <input
-                value={swapReason}
-                onChange={(e) => setSwapReason(e.target.value)}
-                placeholder="Reason (optional)"
-                className={`${inputClass} !w-64`}
-              />
-              <button
-                disabled={busy || !size}
-                onClick={() => run({ action: "swap-size", registrationId: r.registrationId, size, reason: swapReason })}
-                className={ghostBtn}
-              >
-                Swap size
-              </button>
             </div>
+            <TextField
+              id={`${fieldId}-swap-reason`}
+              label="Reason"
+              value={swapReason}
+              onChange={(e) => setSwapReason(e.target.value)}
+              placeholder="Reason (optional)"
+            />
           </div>
-        )}
+        </Modal>
+      )}
 
-        {paid && !corporate && !collected && (
-          <div>
-            <p className="text-sm font-semibold text-neutral-300">Hand over at the desk (no bag scan)</p>
-            <div className="mt-2 flex flex-wrap items-center gap-2">
-              <input
-                value={collectReason}
-                onChange={(e) => setCollectReason(e.target.value)}
-                placeholder="Reason, e.g. bag label damaged"
-                className={`${inputClass} !w-72`}
-              />
-              <button
+      {canCollect && (
+        <Modal
+          open={dialog === "collect"}
+          title="Hand over at the desk"
+          subtitle="No bag scan"
+          icon="handover"
+          onClose={() => setDialog(null)}
+          footer={
+            <>
+              <Button size="sm" onClick={() => setDialog(null)}>
+                Cancel
+              </Button>
+              <Button
+                size="sm"
+                variant="dark"
                 disabled={busy || collectReason.trim().length < 3}
                 onClick={() => {
                   if (!confirm(`Mark ${r.name}'s kit as collected without scanning the bag?`)) return;
                   void run({ action: "desk-collect", registrationId: r.registrationId, reason: collectReason });
                 }}
-                className={ghostBtn}
               >
                 Mark collected
-              </button>
-            </div>
+              </Button>
+            </>
+          }
+        >
+          <div className="space-y-3 pt-4">
+            {dialogError && <Banner tone="danger">{dialogError}</Banner>}
+            <p className="text-14 text-ink-tertiary">
+              Mark {r.name}&apos;s kit as collected without scanning the bag.
+            </p>
+            <TextField
+              id={`${fieldId}-collect-reason`}
+              label="Reason"
+              required
+              value={collectReason}
+              onChange={(e) => setCollectReason(e.target.value)}
+              placeholder="Reason, e.g. bag label damaged"
+            />
           </div>
-        )}
-
-        {collected && <p className="text-sm text-emerald-400">Kit already collected.</p>}
-      </div>
-    </div>
+        </Modal>
+      )}
+    </Card>
   );
 }

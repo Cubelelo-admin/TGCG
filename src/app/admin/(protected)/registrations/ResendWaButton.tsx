@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { Button, Icon } from "@/components/ds";
 
 export default function ResendWaButton({ registrationId }: { registrationId: string }) {
   const [state, setState] = useState<"idle" | "sending" | "sent" | "error">("idle");
@@ -20,15 +21,32 @@ export default function ResendWaButton({ registrationId }: { registrationId: str
   }
 
   return (
-    <button
+    <Button
+      type="button"
+      size="sm"
+      variant={state === "error" ? "red" : "green"}
       onClick={resend}
       disabled={state === "sending"}
-      className="rounded-full border border-white/20 px-3 py-1 text-xs font-medium hover:border-white/40 disabled:opacity-50"
     >
-      {state === "idle" && "Resend confirmation"}
+      {state === "idle" && (
+        <>
+          <Icon name="whatsapp" size={14} />
+          Resend confirmation
+        </>
+      )}
       {state === "sending" && "Sending..."}
-      {state === "sent" && "Sent"}
-      {state === "error" && "Failed — retry"}
-    </button>
+      {state === "sent" && (
+        <>
+          <Icon name="check" size={14} />
+          Sent
+        </>
+      )}
+      {state === "error" && (
+        <>
+          <Icon name="refresh" size={14} />
+          Failed — retry
+        </>
+      )}
+    </Button>
   );
 }

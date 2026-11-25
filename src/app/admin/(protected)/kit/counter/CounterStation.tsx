@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { Button, Card, Icon } from "@/components/ds";
 import ScanInput, { ResultBanner, postKit, type Banner } from "../ScanInput";
 import type { KitRunnerLookup } from "@/lib/kit";
 
@@ -61,46 +62,62 @@ export default function CounterStation({ eventId }: { eventId: string }) {
         done ? (
           <>
             <ResultBanner banner={banner} />
-            <button
-              onClick={next}
-              className="w-full rounded-lg bg-emerald-500 px-4 py-4 text-lg font-bold text-neutral-950 hover:bg-emerald-400"
-            >
+            <Button variant="dark" onClick={next} className="h-14! w-full text-16!">
               Next runner
-            </button>
+              <Icon name="arrowRight" size={18} />
+            </Button>
           </>
         ) : (
           <>
             <ResultBanner banner={banner} />
-            <ScanInput label="1. Scan the runner's QR pass (or type the BIB)" onScan={scanPass} disabled={busy} />
+            <Card>
+              <ScanInput label="1. Scan the runner's QR pass (or type the BIB)" onScan={scanPass} disabled={busy} />
+            </Card>
           </>
         )
       ) : (
         <>
-          <div className="rounded-xl border border-white/10 p-4">
-            <p className="text-3xl font-bold">{runner.bib ?? "-"}</p>
-            <p className="mt-1 text-xl">{runner.name}</p>
-            <p className="mt-1 text-sm text-neutral-400">
-              {runner.category} · T-shirt {runner.tshirt ?? "-"}
-            </p>
-            <p className="mt-3 text-lg">
-              ID last 4: <span className="font-mono font-bold">{runner.idLast4 ?? "n/a"}</span>
-            </p>
-            {runner.shelfAddress && (
-              <p className="mt-2 inline-block rounded bg-emerald-500/10 px-2 py-1 font-mono text-sm text-emerald-300">
-                {runner.shelfAddress}
-              </p>
-            )}
-          </div>
+          <Card>
+            <div className="flex items-start gap-3">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-8 bg-surface-tertiary text-ink">
+                <Icon name="user" size={20} />
+              </span>
+              <div className="min-w-0">
+                <p className="font-mono text-32 font-semibold text-ink">{runner.bib ?? "-"}</p>
+                <p className="mt-1 text-20 font-medium text-ink">{runner.name}</p>
+                <p className="mt-1 text-14 text-ink-tertiary">
+                  {runner.category} · T-shirt {runner.tshirt ?? "-"}
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-5 grid gap-3 sm:grid-cols-2">
+              <div className="rounded-8 border border-line px-4 py-3">
+                <p className="text-12 font-medium text-ink-secondary">ID last 4:</p>
+                <p className="mt-1 font-mono text-28 font-semibold tracking-widest text-ink">
+                  {runner.idLast4 ?? "n/a"}
+                </p>
+              </div>
+              {runner.shelfAddress && (
+                <div className="rounded-8 bg-tint-blue px-4 py-3 text-on-tint-blue">
+                  <p className="flex items-center gap-1.5 text-12 font-medium">
+                    <Icon name="package" size={14} />
+                    Shelf
+                  </p>
+                  <p className="mt-1 break-all font-mono text-28 font-semibold">{runner.shelfAddress}</p>
+                </div>
+              )}
+            </div>
+          </Card>
           <ResultBanner banner={banner} />
           {canCollect ? (
-            <ScanInput label="2. Scan the bag label to confirm" onScan={scanBag} disabled={busy} />
+            <Card>
+              <ScanInput label="2. Scan the bag label to confirm" onScan={scanBag} disabled={busy} />
+            </Card>
           ) : (
-            <button
-              onClick={next}
-              className="w-full rounded-lg border border-white/20 px-4 py-3 font-semibold hover:bg-white/10"
-            >
+            <Button onClick={next} className="h-12! w-full">
               Next runner
-            </button>
+            </Button>
           )}
         </>
       )}

@@ -1,12 +1,12 @@
 "use client";
 
+import { Button, Icon } from "@/components/ds";
+
 export default function PrintButton() {
   return (
-    <button
-      onClick={() => window.print()}
-      className="rounded-lg bg-emerald-500 px-4 py-2 text-sm font-bold text-neutral-950 hover:bg-emerald-400"
-    >
+    <Button variant="dark" onClick={() => window.print()}>
+      <Icon name="print" size={16} />
       Print
-    </button>
+    </Button>
   );
 }

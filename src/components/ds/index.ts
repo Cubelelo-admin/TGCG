@@ -1,0 +1,50 @@
+// Cubelelo "Dock" design system, ported from design-system-app/src/components (same public API)
+// plus BrandProvider, the brand tokens, buttonClass and the extra admin icons.
+// Pure helpers (inputClass, nextSort, date helpers, CHART_COLORS) come from ./helpers, which has
+// no "use client", so server components can import and call them.
+export { BrandProvider } from './BrandProvider';
+export { BRANDS } from './tokens/brands';
+export type { BrandId, BrandTokens } from './tokens/brands';
+export { Button, buttonClass } from './Button';
+export type { ButtonVariant, ButtonSize } from './Button';
+export { Icon } from './Icon';
+export type { IconName } from './Icon';
+export { RoleBadge } from './RoleBadge';
+export { StatusPill } from './StatusPill';
+export type { StatusTone } from './StatusPill';
+export { FilterChip } from './FilterChip';
+export { Pagination } from './Pagination';
+export { DataTable, IdLink } from './DataTable';
+export type { ColumnDef, ColumnIconType } from './DataTable';
+export { KpiCard, KpiRow, KpiDivider } from './KpiCard';
+export type { KpiTone } from './KpiCard';
+export { InfoCard } from './InfoCard';
+export { Modal } from './Modal';
+export { HelpCard, HelpGrid } from './HelpCard';
+export { Tabs } from './Tabs';
+export type { TabDef } from './Tabs';
+export { Topbar } from './Topbar';
+export type { OrgOption } from './Topbar';
+export { Sidebar } from './Sidebar';
+export type { NavItemDef } from './Sidebar';
+export { AppShell } from './AppShell';
+export { Popover, Menu, MenuItem } from './Popover';
+export { Select } from './Select';
+export type { SelectOption } from './Select';
+export { TextField, TextArea, Checkbox, SearchInput, FieldLabel } from './Field';
+export { Tooltip, InfoHint } from './Tooltip';
+export { DateRangePicker, RangeCalendar } from './DateRangePicker';
+export type { DateRange, RangePreset } from './DateRangePicker';
+export { PageHeader, Banner, EmptyState, Breadcrumb, Card, Drawer, Stepper, Accordion } from './Layout';
+export type { Crumb, AccordionItem } from './Layout';
+export { ChecklistPanel, FilterPanel, FiltersButton, ManageColumns, RowMenu } from './Filters';
+export type { FilterGroup, ColumnChoice, RowMenuItem } from './Filters';
+export { LineChart } from './LineChart';
+export type { ChartSeries } from './LineChart';
+export { BarChart } from './BarChart';
+export type { BarDatum } from './BarChart';
+export { SegmentedControl, ViewToggle } from './SegmentedControl';
+export type { SegmentOption, ChartTableView } from './SegmentedControl';
+export { SupportWidget } from './SupportWidget';
+export { inputClass, nextSort, pageItems, shortDate, numericDate, toISO, daysAgo, CHART_COLORS } from './helpers';
+export type { SortDirection } from './helpers';

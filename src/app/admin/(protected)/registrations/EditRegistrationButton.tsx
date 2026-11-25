@@ -1,17 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { GENDERS, TSHIRT_SIZES } from "@/lib/registration-schema";
 import type { TicketCategory } from "@/lib/types";
 import { MANUAL_PAYMENT_MODE_LABELS, MANUAL_PAYMENT_MODES, type ManualPaymentMode } from "@/lib/manual-payment";
-
-const inputClass =
-  "w-full rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2 text-sm focus:border-emerald-400 focus:outline-none";
-// Native <option> ignores the <select>'s own dark background/text classes
-// and falls back to the browser/OS default (white bg, black text) — style
-// each option explicitly so the open dropdown matches the dark admin theme.
-const optionClass = "bg-neutral-900 text-neutral-50";
+import { Banner, Button, Checkbox, Drawer, FieldLabel, Icon, TextField, inputClass } from "@/components/ds";
 
 export type EditableRegistration = {
   id: string;
@@ -37,6 +31,7 @@ export default function EditRegistrationButton({
   categories: TicketCategory[];
 }) {
   const router = useRouter();
+  const formId = useId();
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -55,6 +50,9 @@ export default function EditRegistrationButton({
   const [loading, setLoading] = useState(false);
   const [form, setForm] = useState(() => formFrom(registration));
   const [adj, setAdj] = useState(() => emptyAdjustment(registration.poc_name));
+  // What the drawer showed when it opened/loaded, for the discard prompt only.
+  const baselineRef = useRef<{ form: RegistrationForm; adj: AdjustmentForm } | null>(null);
+  const errorRef = useRef<HTMLDivElement>(null);
 
   // The listing only carries the basics; KYC/DOB/emergency contact etc. are
   // fetched on open so they aren't shipped to the page for every row.
@@ -62,19 +60,44 @@ export default function EditRegistrationButton({
     setOpen(true);
     setError(null);
     setLoading(true);
+    baselineRef.current = { form, adj };
     try {
       const res = await fetch(`/api/admin/registrations/${registration.id}`);
       const body = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(body.error ?? "Could not load registration");
       const full = body.registration as FullRegistration;
-      setForm(formFrom(full));
-      setAdj(emptyAdjustment(full.poc_name));
+      const loadedForm = formFrom(full);
+      const loadedAdj = emptyAdjustment(full.poc_name);
+      baselineRef.current = { form: loadedForm, adj: loadedAdj };
+      setForm(loadedForm);
+      setAdj(loadedAdj);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not load registration");
     } finally {
       setLoading(false);
     }
   }
+
+  // Same as the old Cancel button: can't dismiss mid-save.
+  function closeDialog() {
+    if (saving) return;
+    setOpen(false);
+  }
+
+  // The old dialog only closed from Cancel. The Drawer also closes on ✕, Esc and
+  // overlay click (e.g. a text drag-select released over the overlay), so those
+  // paths ask before throwing away edits. Cancel stays an immediate close.
+  function dismissDialog() {
+    if (saving) return;
+    const base = baselineRef.current;
+    const dirty = base !== null && (!sameValues(form, base.form) || !sameValues(adj, base.adj));
+    if (dirty && !window.confirm("Discard your unsaved changes to this registration?")) return;
+    setOpen(false);
+  }
+
+  useEffect(() => {
+    if (error) errorRef.current?.scrollIntoView({ block: "nearest" });
+  }, [error]);
 
   const selectedCategory = categories.find((c) => c.id === form.ticketCategoryId);
   const originalCategory = categories.find((c) => c.id === registration.ticket_category_id);
@@ -170,291 +193,253 @@ export default function EditRegistrationButton({
 
   return (
     <>
-      <button
+      <Button
         type="button"
+        size="sm"
         onClick={openDialog}
         aria-label="Edit registration"
         title="Edit registration"
-        className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-white/20 text-neutral-300 hover:border-white/40 hover:text-neutral-50"
+        className="w-7 px-0!"
       >
-        <PencilIcon />
-      </button>
+        <Icon name="pencil" size={14} />
+      </Button>
 
-      {open && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-          <form
-            onSubmit={onSubmit}
-            className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl border border-white/10 bg-neutral-900 p-5 text-neutral-50 sm:p-6"
-          >
-            <h2 className="text-lg font-bold">Edit registration</h2>
-            {loading && <p className="mt-2 text-xs text-neutral-400">Loading full record…</p>}
+      <Drawer
+        open={open}
+        title="Edit registration"
+        onClose={dismissDialog}
+        footer={
+          <>
+            <Button type="button" size="sm" onClick={closeDialog} disabled={saving}>
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              form={formId}
+              size="sm"
+              variant="dark"
+              disabled={saving || loading || !settlementValid}
+            >
+              {saving ? "Saving..." : "Save changes"}
+            </Button>
+          </>
+        }
+      >
+        <form id={formId} onSubmit={onSubmit}>
+          {/* Top of the scroll area (and scrolled to) so a failed save is never below the fold. */}
+          {error && (
+            <div ref={errorRef} className="mb-4">
+              <Banner tone="danger">{error}</Banner>
+            </div>
+          )}
 
-            <div className="mt-4 grid grid-cols-1 gap-3">
-              <Field label="Full name">
+          {loading &&<p className="mb-4 text-12 text-ink-muted">Loading full record…</p>}
+
+          <div className="grid grid-cols-1 gap-4">
+            <TextField
+              label="Full name"
+              required
+              value={form.fullName}
+              onChange={(e) => setForm((f) => ({ ...f, fullName: e.target.value }))}
+            />
+            <TextField
+              label="Email"
+              type="email"
+              value={form.email}
+              onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
+              placeholder="Not collected — optional"
+            />
+            <TextField
+              label="Group POC (collects the money)"
+              value={form.pocName}
+              onChange={(e) => setForm((f) => ({ ...f, pocName: e.target.value }))}
+              placeholder="Only for bulk/offline registrations — optional"
+              maxLength={120}
+            />
+
+            <div className="min-w-0">
+              <FieldLabel label="Category" htmlFor={`${formId}-category`} />
+              {isChildRunner ? (
                 <input
-                  required
-                  value={form.fullName}
-                  onChange={(e) => setForm((f) => ({ ...f, fullName: e.target.value }))}
+                  id={`${formId}-category`}
+                  disabled
+                  value={registration.ticket_categories?.name ?? "Child Runner"}
                   className={inputClass}
                 />
-              </Field>
-              <Field label="Email">
-                <input
-                  type="email"
-                  value={form.email}
-                  onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
-                  placeholder="Not collected — optional"
+              ) : (
+                <select
+                  id={`${formId}-category`}
+                  value={form.ticketCategoryId}
+                  onChange={(e) => changeCategory(e.target.value)}
                   className={inputClass}
-                />
-              </Field>
-              <Field label="Group POC (collects the money)">
-                <input
-                  value={form.pocName}
-                  onChange={(e) => setForm((f) => ({ ...f, pocName: e.target.value }))}
-                  placeholder="Only for bulk/offline registrations — optional"
-                  maxLength={120}
-                  className={inputClass}
-                />
-              </Field>
-
-              <Field label="Category">
-                {isChildRunner ? (
-                  <input
-                    disabled
-                    value={registration.ticket_categories?.name ?? "Child Runner"}
-                    className={`${inputClass} opacity-60`}
-                  />
-                ) : (
-                  <select
-                    value={form.ticketCategoryId}
-                    onChange={(e) => changeCategory(e.target.value)}
-                    className={inputClass}
-                  >
-                    {!originalCategory && (
-                      <option value={registration.ticket_category_id} className={optionClass}>
-                        {registration.ticket_categories?.name ?? "Current category"} (inactive)
-                      </option>
-                    )}
-                    {categoryGroups.map(({ group, options }) => (
-                      <optgroup
-                        key={group}
-                        label={group === "competitive" ? "Competitive" : "Non-competitive"}
-                        className={optionClass}
-                      >
-                        {options.map((c) => (
-                          <option key={c.id} value={c.id} className={optionClass}>
-                            {c.name} — ₹{Number(c.price_inr).toLocaleString("en-IN")}
-                          </option>
-                        ))}
-                      </optgroup>
-                    ))}
-                  </select>
-                )}
-              </Field>
-
-              {!isChildRunner && categoryChanged && (
-                <CategoryChangePanel
-                  from={originalCategory}
-                  to={selectedCategory}
-                  isPaid={isPaid}
-                  priceDiff={priceDiff}
-                  needsSettlement={needsSettlement}
-                  isRefund={isRefund}
-                  adj={adj}
-                  setAdj={setAdj}
-                  needsRef={adjNeedsRef}
-                />
-              )}
-
-              {!isChildRunner && (
-                <>
-                  <Field label="Phone">
-                    <input
-                      required
-                      value={form.phone}
-                      onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
-                      className={inputClass}
-                    />
-                  </Field>
-                  <div className="grid grid-cols-2 gap-3">
-                    <Field label="Gender">
-                      <select
-                        value={form.gender}
-                        onChange={(e) => setForm((f) => ({ ...f, gender: e.target.value }))}
-                        className={inputClass}
-                      >
-                        {GENDERS.map((g) => (
-                          <option key={g} value={g} className={optionClass}>
-                            {g}
-                          </option>
-                        ))}
-                      </select>
-                    </Field>
-                    <Field label="T-shirt size">
-                      <select
-                        value={form.tshirtSize}
-                        onChange={(e) => setForm((f) => ({ ...f, tshirtSize: e.target.value }))}
-                        className={inputClass}
-                      >
-                        {TSHIRT_SIZES.map((s) => (
-                          <option key={s} value={s} className={optionClass}>
-                            {s}
-                          </option>
-                        ))}
-                      </select>
-                    </Field>
-                  </div>
-                  <Field label="City">
-                    <input
-                      required
-                      value={form.city}
-                      onChange={(e) => setForm((f) => ({ ...f, city: e.target.value }))}
-                      className={inputClass}
-                    />
-                  </Field>
-                  <div className="grid grid-cols-2 gap-3">
-                    <Field label="Date of birth">
-                      <input
-                        type="date"
-                        value={form.dateOfBirth}
-                        onChange={(e) => setForm((f) => ({ ...f, dateOfBirth: e.target.value }))}
-                        className={inputClass}
-                      />
-                    </Field>
-                    <Field label="Emergency phone">
-                      <input
-                        value={form.emergencyPhone}
-                        onChange={(e) => setForm((f) => ({ ...f, emergencyPhone: e.target.value }))}
-                        className={inputClass}
-                      />
-                    </Field>
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <Field label="Organization">
-                      <input
-                        value={form.organization}
-                        onChange={(e) => setForm((f) => ({ ...f, organization: e.target.value }))}
-                        placeholder="Optional"
-                        className={inputClass}
-                      />
-                    </Field>
-                    <Field label="Running community">
-                      <input
-                        value={form.runningCommunity}
-                        onChange={(e) => setForm((f) => ({ ...f, runningCommunity: e.target.value }))}
-                        placeholder="Optional"
-                        className={inputClass}
-                      />
-                    </Field>
-                  </div>
-
-                  {showKyc && (
-                    <fieldset className="grid grid-cols-1 gap-3 rounded-lg border border-white/10 p-3">
-                      <legend className="px-1 text-xs text-neutral-400">
-                        Prize-money KYC{selectedCategory?.requires_kyc ? " (required for this category)" : ""}
-                      </legend>
-                      <div className="grid grid-cols-2 gap-3">
-                        <Field label="Aadhar number">
-                          <input
-                            value={form.aadharNumber}
-                            onChange={(e) => setForm((f) => ({ ...f, aadharNumber: e.target.value }))}
-                            className={inputClass}
-                          />
-                        </Field>
-                        <Field label="PAN (optional)">
-                          <input
-                            value={form.panNumber}
-                            onChange={(e) => setForm((f) => ({ ...f, panNumber: e.target.value }))}
-                            className={inputClass}
-                          />
-                        </Field>
-                      </div>
-                      <Field label="Bank name & location">
-                        <input
-                          value={form.bankNameLocation}
-                          onChange={(e) => setForm((f) => ({ ...f, bankNameLocation: e.target.value }))}
-                          className={inputClass}
-                        />
-                      </Field>
-                      <div className="grid grid-cols-2 gap-3">
-                        <Field label="Account number">
-                          <input
-                            value={form.bankAccountNumber}
-                            onChange={(e) => setForm((f) => ({ ...f, bankAccountNumber: e.target.value }))}
-                            className={inputClass}
-                          />
-                        </Field>
-                        <Field label="IFSC">
-                          <input
-                            value={form.bankIfsc}
-                            onChange={(e) => setForm((f) => ({ ...f, bankIfsc: e.target.value }))}
-                            className={inputClass}
-                          />
-                        </Field>
-                      </div>
-                    </fieldset>
+                >
+                  {!originalCategory && (
+                    <option value={registration.ticket_category_id}>
+                      {registration.ticket_categories?.name ?? "Current category"} (inactive)
+                    </option>
                   )}
-                </>
+                  {categoryGroups.map(({ group, options }) => (
+                    <optgroup key={group} label={group === "competitive" ? "Competitive" : "Non-competitive"}>
+                      {options.map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.name} — ₹{Number(c.price_inr).toLocaleString("en-IN")}
+                        </option>
+                      ))}
+                    </optgroup>
+                  ))}
+                </select>
               )}
+            </div>
 
-              <Field label="BIB number">
-                <input
-                  value={form.bibNumber}
-                  onChange={(e) => setForm((f) => ({ ...f, bibNumber: e.target.value }))}
-                  placeholder="5 digits, or SUPERHERO — auto-assigned on payment"
-                  className={inputClass}
+            {!isChildRunner && categoryChanged && (
+              <CategoryChangePanel
+                from={originalCategory}
+                to={selectedCategory}
+                isPaid={isPaid}
+                priceDiff={priceDiff}
+                needsSettlement={needsSettlement}
+                isRefund={isRefund}
+                adj={adj}
+                setAdj={setAdj}
+                needsRef={adjNeedsRef}
+                idPrefix={formId}
+              />
+            )}
+
+            {!isChildRunner && (
+              <>
+                <TextField
+                  label="Phone"
+                  required
+                  value={form.phone}
+                  onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
                 />
-              </Field>
-              {!isChildRunner && form.ticketCategoryId !== registration.ticket_category_id && (
-                <p className="text-xs text-amber-400">
-                  Changing category to a different distance will re-issue a new BIB from that
-                  distance&apos;s pool — whatever you typed above will be replaced.
-                </p>
-              )}
-              <label className="flex items-center gap-2 text-sm text-neutral-300">
-                <input
-                  type="checkbox"
-                  checked={form.checkedIn}
-                  onChange={(e) => setForm((f) => ({ ...f, checkedIn: e.target.checked }))}
-                  className="h-4 w-4 rounded border-white/20 bg-white/[0.04]"
-                />
-                Checked in
-              </label>
-              {!isChildRunner && (
-                <label className="flex items-center gap-2 text-sm text-neutral-300">
-                  <input
-                    type="checkbox"
-                    checked={form.acceptedTerms}
-                    onChange={(e) => setForm((f) => ({ ...f, acceptedTerms: e.target.checked }))}
-                    className="h-4 w-4 rounded border-white/20 bg-white/[0.04]"
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <NativeSelect
+                    id={`${formId}-gender`}
+                    label="Gender"
+                    value={form.gender}
+                    onChange={(v) => setForm((f) => ({ ...f, gender: v }))}
+                    options={GENDERS.map((g) => ({ value: g, label: g }))}
                   />
-                  Accepted waiver &amp; rules
-                </label>
+                  <NativeSelect
+                    id={`${formId}-tshirt`}
+                    label="T-shirt size"
+                    value={form.tshirtSize}
+                    onChange={(v) => setForm((f) => ({ ...f, tshirtSize: v }))}
+                    options={TSHIRT_SIZES.map((s) => ({ value: s, label: s }))}
+                  />
+                </div>
+                <TextField
+                  label="City"
+                  required
+                  value={form.city}
+                  onChange={(e) => setForm((f) => ({ ...f, city: e.target.value }))}
+                />
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <TextField
+                    label="Date of birth"
+                    type="date"
+                    className="min-w-0"
+                    value={form.dateOfBirth}
+                    onChange={(e) => setForm((f) => ({ ...f, dateOfBirth: e.target.value }))}
+                  />
+                  <TextField
+                    label="Emergency phone"
+                    className="min-w-0"
+                    value={form.emergencyPhone}
+                    onChange={(e) => setForm((f) => ({ ...f, emergencyPhone: e.target.value }))}
+                  />
+                </div>
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <TextField
+                    label="Organization"
+                    className="min-w-0"
+                    value={form.organization}
+                    onChange={(e) => setForm((f) => ({ ...f, organization: e.target.value }))}
+                    placeholder="Optional"
+                  />
+                  <TextField
+                    label="Running community"
+                    className="min-w-0"
+                    value={form.runningCommunity}
+                    onChange={(e) => setForm((f) => ({ ...f, runningCommunity: e.target.value }))}
+                    placeholder="Optional"
+                  />
+                </div>
+
+                {showKyc && (
+                  <fieldset className="grid grid-cols-1 gap-4 rounded-8 border border-line-secondary p-4">
+                    <legend className="px-1 text-12 font-medium text-ink-secondary">
+                      Prize-money KYC{selectedCategory?.requires_kyc ? " (required for this category)" : ""}
+                    </legend>
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                      <TextField
+                        label="Aadhar number"
+                        className="min-w-0"
+                        value={form.aadharNumber}
+                        onChange={(e) => setForm((f) => ({ ...f, aadharNumber: e.target.value }))}
+                      />
+                      <TextField
+                        label="PAN (optional)"
+                        className="min-w-0"
+                        value={form.panNumber}
+                        onChange={(e) => setForm((f) => ({ ...f, panNumber: e.target.value }))}
+                      />
+                    </div>
+                    <TextField
+                      label="Bank name & location"
+                      value={form.bankNameLocation}
+                      onChange={(e) => setForm((f) => ({ ...f, bankNameLocation: e.target.value }))}
+                    />
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                      <TextField
+                        label="Account number"
+                        className="min-w-0"
+                        value={form.bankAccountNumber}
+                        onChange={(e) => setForm((f) => ({ ...f, bankAccountNumber: e.target.value }))}
+                      />
+                      <TextField
+                        label="IFSC"
+                        className="min-w-0"
+                        value={form.bankIfsc}
+                        onChange={(e) => setForm((f) => ({ ...f, bankIfsc: e.target.value }))}
+                      />
+                    </div>
+                  </fieldset>
+                )}
+              </>
+            )}
+
+            <TextField
+              label="BIB number"
+              value={form.bibNumber}
+              onChange={(e) => setForm((f) => ({ ...f, bibNumber: e.target.value }))}
+              placeholder="5 digits, or SUPERHERO — auto-assigned on payment"
+            />
+            {!isChildRunner && form.ticketCategoryId !== registration.ticket_category_id && (
+              <p className="-mt-2 text-12 text-on-tint-orange">
+                Changing category to a different distance will re-issue a new BIB from that
+                distance&apos;s pool — whatever you typed above will be replaced.
+              </p>
+            )}
+            <div className="flex flex-col gap-3">
+              <Checkbox
+                checked={form.checkedIn}
+                onChange={(checked) => setForm((f) => ({ ...f, checkedIn: checked }))}
+                label="Checked in"
+              />
+              {!isChildRunner && (
+                <Checkbox
+                  checked={form.acceptedTerms}
+                  onChange={(checked) => setForm((f) => ({ ...f, acceptedTerms: checked }))}
+                  label="Accepted waiver & rules"
+                />
               )}
             </div>
-
-            {error && <p className="mt-3 text-sm text-red-400">{error}</p>}
-
-            <div className="mt-6 flex flex-wrap justify-end gap-3">
-              <button
-                type="button"
-                onClick={() => setOpen(false)}
-                disabled={saving}
-                className="rounded-full border border-white/20 px-4 py-2 text-sm font-medium hover:border-white/40 disabled:opacity-50"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                disabled={saving || loading || !settlementValid}
-                className="rounded-full bg-emerald-500 px-4 py-2 text-sm font-semibold text-neutral-950 hover:bg-emerald-400 disabled:opacity-50"
-              >
-                {saving ? "Saving..." : "Save changes"}
-              </button>
-            </div>
-          </form>
-        </div>
-      )}
+          </div>
+        </form>
+      </Drawer>
     </>
   );
 }
@@ -489,6 +474,7 @@ function CategoryChangePanel({
   adj,
   setAdj,
   needsRef,
+  idPrefix,
 }: {
   from: TicketCategory | undefined;
   to: TicketCategory | undefined;
@@ -499,17 +485,21 @@ function CategoryChangePanel({
   adj: AdjustmentForm;
   setAdj: React.Dispatch<React.SetStateAction<AdjustmentForm>>;
   needsRef: boolean;
+  idPrefix: string;
 }) {
   const crossGroup = from && to && from.group !== to.group ? { from, to } : null;
   const amount = Number(adj.amount) || 0;
 
   return (
-    <div className="grid grid-cols-1 gap-3 rounded-lg border border-sky-400/30 bg-sky-500/[0.06] p-3 text-sm">
+    <div className="grid grid-cols-1 gap-4 rounded-12 border border-tint-blue bg-[#EFF8FF] p-4">
       <div>
-        <p className="break-words font-medium text-sky-200">
-          {from?.name ?? "Current category"} → {to?.name ?? "New category"}
+        <p className="flex items-start gap-2 break-words text-14 font-medium text-ink">
+          <Icon name="swap" size={16} className="mt-px shrink-0 text-link" />
+          <span className="min-w-0">
+            {from?.name ?? "Current category"} → {to?.name ?? "New category"}
+          </span>
         </p>
-        <p className="mt-0.5 text-xs text-neutral-400">
+        <p className="mt-1 text-12 text-ink-tertiary">
           {from && to && (
             <>
               {rupees(Number(from.price_inr))} → {rupees(Number(to.price_inr))} ·{" "}
@@ -524,7 +514,7 @@ function CategoryChangePanel({
                 : `runner is owed ${rupees(-priceDiff)}`}
         </p>
         {crossGroup && (
-          <p className="mt-1 text-xs text-amber-300">
+          <p className="mt-1 text-12 text-on-tint-orange">
             Switching {crossGroup.from.group === "competitive" ? "competitive → non-competitive" : "non-competitive → competitive"}.
             {crossGroup.to.requires_kyc && " Prize-money KYC (Aadhar + bank details) is required below."}
           </p>
@@ -532,92 +522,85 @@ function CategoryChangePanel({
       </div>
 
       {!isPaid && (
-        <p className="text-xs text-neutral-400">
+        <p className="text-12 text-ink-tertiary">
           Not paid yet — no adjustment needed. The new category&apos;s price applies when the booking is paid
           (or marked paid).
         </p>
       )}
 
       {isPaid && !needsSettlement && (
-        <p className="text-xs text-neutral-400">No price difference — nothing to collect or refund.</p>
+        <p className="text-12 text-ink-tertiary">No price difference — nothing to collect or refund.</p>
       )}
 
       {needsSettlement && (
         <>
-          <p className="text-xs text-neutral-400">
+          <p className="text-12 text-ink-tertiary">
             Paid registration: settle the difference offline and record it here. It&apos;s counted under
             &ldquo;Collected directly&rdquo; and against the POC below.
           </p>
-          <div className="grid grid-cols-2 gap-3">
-            <Field label={isRefund ? "Amount refunded (₹)" : "Amount collected (₹)"}>
-              <input
-                type="number"
-                min={0}
-                step="0.01"
-                required
-                value={adj.amount}
-                onChange={(e) => setAdj((a) => ({ ...a, amount: e.target.value, confirmed: false }))}
-                className={inputClass}
-              />
-            </Field>
-            <Field label="POC (handled the money)">
-              <input
-                required
-                value={adj.poc}
-                onChange={(e) => setAdj((a) => ({ ...a, poc: e.target.value }))}
-                maxLength={120}
-                placeholder="Required"
-                className={inputClass}
-              />
-            </Field>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="Mode">
-              <select
-                value={adj.mode}
-                onChange={(e) => setAdj((a) => ({ ...a, mode: e.target.value as ManualPaymentMode }))}
-                className={inputClass}
-              >
-                {MANUAL_PAYMENT_MODES.map((m) => (
-                  <option key={m} value={m} className={optionClass}>
-                    {MANUAL_PAYMENT_MODE_LABELS[m]}
-                  </option>
-                ))}
-              </select>
-            </Field>
-            <Field label={`UPI txn ID / UTR ${needsRef ? "(required)" : "(optional)"}`}>
-              <input
-                required={needsRef}
-                value={adj.reference}
-                onChange={(e) => setAdj((a) => ({ ...a, reference: e.target.value }))}
-                maxLength={120}
-                className={inputClass}
-              />
-            </Field>
-          </div>
-          <Field label="Note (optional)">
-            <input
-              value={adj.note}
-              onChange={(e) => setAdj((a) => ({ ...a, note: e.target.value }))}
-              maxLength={500}
-              placeholder="e.g. Upgrade requested on call; difference collected by Ravi"
-              className={inputClass}
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <TextField
+              id={`${idPrefix}-adj-amount`}
+              label={isRefund ? "Amount refunded (₹)" : "Amount collected (₹)"}
+              className="min-w-0"
+              type="number"
+              min={0}
+              step="0.01"
+              required
+              value={adj.amount}
+              onChange={(e) => setAdj((a) => ({ ...a, amount: e.target.value, confirmed: false }))}
             />
-          </Field>
+            <TextField
+              id={`${idPrefix}-adj-poc`}
+              label="POC (handled the money)"
+              className="min-w-0"
+              required
+              value={adj.poc}
+              onChange={(e) => setAdj((a) => ({ ...a, poc: e.target.value }))}
+              maxLength={120}
+              placeholder="Required"
+            />
+          </div>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <NativeSelect
+              id={`${idPrefix}-adj-mode`}
+              label="Mode"
+              value={adj.mode}
+              onChange={(v) => setAdj((a) => ({ ...a, mode: v as ManualPaymentMode }))}
+              options={MANUAL_PAYMENT_MODES.map((m) => ({ value: m, label: MANUAL_PAYMENT_MODE_LABELS[m] }))}
+            />
+            <TextField
+              id={`${idPrefix}-adj-ref`}
+              label={`UPI txn ID / UTR ${needsRef ? "(required)" : "(optional)"}`}
+              className="min-w-0"
+              required={needsRef}
+              value={adj.reference}
+              onChange={(e) => setAdj((a) => ({ ...a, reference: e.target.value }))}
+              maxLength={120}
+            />
+          </div>
+          <TextField
+            id={`${idPrefix}-adj-note`}
+            label="Note (optional)"
+            value={adj.note}
+            onChange={(e) => setAdj((a) => ({ ...a, note: e.target.value }))}
+            maxLength={500}
+            placeholder="e.g. Upgrade requested on call; difference collected by Ravi"
+          />
           {priceDiff !== null && amount !== Math.abs(priceDiff) && (
-            <p className="text-xs text-amber-400">
+            <p className="text-12 text-on-tint-orange">
               Differs from the price difference of {rupees(Math.abs(priceDiff))} — add a note saying why.
             </p>
           )}
-          <label className="flex items-start gap-2 text-sm text-neutral-300">
-            <input
-              type="checkbox"
-              checked={adj.confirmed}
-              onChange={(e) => setAdj((a) => ({ ...a, confirmed: e.target.checked }))}
-              className="mt-0.5 h-4 w-4 rounded border-white/20 bg-white/[0.04]"
-            />
-            I&apos;ve verified {rupees(amount)} was {isRefund ? "refunded to the runner" : "received"} offline.
-          </label>
+          <Checkbox
+            checked={adj.confirmed}
+            onChange={(checked) => setAdj((a) => ({ ...a, confirmed: checked }))}
+            label={
+              <>
+                I&apos;ve verified {rupees(amount)} was {isRefund ? "refunded to the runner" : "received"} offline.
+              </>
+            }
+          />
         </>
       )}
     </div>
@@ -637,6 +620,13 @@ type FullRegistration = EditableRegistration & {
   accepted_waiver?: boolean;
   accepted_rules?: boolean;
 };
+
+type RegistrationForm = ReturnType<typeof formFrom>;
+
+/** Shallow equality for the flat form/adjustment objects. */
+function sameValues<T extends object>(a: T, b: T) {
+  return (Object.keys(a) as (keyof T)[]).every((k) => a[k] === b[k]);
+}
 
 function formFrom(r: FullRegistration) {
   return {
@@ -663,20 +653,33 @@ function formFrom(r: FullRegistration) {
   };
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+/**
+ * Native <select> in the Dock input style. Kept native (not the DS popover
+ * Select) so it can't be clipped by the drawer's scroll area.
+ */
+function NativeSelect({
+  id,
+  label,
+  value,
+  onChange,
+  options,
+}: {
+  id: string;
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  options: { value: string; label: string }[];
+}) {
   return (
-    <label className="block min-w-0">
-      <span className="mb-1 block text-xs text-neutral-400">{label}</span>
-      {children}
-    </label>
-  );
-}
-
-function PencilIcon() {
-  return (
-    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-      <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
-      <path d="m15 5 4 4" />
-    </svg>
+    <div className="min-w-0">
+      <FieldLabel label={label} htmlFor={id} />
+      <select id={id} value={value} onChange={(e) => onChange(e.target.value)} className={inputClass}>
+        {options.map((o) => (
+          <option key={o.value} value={o.value}>
+            {o.label}
+          </option>
+        ))}
+      </select>
+    </div>
   );
 }

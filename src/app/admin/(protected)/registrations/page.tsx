@@ -1,9 +1,26 @@
 import Link from "next/link";
+import type { ReactNode } from "react";
 import { getBulkImportCategories } from "@/lib/catalog";
 import { getAdminEvent } from "@/lib/admin-event";
 import { getPaymentTotals, listRegistrations, PAYMENT_METHOD_FILTERS, type RegistrationRow } from "@/lib/admin-data";
 import { MANUAL_PAYMENT_MODE_LABELS, PAYMENT_METHOD_LABELS, type ManualPaymentMode } from "@/lib/manual-payment";
 import { parseSearchField, SEARCH_FIELDS } from "@/lib/registration-search";
+import {
+  Banner,
+  Button,
+  buttonClass,
+  Card,
+  EmptyState,
+  Icon,
+  inputClass,
+  KpiCard,
+  KpiRow,
+  PageHeader,
+  pageItems,
+  SearchInput,
+  StatusPill,
+  type StatusTone,
+} from "@/components/ds";
 import ResendWaButton from "./ResendWaButton";
 import EditRegistrationButton from "./EditRegistrationButton";
 import BulkUploadButton from "./BulkUploadButton";
@@ -18,6 +35,16 @@ const METHOD_FILTER_LABELS: Record<(typeof PAYMENT_METHOD_FILTERS)[number], stri
   bulk_import: "Bulk import",
 };
 
+/* Dock table classes, matching ds/DataTable (server-rendered here so the rows need no render functions). */
+const TH_BASE = "bg-surface-tertiary px-3 py-2.5 text-12 font-normal text-ink-tertiary shadow-[inset_0_-1px_0_#E5E7EB]";
+const TH = `${TH_BASE} text-left`;
+const TD ="bg-white px-3 py-2.5 align-middle text-ink group-hover:bg-surface-secondary";
+
+/** IdLink look (14px link blue, 1px dashed underline) for identifiers that are real links. */
+const ID_LINK = "text-14 text-link underline decoration-dashed decoration-1 underline-offset-4 hover:text-[#175CD3]";
+
+const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+
 export default async function AdminRegistrationsPage({
   searchParams,
 }: {
@@ -27,7 +54,16 @@ export default async function AdminRegistrationsPage({
   const field = parseSearchField(rawField);
   const method = (PAYMENT_METHOD_FILTERS as readonly string[]).includes(rawMethod ?? "") ? rawMethod : undefined;
   const { event } = await getAdminEvent();
-  if (!event) return <p className="text-neutral-400">No active event found.</p>;
+  if (!event) {
+    return (
+      <div>
+        <PageHeader title="Registrations" />
+        <Card>
+          <EmptyState title="No active event found." />
+        </Card>
+      </div>
+    );
+  }
 
   const pageNum = Number(page) || 1;
   const [{ rows, count, pageSize }, totals, categoryRows] = await Promise.all([
@@ -52,190 +88,229 @@ export default async function AdminRegistrationsPage({
     ...(method ? { method } : {}),
   }).toString()}`;
 
+  const pageHref = (p: number) => ({
+    pathname: "/admin/registrations",
+    query: {
+      ...(q ? { q } : {}),
+      ...(q && field !== "all" ? { field } : {}),
+      ...(status ? { status } : {}),
+      ...(method ? { method } : {}),
+      ...(groupId ? { group: groupId } : {}),
+      page: p,
+    },
+  });
+
   return (
     <div>
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <h1 className="text-xl font-bold sm:text-2xl">Registrations ({count})</h1>
-        <div className="flex flex-wrap gap-3">
-          <BulkUploadButton eventId={event.id} eventName={event.name} categories={categoryRows} />
-          <a
-            href={exportHref}
-            className="rounded-full border border-white/20 px-4 py-2 text-sm font-medium hover:border-white/40"
-          >
-            Export CSV
-          </a>
-        </div>
-      </div>
+      <PageHeader
+        title={`Registrations (${count})`}
+        subtitle={`Everyone registered for ${event.name}`}
+        actions={
+          <>
+            <BulkUploadButton eventId={event.id} eventName={event.name} categories={categoryRows} />
+            <a href={exportHref} className={buttonClass()}>
+              <Icon name="download" size={16} />
+              Export CSV
+            </a>
+          </>
+        }
+      />
 
-      <div className="mt-5 grid gap-3 sm:grid-cols-3">
-        <Metric label="Total collected" value={totals.revenue} sub={`${totals.paidCount} paid`} />
-        <Metric label="Via Razorpay" value={totals.razorpay.amount} sub={`${totals.razorpay.count} paid`} />
+      <KpiRow>
+        <KpiSlot>
+          <KpiCard
+            tone="green"
+            label="Total collected"
+            value={`₹${totals.revenue.toLocaleString("en-IN")}`}
+            caption={`${totals.paidCount} paid`}
+          />
+        </KpiSlot>
+        <KpiSlot>
+          <KpiCard
+            tone="green"
+            label="Via Razorpay"
+            value={`₹${totals.razorpay.amount.toLocaleString("en-IN")}`}
+            caption={`${totals.razorpay.count} paid`}
+          />
+        </KpiSlot>
         <Link
           href={{ pathname: "/admin/registrations", query: { method: "direct", status: "paid" } }}
-          className="rounded-xl border border-sky-500/30 bg-sky-500/[0.06] px-4 py-3 hover:border-sky-400/60"
+          className="group flex min-w-[220px] flex-1 rounded-16 transition-shadow hover:shadow-dock-xl focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
         >
-          <p className="text-xs text-sky-300">Collected directly (not Razorpay) →</p>
-          <p className="mt-0.5 text-xl font-bold text-sky-300">₹{totals.direct.amount.toLocaleString("en-IN")}</p>
-          <p className="text-xs text-neutral-400">
-            {totals.direct.count} paid · ₹{totals.manual.amount.toLocaleString("en-IN")} manual · ₹
-            {totals.bulkImport.amount.toLocaleString("en-IN")} bulk import
-            {totals.categoryAdjustments.count > 0 &&
-              ` · ₹${totals.categoryAdjustments.amount.toLocaleString("en-IN")} category changes`}
-          </p>
+          <KpiCard
+            tone="orange"
+            selected={method === "direct" && status === "paid"}
+            label={
+              <span className="flex w-full items-center justify-between gap-2">
+                Collected directly (not Razorpay)
+                <Icon name="chevronRight" size={16} className="shrink-0 text-ink-muted group-hover:text-ink" />
+              </span>
+            }
+            value={`₹${totals.direct.amount.toLocaleString("en-IN")}`}
+            caption={
+              <>
+                {totals.direct.count} paid · ₹{totals.manual.amount.toLocaleString("en-IN")} manual · ₹
+                {totals.bulkImport.amount.toLocaleString("en-IN")} bulk import
+                {totals.categoryAdjustments.count > 0 &&
+                  ` · ₹${totals.categoryAdjustments.amount.toLocaleString("en-IN")} category changes`}
+              </>
+            }
+          />
         </Link>
-      </div>
+      </KpiRow>
 
       {groupId && (
-        <div className="mt-4 flex items-center gap-3 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-4 py-2 text-sm text-emerald-300">
-          Filtered to one group booking.
-          <Link href="/admin/registrations" className="underline">
-            Clear
-          </Link>
+        <div className="mb-4">
+          <Banner
+            tone="info"
+            action={
+              <Link href="/admin/registrations" className={buttonClass({ size: "sm" })}>
+                <Icon name="close" size={14} />
+                Clear
+              </Link>
+            }
+          >
+            <span className="text-14">Filtered to one group booking.</span>
+          </Banner>
         </div>
       )}
 
-      <form className="mt-6 flex flex-wrap gap-3" method="get">
-        <input
-          type="search"
+      <form
+        method="get"
+        className="mb-4 flex flex-wrap items-center gap-2 rounded-8 bg-white px-4 py-3 shadow-card"
+      >
+        <SearchInput
           name="q"
           defaultValue={q}
+          aria-label="Search registrations"
           placeholder="Search any field: name, phone, BIB, reg./group ID, category, POC, city, Aadhar, UTR, DOB…"
-          className="w-full min-w-0 flex-1 rounded-lg border border-white/10 bg-white/[0.04] px-3.5 py-2 text-sm focus:border-emerald-400 focus:outline-none sm:w-auto"
+          className="w-full min-w-0 sm:w-auto sm:min-w-[280px] sm:flex-1"
         />
-        <select
-          name="field"
-          defaultValue={field}
-          aria-label="Search in"
-          className="w-full rounded-lg border border-white/10 bg-neutral-900 px-3.5 py-2 text-sm text-neutral-50 focus:border-emerald-400 focus:outline-none sm:w-auto"
-        >
+        <select name="field" defaultValue={field} aria-label="Search in" className={`${inputClass} sm:w-auto`}>
           {Object.entries(SEARCH_FIELDS).map(([key, label]) => (
-            <option key={key} value={key} className="bg-neutral-900 text-neutral-50">
+            <option key={key} value={key}>
               {key === "all" ? "Search in: all fields" : label}
             </option>
           ))}
         </select>
-        <select
-          name="status"
-          defaultValue={status ?? ""}
-          className="w-full rounded-lg border border-white/10 bg-neutral-900 px-3.5 py-2 text-sm text-neutral-50 focus:border-emerald-400 focus:outline-none sm:w-auto"
-        >
-          <option value="" className="bg-neutral-900 text-neutral-50">
-            All statuses
-          </option>
+        <select name="status" defaultValue={status ?? ""} aria-label="Status" className={`${inputClass} sm:w-auto`}>
+          <option value="">All statuses</option>
           {STATUSES.map((s) => (
-            <option key={s} value={s} className="bg-neutral-900 text-neutral-50 capitalize">
-              {s}
+            <option key={s} value={s}>
+              {capitalize(s)}
             </option>
           ))}
         </select>
-        <select
-          name="method"
-          defaultValue={method ?? ""}
-          className="w-full rounded-lg border border-white/10 bg-neutral-900 px-3.5 py-2 text-sm text-neutral-50 focus:border-emerald-400 focus:outline-none sm:w-auto"
-        >
-          <option value="" className="bg-neutral-900 text-neutral-50">
-            All payment methods
-          </option>
+        <select name="method" defaultValue={method ?? ""} aria-label="Payment method" className={`${inputClass} sm:w-auto`}>
+          <option value="">All payment methods</option>
           {PAYMENT_METHOD_FILTERS.map((m) => (
-            <option key={m} value={m} className="bg-neutral-900 text-neutral-50">
+            <option key={m} value={m}>
               {METHOD_FILTER_LABELS[m]}
             </option>
           ))}
         </select>
-        <button className="w-full rounded-lg border border-white/20 px-4 py-2 text-sm font-medium hover:border-white/40 sm:w-auto">
+        <Button variant="dark" className="w-full sm:w-auto">
+          <Icon name="funnel" size={16} />
           Filter
-        </button>
+        </Button>
       </form>
 
-      <div className="mt-6 -mx-6 max-h-[75vh] overflow-auto px-6 sm:mx-0 sm:rounded-xl sm:border sm:border-white/10 sm:px-0">
-        <table className="w-full min-w-[1100px] text-sm">
-          <thead className="sticky top-0 z-10 bg-neutral-900 text-left text-neutral-400 shadow-[0_1px_0_rgba(255,255,255,0.1)]">
+      <div className="max-h-[75vh] overflow-auto rounded-8 border border-line">
+        <table className="w-full border-collapse text-12" style={{ minWidth: 1100 }}>
+          <thead className="sticky top-0 z-[2]">
             <tr>
-              <th className="px-3 py-2.5 font-medium">Reg. ID</th>
-              <th className="px-3 py-2.5 font-medium">Group ID</th>
-              <th className="px-3 py-2.5 font-medium">Name</th>
-              <th className="px-3 py-2.5 font-medium">Category</th>
-              <th className="px-3 py-2.5 font-medium">Contact</th>
-              <th className="px-3 py-2.5 font-medium">BIB</th>
-              <th className="px-3 py-2.5 font-medium">Status</th>
-              <th className="px-3 py-2.5 font-medium">Amount</th>
-              <th className="px-3 py-2.5 font-medium">Registered</th>
-              <th className="w-px px-3 py-2.5 font-medium"></th>
-              <th className="w-px px-3 py-2.5 font-medium"></th>
+              <th className={TH}>Reg. ID</th>
+              <th className={TH}>Group ID</th>
+              <th className={TH}>Name</th>
+              <th className={TH}>Category</th>
+              <th className={TH}>Contact</th>
+              <th className={TH}>BIB</th>
+              <th className={TH}>Status</th>
+              <th className={`${TH_BASE} text-right`}>Amount</th>
+              <th className={TH}>Registered</th>
+              <th className={`${TH} w-px`}>
+                <span className="sr-only">Payment actions</span>
+              </th>
+              <th className={`${TH} w-px`}>
+                <span className="sr-only">Edit</span>
+              </th>
             </tr>
           </thead>
           <tbody>
             {rows.map((r) => (
-              <tr key={r.id} className="border-t border-white/10">
-                <td className="whitespace-nowrap px-3 py-2.5 font-mono text-neutral-300">
-                  {r.registration_code ?? "—"}
+              <tr key={r.id} className="group border-t border-alpha-4">
+                <td className={`${TD} whitespace-nowrap`}>
+                  {r.registration_code ? (
+                    <span className="select-all font-mono text-12 text-ink">{r.registration_code}</span>
+                  ) : (
+                    <span className="text-ink-muted">—</span>
+                  )}
                 </td>
-                <td className="whitespace-nowrap px-3 py-2.5">
+                <td className={`${TD} whitespace-nowrap`}>
                   {r.group_id && r.registration_groups?.booking_code ? (
-                    <Link
-                      href={{ pathname: "/admin/registrations", query: { group: r.group_id } }}
-                      className="font-mono text-xs text-neutral-300 underline decoration-white/30 hover:text-neutral-100"
-                    >
+                    <Link href={{ pathname: "/admin/registrations", query: { group: r.group_id } }} className={ID_LINK}>
                       {r.registration_groups.booking_code}
                     </Link>
                   ) : (
-                    <span className="text-neutral-600">—</span>
+                    <span className="text-ink-muted">—</span>
                   )}
                 </td>
-                <td className="px-3 py-2.5">
-                  {r.full_name}
-                  {r.poc_name && (
-                    <Link
-                      href={{ pathname: "/admin/registrations", query: { q: r.poc_name, field: "poc" } }}
-                      title="Group POC — collecting the money for this registration. Click to see everyone under this POC."
-                      className="ml-2 rounded-full border border-amber-400/30 bg-amber-500/10 px-2 py-0.5 text-[11px] text-amber-300 hover:border-amber-300/60"
-                    >
-                      POC: {r.poc_name}
-                    </Link>
-                  )}
-                  {r.group_id && r.registration_groups && r.registration_groups.attendee_count > 1 && (
-                    <Link
-                      href={{ pathname: "/admin/registrations", query: { group: r.group_id } }}
-                      className="ml-2 rounded-full bg-white/10 px-2 py-0.5 text-xs text-neutral-300 hover:bg-white/20"
-                    >
-                      ×{r.registration_groups.attendee_count}
-                    </Link>
-                  )}
+                <td className={TD}>
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <span className="font-medium">{r.full_name}</span>
+                    {r.poc_name && (
+                      <Link
+                        href={{ pathname: "/admin/registrations", query: { q: r.poc_name, field: "poc" } }}
+                        title="Group POC — collecting the money for this registration. Click to see everyone under this POC."
+                        className="whitespace-nowrap rounded-4 bg-tint-orange px-1.5 py-0.5 text-12 font-medium text-on-tint-orange hover:underline"
+                      >
+                        POC: {r.poc_name}
+                      </Link>
+                    )}
+                    {r.group_id && r.registration_groups && r.registration_groups.attendee_count > 1 && (
+                      <Link
+                        href={{ pathname: "/admin/registrations", query: { group: r.group_id } }}
+                        className="rounded-full bg-line-secondary px-2 py-0.5 text-12 text-ink hover:bg-line"
+                      >
+                        ×{r.registration_groups.attendee_count}
+                      </Link>
+                    )}
+                  </div>
                 </td>
-                <td className="px-3 py-2.5">{r.ticket_categories?.name}</td>
-                <td className="px-3 py-2.5">
+                <td className={TD}>{r.ticket_categories?.name}</td>
+                <td className={TD}>
                   <div>{r.email}</div>
-                  <div className="text-neutral-500">{r.phone}</div>
+                  <div className="text-ink-muted">{r.phone}</div>
                 </td>
-                <td className="whitespace-nowrap px-3 py-2.5 text-neutral-300">{r.bib_number ?? "—"}</td>
-                <td className="whitespace-nowrap px-3 py-2.5">
+                <td className={`${TD} whitespace-nowrap`}>{r.bib_number ?? "—"}</td>
+                <td className={`${TD} whitespace-nowrap`}>
                   <div className="flex items-center gap-1.5">
-                    <StatusBadge status={r.payment_status} />
+                    <PaymentStatusPill status={r.payment_status} />
                     <DirectPaymentFlag row={r} />
                   </div>
                 </td>
-                <td className="whitespace-nowrap px-3 py-2.5">
+                <td className={`${TD} whitespace-nowrap text-right tabular-nums`}>
                   ₹{Number(r.amount_inr).toLocaleString("en-IN")}
                   <AdjustmentFlag row={r} />
                 </td>
-                <td className="whitespace-nowrap px-3 py-2.5 text-neutral-400">
+                <td className={`${TD} whitespace-nowrap text-ink-tertiary`}>
                   {new Date(r.created_at).toLocaleDateString("en-IN")}
                 </td>
-                <td className="whitespace-nowrap px-3 py-2.5">
+                <td className={`${TD} whitespace-nowrap`}>
                   {r.payment_status === "paid" && <ResendWaButton registrationId={r.id} />}
                   {(r.payment_status === "pending" || r.payment_status === "failed") && (
                     <MarkPaidButton registrationId={r.id} name={r.full_name} />
                   )}
                 </td>
-                <td className="whitespace-nowrap px-3 py-2.5">
+                <td className={`${TD} whitespace-nowrap`}>
                   <EditRegistrationButton registration={r} categories={categoryRows} />
                 </td>
               </tr>
             ))}
             {rows.length === 0 && (
               <tr>
-                <td colSpan={11} className="px-3 py-8 text-center text-neutral-500">
-                  No registrations found.
+                <td colSpan={11} className="bg-white">
+                  <EmptyState title="No registrations found." />
                 </td>
               </tr>
             )}
@@ -243,57 +318,97 @@ export default async function AdminRegistrationsPage({
         </table>
       </div>
 
-      {totalPages > 1 && (
-        <div className="mt-4 flex flex-wrap items-center justify-center gap-2 text-sm">
-          {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
+      <PageLinks
+        page={pageNum}
+        totalPages={totalPages}
+        firstItem={rows.length ? (pageNum - 1) * pageSize + 1 : 0}
+        lastItem={rows.length ? (pageNum - 1) * pageSize + rows.length : 0}
+        totalItems={count}
+        href={pageHref}
+      />
+    </div>
+  );
+}
+
+/** Lets a KpiCard wrap onto its own line on narrow screens instead of squeezing. */
+function KpiSlot({ children }: { children: ReactNode }) {
+  return <div className="flex min-w-[220px] flex-1">{children}</div>;
+}
+
+const STATUS_TONES: Record<string, StatusTone> = {
+  paid: "active",
+  pending: "pending",
+  failed: "expired",
+  refunded: "info",
+  cancelled: "pending",
+};
+
+function PaymentStatusPill({ status }: { status: string }) {
+  return <StatusPill tone={STATUS_TONES[status] ?? "pending"}>{capitalize(status)}</StatusPill>;
+}
+
+/**
+ * Dock pagination (ds/Pagination layout) rendered with links so it stays a server component:
+ * item counter on the left, « ‹ pages › » in the centre, grey current page.
+ */
+function PageLinks({
+  page,
+  totalPages,
+  firstItem,
+  lastItem,
+  totalItems,
+  href,
+}: {
+  page: number;
+  totalPages: number;
+  firstItem: number;
+  lastItem: number;
+  totalItems: number;
+  href: (p: number) => { pathname: string; query: Record<string, string | number> };
+}) {
+  const arrow = "flex h-9 w-9 items-center justify-center rounded-6";
+  const nav = (label: string, icon: "chevronsLeft" | "chevronLeft" | "chevronRight" | "chevronsRight", target: number, enabled: boolean) =>
+    enabled ? (
+      <Link aria-label={label} href={href(target)} className={`${arrow} text-dark hover:bg-surface-secondary`}>
+        <Icon name={icon} size={16} />
+      </Link>
+    ) : (
+      <span aria-disabled="true" aria-label={label} className={`${arrow} text-ink-disabled`}>
+        <Icon name={icon} size={16} />
+      </span>
+    );
+
+  return (
+    <nav aria-label="Pagination" className="flex flex-wrap items-center justify-between gap-3 px-3 py-3">
+      <span className="text-14 text-ink-muted">
+        {firstItem}-{lastItem} of {totalItems} items
+      </span>
+      <div className="flex flex-wrap items-center gap-1">
+        {nav("First page", "chevronsLeft", 1, page > 1)}
+        {nav("Previous page", "chevronLeft", page - 1, page > 1)}
+        {pageItems(Math.min(Math.max(page, 1), totalPages), totalPages).map((item) =>
+          typeof item === "number" ? (
             <Link
-              key={p}
-              href={{
-                pathname: "/admin/registrations",
-                query: {
-                  ...(q ? { q } : {}),
-                  ...(q && field !== "all" ? { field } : {}),
-                  ...(status ? { status } : {}),
-                  ...(method ? { method } : {}),
-                  ...(groupId ? { group: groupId } : {}),
-                  page: p,
-                },
-              }}
-              className={`rounded-md px-3 py-1 ${
-                p === pageNum ? "bg-emerald-500 text-neutral-950" : "border border-white/10 text-neutral-300"
+              key={item}
+              href={href(item)}
+              aria-current={item === page ? "page" : undefined}
+              className={`flex h-8 min-w-8 items-center justify-center rounded-4 px-1.5 text-14 text-ink ${
+                item === page ? "bg-surface-tertiary" : "hover:bg-surface-secondary"
               }`}
             >
-              {p}
+              {item}
             </Link>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function StatusBadge({ status }: { status: string }) {
-  const colors: Record<string, string> = {
-    paid: "bg-emerald-500/15 text-emerald-400",
-    pending: "bg-amber-500/15 text-amber-400",
-    failed: "bg-red-500/15 text-red-400",
-    refunded: "bg-neutral-500/15 text-neutral-400",
-    cancelled: "bg-neutral-500/15 text-neutral-400",
-  };
-  return (
-    <span className={`rounded-full px-2.5 py-1 text-xs font-medium capitalize ${colors[status] ?? ""}`}>
-      {status}
-    </span>
-  );
-}
-
-function Metric({ label, value, sub }: { label: string; value: number; sub: string }) {
-  return (
-    <div className="rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3">
-      <p className="text-xs text-neutral-400">{label}</p>
-      <p className="mt-0.5 text-xl font-bold text-emerald-400">₹{value.toLocaleString("en-IN")}</p>
-      <p className="text-xs text-neutral-500">{sub}</p>
-    </div>
+          ) : (
+            <span key={item} className="flex h-8 w-8 items-center justify-center text-14 text-ink">
+              …
+            </span>
+          )
+        )}
+        {nav("Next page", "chevronRight", page + 1, page < totalPages)}
+        {nav("Last page", "chevronsRight", totalPages, page < totalPages)}
+      </div>
+      <span className="hidden w-[120px] sm:block" aria-hidden="true" />
+    </nav>
   );
 }
 
@@ -314,11 +429,8 @@ function DirectPaymentFlag({ row }: { row: RegistrationRow }) {
     .join("\n");
 
   return (
-    <span
-      title={details}
-      className="cursor-help rounded-full border border-sky-400/40 bg-sky-500/15 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-sky-300"
-    >
-      Direct · {label}
+    <span title={details} className="cursor-help">
+      <StatusPill tone="info">Direct · {label}</StatusPill>
     </span>
   );
 }
@@ -350,11 +462,10 @@ function AdjustmentFlag({ row }: { row: RegistrationRow }) {
     .join("\n\n");
 
   return (
-    <span
-      title={details}
-      className="ml-1.5 cursor-help rounded-full border border-sky-400/40 bg-sky-500/15 px-2 py-0.5 text-[11px] font-semibold text-sky-300"
-    >
-      {net === 0 ? "Cat. changed" : `${net > 0 ? "+" : "−"}₹${Math.abs(net).toLocaleString("en-IN")} adj.`}
+    <span title={details} className="ml-1.5 cursor-help">
+      <StatusPill tone="info">
+        {net === 0 ? "Cat. changed" : `${net > 0 ? "+" : "−"}₹${Math.abs(net).toLocaleString("en-IN")} adj.`}
+      </StatusPill>
     </span>
   );
 }

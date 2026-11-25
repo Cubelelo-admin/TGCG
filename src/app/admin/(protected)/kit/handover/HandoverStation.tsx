@@ -1,11 +1,48 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import {
+  Button,
+  Card,
+  DataTable,
+  EmptyState,
+  FieldLabel,
+  Icon,
+  StatusPill,
+  Tabs,
+  TextField,
+  inputClass,
+  type ColumnDef,
+} from "@/components/ds";
 import ScanInput, { ResultBanner, postKit, type Banner } from "../ScanInput";
 import type { KitGroupBoxes } from "@/lib/kit";
 
-const inputClass =
-  "w-full rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2 text-sm focus:border-emerald-400 focus:outline-none";
+const MODE_TABS = [
+  { key: "stage", label: "Stage ready boxes" },
+  { key: "handover", label: "Day-0 handover" },
+];
+
+const stagedCount = (g: KitGroupBoxes) =>
+  g.boxes.filter((b) => b.status === "staged" || b.status === "handed_over").length;
+
+const groupColumns: ColumnDef<KitGroupBoxes>[] = [
+  { key: "group", header: "Group", render: (g) => <span className="text-14 font-medium">{g.group}</span> },
+  { key: "boxes", header: "Boxes", align: "right", width: 80, render: (g) => <span className="text-14">{g.boxes.length}</span> },
+  {
+    key: "staged",
+    header: "Staged",
+    align: "right",
+    width: 96,
+    render: (g) => {
+      const n = stagedCount(g);
+      return (
+        <StatusPill tone={g.boxes.length > 0 && n === g.boxes.length ? "active" : n > 0 ? "warning" : "pending"}>
+          {n}
+        </StatusPill>
+      );
+    },
+  },
+];
 
 export default function HandoverStation({ eventId }: { eventId: string }) {
   const [mode, setMode] = useState<"stage" | "handover">("stage");
@@ -79,122 +116,139 @@ export default function HandoverStation({ eventId }: { eventId: string }) {
     void refresh();
   }
 
+  const pct = expected.length ? Math.round((scanned.length / expected.length) * 100) : 0;
+
   return (
     <div className="space-y-4">
-      <div className="inline-flex rounded-lg border border-white/10 p-1 text-sm">
-        {(["stage", "handover"] as const).map((m) => (
-          <button
-            key={m}
-            onClick={() => {
-              setMode(m);
-              setBanner(null);
-            }}
-            className={`rounded-md px-4 py-2 font-semibold ${
-              mode === m ? "bg-emerald-500 text-neutral-950" : "text-neutral-300 hover:bg-white/10"
-            }`}
-          >
-            {m === "stage" ? "Stage ready boxes" : "Day-0 handover"}
-          </button>
-        ))}
-      </div>
+      <Tabs
+        variant="segmented"
+        tabs={MODE_TABS}
+        activeKey={mode}
+        onChange={(m) => {
+          setMode(m as "stage" | "handover");
+          setBanner(null);
+        }}
+      />
 
       <ResultBanner banner={banner} />
 
       {mode === "stage" ? (
         <>
-          <ScanInput label="Scan each ready group-box label" onScan={stage} disabled={busy} />
-          <div className="overflow-x-auto rounded-xl border border-white/10">
-            <table className="w-full text-sm">
-              <thead className="bg-white/[0.04] text-left text-neutral-400">
-                <tr>
-                  <th className="px-4 py-3 font-medium">Group</th>
-                  <th className="px-4 py-3 font-medium">Boxes</th>
-                  <th className="px-4 py-3 font-medium">Staged</th>
-                </tr>
-              </thead>
-              <tbody>
-                {groups.map((g) => (
-                  <tr key={g.group} className="border-t border-white/10">
-                    <td className="px-4 py-3">{g.group}</td>
-                    <td className="px-4 py-3">{g.boxes.length}</td>
-                    <td className="px-4 py-3">
-                      {g.boxes.filter((b) => b.status === "staged" || b.status === "handed_over").length}
-                    </td>
-                  </tr>
-                ))}
-                {groups.length === 0 && (
-                  <tr>
-                    <td colSpan={3} className="px-4 py-6 text-center text-neutral-500">
-                      No group boxes yet
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
+          <Card>
+            <ScanInput label="Scan each ready group-box label" onScan={stage} disabled={busy} />
+          </Card>
+          <Card title="Group boxes">
+            <DataTable
+              columns={groupColumns}
+              rows={groups}
+              rowKey={(g) => g.group}
+              minWidth={0}
+              empty={<EmptyState title="No group boxes yet" />}
+            />
+          </Card>
         </>
       ) : (
         <div className="space-y-4">
-          <div>
-            <label className="block text-sm text-neutral-400">Company / group collecting</label>
+          <Card>
+            <FieldLabel label="Company / group collecting" htmlFor="handover-group" />
             <select
+              id="handover-group"
               value={group}
               onChange={(e) => {
                 setGroup(e.target.value);
                 setScanned([]);
                 setBanner(null);
               }}
-              className={inputClass}
+              className={`${inputClass} h-12! text-16!`}
             >
-              <option value="" className="bg-neutral-900">
-                Choose a group
-              </option>
+              <option value="">Choose a group</option>
               {groups.map((g) => {
                 const done = g.boxes.every((b) => b.status === "handed_over");
                 return (
-                  <option key={g.group} value={g.group} disabled={done} className="bg-neutral-900">
+                  <option key={g.group} value={g.group} disabled={done}>
                     {g.group} ({g.boxes.length} boxes{done ? ", handed over" : ""})
                   </option>
                 );
               })}
             </select>
-          </div>
+          </Card>
 
           {selected && notStaged.length > 0 && (
-            <p className="rounded-lg border border-amber-400/40 bg-amber-500/10 px-4 py-3 text-sm text-amber-300">
-              {notStaged.length} box(es) not staged yet: {notStaged.map((b) => `#${b.boxNo} (${b.status})`).join(", ")}.
-              Finish and stage them before handover.
-            </p>
+            <div
+              role="status"
+              className="flex items-start gap-3 rounded-8 bg-tint-orange px-4 py-3 text-14 font-medium text-on-tint-orange"
+            >
+              <Icon name="warning" size={20} className="mt-px shrink-0" />
+              <p className="min-w-0">
+                {notStaged.length} box(es) not staged yet: {notStaged.map((b) => `#${b.boxNo} (${b.status})`).join(", ")}.
+                Finish and stage them before handover.
+              </p>
+            </div>
           )}
 
           {selected && notStaged.length === 0 && (
             <>
-              <ScanInput label="Scan every box out" onScan={scanOut} disabled={busy} />
-              <p className="text-2xl font-bold">
-                {scanned.length} of {expected.length}
-              </p>
-              <div className="grid gap-3 sm:grid-cols-2">
-                <div>
-                  <label className="block text-sm text-neutral-400">Receiver name</label>
-                  <input value={name} onChange={(e) => setName(e.target.value)} className={inputClass} />
+              <Card>
+                <ScanInput label="Scan every box out" onScan={scanOut} disabled={busy} />
+                <div className="mt-5 flex items-baseline justify-between gap-3">
+                  <p className="text-32 font-semibold text-ink">
+                    {scanned.length} of {expected.length}
+                  </p>
+                  {allScanned && <StatusPill tone="active">All boxes scanned</StatusPill>}
                 </div>
-                <div>
-                  <label className="block text-sm text-neutral-400">Receiver mobile (10 digits)</label>
-                  <input
+                <div
+                  className="mt-2 h-3 overflow-hidden rounded-full bg-surface-tertiary"
+                  role="progressbar"
+                  aria-valuemin={0}
+                  aria-valuemax={expected.length}
+                  aria-valuenow={scanned.length}
+                  aria-label="Boxes scanned out"
+                >
+                  <div
+                    className={`h-full rounded-full transition-all ${allScanned ? "bg-[#079455]" : "bg-dark"}`}
+                    style={{ width: `${pct}%` }}
+                  />
+                </div>
+                <ul className="mt-4 max-h-56 divide-y divide-line-secondary overflow-y-auto rounded-8 border border-line">
+                  {selected.boxes.map((b) => {
+                    const isOut = scanned.includes(b.code);
+                    return (
+                      <li key={b.code} className="flex items-center justify-between gap-3 px-3 py-2.5">
+                        <span className="min-w-0 text-14 font-medium text-ink">Box #{b.boxNo}</span>
+                        <StatusPill tone={isOut ? "active" : "pending"}>{isOut ? "Scanned" : "To scan"}</StatusPill>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </Card>
+
+              <Card title="Receiver">
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <TextField
+                    id="handover-receiver-name"
+                    label="Receiver name"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                  />
+                  <TextField
+                    id="handover-receiver-mobile"
+                    label="Receiver mobile (10 digits)"
                     value={mobile}
                     onChange={(e) => setMobile(e.target.value.replace(/\D/g, "").slice(0, 10))}
                     inputMode="numeric"
-                    className={inputClass}
                   />
                 </div>
-              </div>
-              <button
+              </Card>
+
+              <Button
+                variant="dark"
                 disabled={busy || !allScanned || name.trim().length < 2 || mobile.length !== 10}
                 onClick={signOff}
-                className="w-full rounded-lg bg-emerald-500 px-4 py-4 text-lg font-bold text-neutral-950 hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-40"
+                className="h-14! w-full text-16!"
               >
+                <Icon name="handover" size={20} />
                 Sign off handover
-              </button>
+              </Button>
             </>
           )}
         </div>

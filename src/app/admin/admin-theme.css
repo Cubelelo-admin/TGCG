@@ -1,174 +1,63 @@
 /*
- * Cubelelo design system ("Dock") for /admin. Source: the Cubelelo design system
- * artifact, guidelines/DESIGN-SYSTEM-SPEC.md (v1.2). Values below are the spec's:
+ * Cubelelo "Dock" base for /admin (DESIGN-SYSTEM-SPEC.md v1.2). The tokens themselves
+ * (text-ink, bg-surface-page, bg-dark, rounded-6, text-14 ...) live in globals.css @theme
+ * and the components in src/components/ds; admin screens use those directly. This file only
+ * holds what a utility class can't: the .ds base, the accent focus ring and print.
  *
- *   Font       Lexend 400/500/600 only. Body 14/18, page title 20/26 (600).
- *   Neutral    ink #111927, secondary #4D5761, muted #6C737F, disabled #9DA4AE
- *   Surfaces   page #F8F9FC, card #FFFFFF, secondary #F3F4F6
- *   Lines      inputs #D2D6DB, cards/dividers #E5E7EB
- *   Primary    dark button #0D121C with white text (the accent never marks selection)
- *   Accent     Cubelelo orange #FF9800: focus rings and focus borders only
- *   Status     soft tints (StatusPill): active/expired/warning/info/pending
- *   Light only: the spec defines no dark theme.
- *
- * The admin screens are written with Tailwind's neutral/emerald/red/amber/sky
- * classes. Rather than rewrite every class, this scope re-points them at the
- * tokens above, so existing and future admin screens follow the system.
- * Public pages are not under .ds.
+ * Everything here is inside @layer base so any utility class on an element wins
+ * (e.g. Modal's text-24 title, inputClass's outline-hidden + focus:border-accent).
+ * Light only: the spec defines no dark theme.
  */
-.ds {
-  --ink: #111927;
-  --ink-2: #4d5761;
-  --muted: #6c737f;
-  --page: #f8f9fc;
-  --card: #ffffff;
-  --sunk: #f3f4f6;
-  --line: #d2d6db;
-  --line-2: #e5e7eb;
-  --primary: #0d121c;
-  --primary-hover: #1f2937;
-  --accent: #ff9800;
-  --link: #1570ef;
+@layer base {
+  .ds {
+    color-scheme: light;
+    min-height: 100vh;
+    background: #f8f9fc; /* surface-page */
+    color: #111927; /* ink */
+    font-family: var(--font-ds-body), system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    font-size: 14px;
+    line-height: 18px;
+  }
 
-  --tint-active: #dcfae6;
-  --on-active: #074d31;
-  --tint-expired: #fee4e2;
-  --on-expired: #7a271a;
-  --tint-warning: #fdead7;
-  --on-warning: #772917;
-  --tint-info: #d1e9ff;
-  --on-info: #194185;
+  /* Fallback type scale for headings without size classes: page 20/26, card 18/24, small 16/20, all 600. */
+  .ds h1,
+  .ds h2,
+  .ds h3 {
+    font-weight: 600;
+    text-wrap: balance;
+  }
+  .ds h1 {
+    font-size: 20px;
+    line-height: 26px;
+  }
+  .ds h2 {
+    font-size: 18px;
+    line-height: 24px;
+  }
+  .ds h3 {
+    font-size: 16px;
+    line-height: 20px;
+  }
 
-  color-scheme: light;
+  .ds table {
+    font-variant-numeric: tabular-nums;
+  }
 
-  /* surfaces */
-  --color-neutral-950: var(--page);
-  --color-neutral-900: var(--card);
-  --color-neutral-800: var(--sunk);
-  /* text */
-  --color-neutral-50: var(--ink);
-  --color-neutral-100: var(--ink);
-  --color-neutral-200: var(--ink);
-  --color-neutral-300: var(--ink-2);
-  --color-neutral-400: var(--ink-2);
-  --color-neutral-500: var(--muted);
-  --color-neutral-600: var(--muted);
-  /* translucent borders / fills (white/10, white/20, white/[0.04] ...) read as ink */
-  --color-white: var(--ink);
-
-  --font-mono: ui-monospace, "Cascadia Mono", Consolas, monospace;
-
-  background: var(--page);
-  color: var(--ink);
-  font-family: var(--font-ds-body), system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  font-size: 14px;
-  line-height: 18px;
+  /* Focus: the Cubelelo accent ring is the only place the accent marks an interactive state. */
+  .ds :focus-visible {
+    outline: 2px solid var(--accent, #ff9800);
+    outline-offset: 2px;
+  }
 }
 
-/* Type scale: page title 20/26 600, card/section title 18/24 600, small title 16/20 600. */
-.ds h1,
-.ds h2,
-.ds h3 {
-  font-weight: 600;
-  text-wrap: balance;
-}
-.ds h1 {
-  font-size: 20px;
-  line-height: 26px;
-}
-.ds h2 {
-  font-size: 18px;
-  line-height: 24px;
-}
-.ds h3 {
-  font-size: 16px;
-  line-height: 20px;
-}
-.ds table {
-  font-variant-numeric: tabular-nums;
-}
-
-/* Focus: accent ring and accent border (the only place the accent appears). */
-.ds :focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-}
-
-/* ---- Status tints (StatusPill pairs) ------------------------------------- */
-.ds [class*="bg-emerald-500/"] {
-  background: var(--tint-active);
-}
-.ds [class*="text-emerald-"] {
-  color: var(--on-active);
-}
-.ds [class*="bg-red-500/"] {
-  background: var(--tint-expired);
-}
-.ds [class*="text-red-"] {
-  color: var(--on-expired);
-}
-.ds [class*="bg-amber-500/"] {
-  background: var(--tint-warning);
-}
-.ds [class*="text-amber-"] {
-  color: var(--on-warning);
-}
-.ds [class*="bg-sky-500/"] {
-  background: var(--tint-info);
-}
-.ds [class*="text-sky-"] {
-  color: var(--on-info);
-}
-.ds [class*="border-emerald-"][class*="/"] {
-  border-color: color-mix(in srgb, var(--on-active) 30%, transparent);
-}
-.ds [class*="border-red-"] {
-  border-color: color-mix(in srgb, var(--on-expired) 35%, transparent);
-}
-.ds [class*="border-amber-"] {
-  border-color: color-mix(in srgb, var(--on-warning) 35%, transparent);
-}
-.ds [class*="border-sky-"] {
-  border-color: color-mix(in srgb, var(--on-info) 30%, transparent);
-}
-
-/* ---- Primary action: dark button, white text ---------------------------- */
-.ds .bg-emerald-500,
-.ds .bg-emerald-400 {
-  background: var(--primary);
-  color: #fff;
-}
-.ds .bg-emerald-500 *,
-.ds .bg-emerald-400 * {
-  color: inherit;
-}
-.ds .hover\:bg-emerald-400:hover {
-  background: var(--primary-hover);
-}
-.ds .bg-sky-500,
-.ds .bg-sky-400,
-.ds .bg-sky-300,
-.ds .hover\:bg-sky-300:hover {
-  background: var(--link);
-  color: #fff;
-}
-
-/* Inputs: focus border = accent (the spec's focus rule). */
-.ds .focus\:border-emerald-400:focus {
-  border-color: var(--accent);
-}
-
-/* Cards: white, 1px #E5E7EB, as on the portal. */
-.ds [class*="bg-white/[0.0"] {
-  background-color: var(--card);
-}
-/* Table header row: #F3F4F6, as the DataTable spec. */
-.ds thead[class*="bg-white"] {
-  background-color: var(--sunk);
-}
-
+/*
+ * Print (kit label sheets): white page, black text, no shell. The shell's sidebar and topbar
+ * carry print:hidden and <main> drops its padding in print (AdminShell.tsx); this makes sure the
+ * page grey never reaches the paper.
+ */
 @media print {
   .ds {
+    min-height: 0;
     background: #fff;
     color: #000;
   }

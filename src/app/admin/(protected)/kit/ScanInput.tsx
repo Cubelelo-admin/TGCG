@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
+import { Icon } from "@/components/ds";
 
 /**
  * One-line scan field. USB / Bluetooth scanners type the code and press Enter,
@@ -20,6 +21,7 @@ export default function ScanInput({
 }) {
   const ref = useRef<HTMLInputElement>(null);
   const [value, setValue] = useState("");
+  const id = useId();
 
   useEffect(() => {
     if (!disabled) ref.current?.focus();
@@ -36,19 +38,29 @@ export default function ScanInput({
         ref.current?.focus();
       }}
     >
-      <label className="block text-sm text-neutral-400">{label}</label>
-      <input
-        ref={ref}
-        value={value}
-        onChange={(e) => setValue(e.target.value)}
-        disabled={disabled}
-        autoComplete="off"
-        autoCapitalize="characters"
-        spellCheck={false}
-        inputMode="text"
-        placeholder={placeholder}
-        className="mt-1 w-full rounded-lg border border-white/20 bg-white/[0.04] px-4 py-3 font-mono text-lg tracking-wide focus:border-emerald-400 focus:outline-none disabled:opacity-50"
-      />
+      <label htmlFor={id} className="block text-14 font-medium text-ink-secondary">
+        {label}
+      </label>
+      <div className="relative mt-1.5">
+        <Icon
+          name="scan"
+          size={22}
+          className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-ink-muted"
+        />
+        <input
+          id={id}
+          ref={ref}
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          disabled={disabled}
+          autoComplete="off"
+          autoCapitalize="characters"
+          spellCheck={false}
+          inputMode="text"
+          placeholder={placeholder}
+          className="h-12 w-full rounded-6 border border-line bg-white pl-12 pr-4 font-mono text-20 tracking-wide text-ink outline-hidden placeholder:font-sans placeholder:text-16 placeholder:tracking-normal placeholder:text-ink-muted focus:border-accent focus:ring-2 focus:ring-accent-soft disabled:cursor-not-allowed disabled:bg-surface-tertiary disabled:text-ink-muted"
+        />
+      </div>
     </form>
   );
 }
@@ -60,13 +72,16 @@ export function ResultBanner({ banner }: { banner: Banner }) {
   return (
     <div
       role="status"
-      className={`rounded-lg border px-4 py-3 text-base font-semibold ${
-        banner.ok
-          ? "border-emerald-400/40 bg-emerald-500/10 text-emerald-300"
-          : "border-red-400/50 bg-red-500/15 text-red-300"
+      className={`flex items-start gap-3 rounded-12 px-4 py-3 text-16 font-semibold ${
+        banner.ok ? "bg-tint-green text-on-tint-green" : "bg-tint-red text-on-tint-red"
       }`}
     >
-      {banner.text}
+      <Icon
+        name={banner.ok ? "checkCircle" : "xCircle"}
+        size={22}
+        className={`mt-px shrink-0 ${banner.ok ? "" : "text-[#D92D20]"}`}
+      />
+      <span className="min-w-0 break-words">{banner.text}</span>
     </div>
   );
 }

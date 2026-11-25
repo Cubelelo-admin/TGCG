@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { Button, DataTable, EmptyState, Icon, StatusPill, type ColumnDef } from "@/components/ds";
 import { postKit } from "./ScanInput";
 
 export function GenerateBoxesButton({ eventId }: { eventId: string }) {
@@ -21,14 +22,11 @@ export function GenerateBoxesButton({ eventId }: { eventId: string }) {
 
   return (
     <div>
-      <button
-        onClick={run}
-        disabled={busy}
-        className="rounded-lg bg-emerald-500 px-4 py-2 text-sm font-bold text-neutral-950 hover:bg-emerald-400 disabled:opacity-50"
-      >
+      <Button variant="dark" onClick={run} disabled={busy}>
+        <Icon name="box" size={16} />
         {busy ? "Generating..." : "Generate boxes"}
-      </button>
-      {msg && <p className="mt-2 text-sm text-neutral-300">{msg}</p>}
+      </Button>
+      {msg && <p className="mt-2 max-w-[320px] text-14 text-ink-secondary">{msg}</p>}
     </div>
   );
 }
@@ -69,18 +67,21 @@ export function ResetBoxesButton({
 
   return (
     <div>
-      <button
-        onClick={run}
-        disabled={busy}
-        className={
-          pocName
-            ? "text-xs underline decoration-white/30 hover:decoration-white disabled:opacity-50"
-            : "rounded-lg border border-white/20 px-4 py-2 text-sm font-semibold hover:bg-white/10 disabled:opacity-50"
-        }
-      >
+      <Button size={pocName ? "sm" : "md"} onClick={run} disabled={busy}>
+        <Icon name="undo" size={pocName ? 14 : 16} />
         {busy ? "Resetting..." : label}
-      </button>
-      {msg && <p className={pocName ? "text-xs text-amber-400" : "mt-2 text-sm text-neutral-300"}>{msg}</p>}
+      </Button>
+      {msg && (
+        <p
+          className={
+            pocName
+              ? "mt-1 w-fit rounded-4 bg-tint-orange px-1.5 py-1 text-12 font-medium text-on-tint-orange"
+              : "mt-2 max-w-[320px] text-14 text-ink-secondary"
+          }
+        >
+          {msg}
+        </p>
+      )}
     </div>
   );
 }
@@ -118,21 +119,68 @@ export function ChannelToggle({
 
   return (
     <div className="flex flex-wrap items-center gap-3">
-      <span
-        className={`rounded-full px-2 py-0.5 text-xs font-semibold ${
-          isCorporate ? "bg-sky-500/20 text-sky-300" : "bg-white/10 text-neutral-300"
-        }`}
-      >
+      <StatusPill tone={isCorporate ? "info" : "pending"}>
         {isCorporate ? `Corporate (${corporate}/${total})` : "Expo"}
-      </span>
-      <button
-        onClick={toggle}
-        disabled={busy}
-        className="text-xs underline decoration-white/30 hover:decoration-white disabled:opacity-50"
-      >
+      </StatusPill>
+      <Button size="sm" onClick={toggle} disabled={busy}>
+        <Icon name="swap" size={14} />
         {isCorporate ? "Move to expo" : "Make corporate (day 0)"}
-      </button>
-      {msg && <span className="text-xs text-amber-300">{msg}</span>}
+      </Button>
+      {msg && (
+        <span className="rounded-4 bg-tint-orange px-1.5 py-1 text-12 font-medium text-on-tint-orange">{msg}</span>
+      )}
     </div>
+  );
+}
+
+type PocRow = { poc_name: string; paid_count: number; corporate_count: number; boxed_count: number };
+
+/** POC summary table: paid / boxed counts with the channel toggle and per-group reset. */
+export function PocTable({ eventId, pocs }: { eventId: string; pocs: PocRow[] }) {
+  const columns: ColumnDef<PocRow>[] = [
+    {
+      key: "poc",
+      header: "POC / group",
+      render: (p) => <span className="font-medium">{p.poc_name}</span>,
+    },
+    {
+      key: "paid",
+      header: "Paid",
+      align: "right",
+      width: 90,
+      render: (p) => <span className="tabular-nums">{Number(p.paid_count)}</span>,
+    },
+    {
+      key: "boxed",
+      header: "Boxed",
+      align: "right",
+      width: 90,
+      render: (p) => <span className="tabular-nums">{Number(p.boxed_count)}</span>,
+    },
+    {
+      key: "channel",
+      header: "Channel",
+      render: (p) => (
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+          <ChannelToggle
+            eventId={eventId}
+            pocName={p.poc_name}
+            corporate={Number(p.corporate_count)}
+            total={Number(p.paid_count)}
+          />
+          {Number(p.boxed_count) > 0 && <ResetBoxesButton eventId={eventId} pocName={p.poc_name} label="Reset boxes" />}
+        </div>
+      ),
+    },
+  ];
+
+  return (
+    <DataTable
+      columns={columns}
+      rows={pocs}
+      rowKey={(p) => p.poc_name}
+      minWidth={640}
+      empty={<EmptyState title="No POC groups for this event" />}
+    />
   );
 }
