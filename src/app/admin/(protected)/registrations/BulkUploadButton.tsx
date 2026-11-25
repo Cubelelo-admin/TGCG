@@ -352,7 +352,7 @@ export default function BulkUploadButton({
                 </Button>
               </form>
 
-              <div className="max-h-[55vh] overflow-auto rounded-8 border border-line">
+              <div className="relative max-h-[55vh] overflow-auto rounded-8 border border-line">
                 <table className="w-full min-w-[1620px] border-collapse text-12">
                   <thead className="sticky top-0 z-10">
                     <tr>

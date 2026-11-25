@@ -370,7 +370,7 @@ function NewOrderCard({
               </Button>
             )}
           </div>
-          <ul className="max-h-[320px] divide-y divide-line-secondary overflow-y-auto">
+          <ul className="relative max-h-[320px] divide-y divide-line-secondary overflow-y-auto">
             {lookup.group.map((r) => (
               <RunnerRow
                 key={r.registrationId}

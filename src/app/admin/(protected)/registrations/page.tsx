@@ -229,7 +229,7 @@ export default async function AdminRegistrationsPage({
         </Button>
       </form>
 
-      <div className="max-h-[75vh] overflow-auto rounded-8 border border-line">
+      <div className="relative max-h-[75vh] overflow-auto rounded-8 border border-line">
         <table className="w-full border-collapse text-12" style={{ minWidth: 1100 }}>
           <thead className="sticky top-0 z-[2]">
             <tr>

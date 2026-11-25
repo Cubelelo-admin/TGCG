@@ -209,7 +209,7 @@ export default function HandoverStation({ eventId }: { eventId: string }) {
                     style={{ width: `${pct}%` }}
                   />
                 </div>
-                <ul className="mt-4 max-h-56 divide-y divide-line-secondary overflow-y-auto rounded-8 border border-line">
+                <ul className="relative mt-4 max-h-56 divide-y divide-line-secondary overflow-y-auto rounded-8 border border-line">
                   {selected.boxes.map((b) => {
                     const isOut = scanned.includes(b.code);
                     return (

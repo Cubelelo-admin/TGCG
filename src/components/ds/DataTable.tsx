@@ -89,7 +89,7 @@ export function DataTable<T>({
 
   // Header row: a 1px #E5E7EB inset line under #F3F4F6; row separators only, no column lines.
   return (
-    <div className="overflow-auto rounded-8 border border-line" style={maxHeight ? { maxHeight } : undefined}>
+    <div className="relative overflow-auto rounded-8 border border-line" style={maxHeight ? { maxHeight } : undefined}>
       <table className="w-full border-collapse text-12" style={{ minWidth }}>
         <thead>
           <tr>
