@@ -642,3 +642,88 @@ export async function loadFloorBoard(eventId: string): Promise<FloorBoard> {
     },
   };
 }
+
+/* ---------------------------------------------------------------- labels */
+
+/**
+ * The BIB file a BIB lives in. MUST match kit_bib_bin (0030): files of 100 numbers per
+ * distance prefix, e.g. prefix "42", BIB 42137 → BF-42101-42200. Non-numeric BIBs and
+ * categories without a prefix go to BF-MISC.
+ */
+export function bibBinCode(prefix: string | null, bib: string | null): string {
+  if (!bib || bib === "SUPERHERO" || !prefix || !/^\d+$/.test(bib)) return "BF-MISC";
+  const digits = 5 - prefix.length;
+  const seq = parseInt(bib.slice(prefix.length), 10);
+  const file = Math.floor((seq - 1) / 100);
+  const pad = (n: number) => String(n).padStart(digits, "0");
+  return `BF-${prefix}${pad(file * 100 + 1)}-${prefix}${pad((file + 1) * 100)}`;
+}
+
+export interface BibFileLabel {
+  code: string;
+  category: string | null;
+  /** Expo runners whose BIB is in this file (corporate BIBs travel in group boxes). */
+  count: number;
+}
+
+/** One label per BIB file that holds at least one paid expo (non-corporate) runner's BIB. */
+export async function loadBibFileLabels(eventId: string): Promise<BibFileLabel[]> {
+  const supabase = createServiceClient();
+  type Row = { bib_number: string | null; ticket_categories: { name: string; bib_prefix: string | null } | null };
+  const rows: Row[] = [];
+  // Paged: the runner list is over PostgREST's 1000-row cap.
+  for (let from = 0; ; from += 1000) {
+    const { data, error } = await supabase
+      .from("registrations")
+      .select("bib_number, ticket_categories(name, bib_prefix)")
+      .eq("event_id", eventId)
+      .eq("payment_status", "paid")
+      .not("bib_number", "is", null)
+      .or("kit_channel.is.null,kit_channel.neq.corporate")
+      .order("id")
+      .range(from, from + 999);
+    if (error) console.error("loadBibFileLabels failed", error);
+    rows.push(...((data ?? []) as unknown as Row[]));
+    if (!data || data.length < 1000) break;
+  }
+
+  const files = new Map<string, BibFileLabel & { names: Set<string> }>();
+  for (const r of rows) {
+    if (r.bib_number === "SUPERHERO") continue; // child runners get no BIB line
+    const code = bibBinCode(r.ticket_categories?.bib_prefix ?? null, r.bib_number);
+    const f = files.get(code) ?? { code, category: null, count: 0, names: new Set<string>() };
+    f.count += 1;
+    if (r.ticket_categories?.name) f.names.add(r.ticket_categories.name);
+    files.set(code, f);
+  }
+  // Categories can share a prefix (competitive / non-competitive of one distance), so one file
+  // can hold both: name the words they share ("21 KM Half Marathon"), not whichever came first.
+  for (const f of files.values()) {
+    const names = [...f.names];
+    if (f.code === "BF-MISC" || names.length === 0) continue;
+    const words = names.map((n) => n.split(/\s+/));
+    const shared: string[] = [];
+    for (let i = 0; words.every((w) => i < w.length && w[i] === words[0][i]); i++) shared.push(words[0][i]);
+    const common = shared.join(" ").replace(/[\s-]+$/, "");
+    f.category = names.length === 1 ? names[0] : common || `${names.length} categories`;
+  }
+  // BF-MISC last; the rest in code order (prefix, then range).
+  return [...files.values()].map((f): BibFileLabel => ({ code: f.code, category: f.category, count: f.count })).sort((a, b) =>
+    a.code === "BF-MISC" ? 1 : b.code === "BF-MISC" ? -1 : a.code.localeCompare(b.code, "en", { numeric: true })
+  );
+}
+
+export interface CrateLabel {
+  label: string;
+  station: string;
+  size: "small" | "large";
+}
+
+export async function loadCrateLabels(eventId: string): Promise<CrateLabel[]> {
+  const { data, error } = await createServiceClient()
+    .from("kit_pigeonholes")
+    .select("label, station, size")
+    .eq("event_id", eventId);
+  if (error) console.error("loadCrateLabels failed", error);
+  return ((data ?? []) as CrateLabel[]).sort((a, b) => a.label.localeCompare(b.label, "en", { numeric: true }));
+}
