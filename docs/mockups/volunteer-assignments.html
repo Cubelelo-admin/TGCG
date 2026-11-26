@@ -1,0 +1,789 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Volunteer assignments mockup</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Work+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink: #111927; --ink2: #384250; --ink3: #4d5761; --muted: #6c737f; --dis: #9da4ae;
+    --line: #d2d6db; --line2: #e5e7eb; --surf3: #f3f4f6; --page: #f8f9fc; --dark: #0d121c;
+    --tg: #dcfae6; --otg: #074d31; --tb: #d1e9ff; --otb: #194185; --to: #fdead7; --oto: #772917;
+    --tr: #fee4e2; --otr: #7a271a; --green: #079455; --blue: #1570ef; --new: #f79009;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: 'Work Sans', system-ui, sans-serif; color: var(--ink); background: #eceef2; font-size: 14px; line-height: 20px; }
+  .wrap { max-width: 1480px; margin: 0 auto; padding: 20px 16px 48px; }
+  h1 { font-size: 22px; line-height: 28px; margin: 0 0 4px; }
+  .lead { color: var(--ink3); margin: 0 0 6px; max-width: 980px; }
+  .legend { display: flex; flex-wrap: wrap; gap: 14px; align-items: center; color: var(--ink3); font-size: 13px; margin: 0 0 18px; }
+  .legend .sw { display: inline-block; width: 22px; height: 14px; border: 2px dashed var(--new); border-radius: 4px; vertical-align: -2px; margin-right: 6px; }
+  .layout { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 28px; align-items: start; }
+  @media (max-width: 1180px) { .layout { grid-template-columns: 1fr; } }
+  /* The phone sits beside its controls and stays in view while you scroll the table; fitPhone() shrinks it to the window height. */
+  .devcol { display: flex; gap: 14px; align-items: flex-start; }
+  .devcol .controls { width: 230px; flex: none; margin-bottom: 0; }
+  @media (min-width: 1181px) { .side { position: sticky; top: 12px; } }
+  @media (max-width: 760px) { .devcol { flex-direction: column; } .devcol .controls { width: 100%; } }
+  .plabel { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); margin: 0 0 8px; }
+  .card { background: #fff; border: 1px solid var(--line2); border-radius: 12px; padding: 16px; }
+  .card h2 { font-size: 16px; line-height: 22px; margin: 0 0 6px; }
+  .desc { color: var(--ink3); margin: 0 0 14px; }
+  table { width: 100%; border-collapse: collapse; }
+  th { font-size: 12px; font-weight: 500; color: var(--muted); text-align: left; padding: 8px; border-bottom: 1px solid var(--line2); white-space: nowrap; }
+  td { padding: 10px 8px; border-bottom: 1px solid var(--line2); vertical-align: middle; }
+  tr.viewing td { background: #f2f6ff; }
+  tr.viewing td:first-child { box-shadow: inset 3px 0 0 var(--blue); }
+  .pill { display: inline-flex; align-items: center; gap: 4px; border-radius: 999px; padding: 2px 10px; font-size: 12px; font-weight: 500; line-height: 18px; white-space: nowrap; }
+  .p-info { background: var(--tb); color: var(--otb); } .p-warn { background: var(--to); color: var(--oto); }
+  .p-green { background: var(--tg); color: var(--otg); } .p-grey { background: var(--surf3); color: var(--ink2); }
+  .p-red { background: var(--tr); color: var(--otr); }
+  select, input[type=email] { font: inherit; border: 1px solid var(--line); border-radius: 8px; padding: 0 10px; background: #fff; color: var(--ink); height: 36px; }
+  input[type=email] { width: 100%; }
+  .chips { display: inline-flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+  .chip { font: inherit; font-size: 13px; border: 1px solid var(--line); background: #fff; color: var(--ink2); border-radius: 999px; padding: 3px 12px; cursor: pointer; }
+  .chip.on { background: var(--dark); border-color: var(--dark); color: #fff; }
+  .chip.on::before { content: "✓ "; }
+  .btn { font: inherit; font-weight: 500; border: 1px solid var(--line); background: #fff; color: var(--ink); border-radius: 8px; padding: 0 14px; height: 36px; cursor: pointer; white-space: nowrap; }
+  .btn:disabled { opacity: .45; cursor: not-allowed; }
+  .btn.dark { background: var(--dark); border-color: var(--dark); color: #fff; }
+  .btn.green { background: var(--green); border-color: var(--green); color: #fff; }
+  .btn.red { background: #d92d20; border-color: #d92d20; color: #fff; }
+  .btn.sm { height: 30px; padding: 0 10px; font-size: 13px; }
+  .btn.big { height: 48px; padding: 0 22px; font-size: 16px; }
+  .btn.xl { height: 56px; font-size: 18px; }
+  .btn.full { width: 100%; }
+  .linkbtn { background: none; border: 0; color: var(--blue); font: inherit; font-size: 13px; cursor: pointer; padding: 0; white-space: nowrap; }
+  .new { outline: 2px dashed var(--new); outline-offset: 3px; border-radius: 8px; }
+  .newtag { display: inline-block; font-size: 10px; font-weight: 700; letter-spacing: .04em; color: #b54708; background: #fef0c7; border-radius: 4px; padding: 0 5px; margin-left: 6px; vertical-align: 1px; }
+  .addform { display: grid; grid-template-columns: minmax(0, 1fr) 140px auto auto; gap: 10px; align-items: end; margin-bottom: 14px; }
+  @media (max-width: 760px) { .addform { grid-template-columns: 1fr; } }
+  .flabel { display: block; font-size: 12px; font-weight: 500; color: var(--ink3); margin-bottom: 4px; }
+  .controls { background: #fff; border: 1px solid var(--line2); border-radius: 12px; padding: 12px; margin-bottom: 14px; display: flex; flex-direction: column; gap: 10px; }
+  .seg { display: inline-flex; flex-wrap: wrap; background: var(--surf3); border-radius: 10px; padding: 3px; gap: 2px; }
+  .seg button { font: inherit; font-size: 13px; border: 0; background: none; padding: 5px 10px; border-radius: 8px; cursor: pointer; color: var(--ink3); }
+  .seg button.on { background: #fff; color: var(--ink); font-weight: 600; box-shadow: 0 1px 2px rgba(0,0,0,.1); }
+  .seg button:disabled { opacity: .4; cursor: not-allowed; }
+  .device { border: 10px solid #1d1d1f; border-radius: 32px; overflow: hidden; background: var(--page); box-shadow: 0 12px 32px rgba(0,0,0,.2); width: 390px; min-height: 760px; }
+  .device.tablet { width: 580px; border-radius: 22px; }
+  @media (max-width: 640px) { .device, .device.tablet { width: 100%; } }
+  .vhead { background: var(--dark); color: #fff; display: flex; align-items: center; gap: 10px; padding: 10px 12px; }
+  .vlogo { width: 32px; height: 32px; border-radius: 8px; background: linear-gradient(135deg, #f04438, #f79009); flex: none; }
+  .vtitle { font-size: 16px; font-weight: 600; line-height: 20px; }
+  .vsub { font-size: 12px; color: rgba(255,255,255,.6); }
+  .avatar { margin-left: auto; width: 36px; height: 36px; border-radius: 50%; background: rgba(255,255,255,.15); display: flex; align-items: center; justify-content: center; font-weight: 600; flex: none; }
+  .previewbar { background: var(--dark); padding: 0 12px 10px; }
+  .previewbar .seg { background: rgba(255,255,255,.12); }
+  .previewbar .seg button { color: rgba(255,255,255,.75); }
+  .previewbar .seg button.on { background: #fff; color: var(--ink); }
+  .vbody { padding: 14px 12px 28px; display: flex; flex-direction: column; gap: 14px; }
+  .hint { color: var(--ink3); margin: 0; }
+  /* Alerts: icon + bold title (what happened) + one line (what to do now). Colour says how bad: red error, amber warning, blue info, green done. */
+  .banner { border-radius: 10px; padding: 11px 12px 11px 12px; display: flex; gap: 10px; align-items: flex-start; border-left: 5px solid transparent; font-size: 15px; line-height: 21px; }
+  .banner .ic { flex: none; width: 22px; height: 22px; margin-top: 0; }
+  .banner .bt { display: block; font-weight: 700; font-size: 16px; line-height: 22px; }
+  .banner .bb { display: block; color: var(--ink); margin-top: 2px; }
+  .banner .msg { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+  .banner.info { background: #eff8ff; border-left-color: var(--blue); color: var(--otb); }
+  .banner.info .ic { color: var(--blue); }
+  .banner.warn { background: #fffaeb; border: 1px solid #fedf89; border-left: 5px solid #f79009; color: #93370d; }
+  .banner.warn .ic { color: #dc6803; }
+  .banner.err { background: var(--tr); border: 1px solid #fda29b; border-left: 5px solid #d92d20; color: var(--otr); }
+  .banner.err .ic { color: #d92d20; }
+  .banner.err .bt { font-size: 18px; line-height: 24px; }
+  .banner.ok { background: var(--tg); border-left-color: var(--green); color: var(--otg); }
+  .banner.ok .ic { color: var(--green); }
+  .banner .x { margin-left: auto; background: none; border: 0; color: inherit; cursor: pointer; font-size: 22px; line-height: 22px; padding: 0 2px; }
+  .fbslot { padding: 8px 12px; background: #fff; border-bottom: 1px solid var(--line2); }
+  .k { font-size: 12px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); margin: 0 0 6px; }
+  .row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .between { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  .t18 { font-size: 18px; font-weight: 600; line-height: 24px; }
+  .t28 { font-size: 28px; font-weight: 700; line-height: 34px; }
+  .mono { font-family: ui-monospace, Menlo, Consolas, monospace; }
+  .sep { border-top: 1px solid var(--line2); margin-top: 14px; padding-top: 12px; }
+  .scan { border: 1px solid var(--line); border-radius: 8px; padding: 0 12px; height: 44px; display: flex; align-items: center; color: var(--muted); background: #fff; }
+  .ready { display: flex; align-items: center; gap: 12px; border: 1px solid #abefc6; background: var(--tg); border-radius: 8px; padding: 10px 12px; }
+  .small { font-size: 12px; line-height: 16px; color: var(--muted); }
+  .empty { text-align: center; padding: 34px 12px; color: var(--ink3); }
+  .empty .t18 { margin-bottom: 4px; color: var(--ink); }
+  .stack { display: flex; flex-direction: column; gap: 8px; }
+  .notes { margin-top: 18px; }
+  .notes ol { margin: 0; padding-left: 20px; }
+  .notes li { margin-bottom: 8px; color: var(--ink2); }
+  .notes li b { color: var(--ink); }
+  .device { position: relative; }
+  .t32 { font-size: 32px; font-weight: 600; line-height: 38px; }
+  .t24 { font-size: 24px; font-weight: 600; line-height: 30px; }
+  .t20 { font-size: 20px; font-weight: 600; line-height: 26px; }
+  .offer { border: 2px solid #f7b27a; background: var(--to); border-radius: 12px; padding: 18px; }
+  .offerbtns { display: grid; grid-template-columns: 2fr 1fr; gap: 8px; margin-top: 18px; }
+  .scanrow { display: flex; gap: 8px; margin-top: 6px; }
+  .scanbox { position: relative; flex: 1; min-width: 0; }
+  .scanbox input { width: 100%; height: 48px; border: 1px solid var(--line); border-radius: 6px; padding: 0 14px 0 46px; font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 20px; letter-spacing: .03em; text-transform: uppercase; color: var(--ink); background: #fff; }
+  .scanbox input::placeholder { font-family: 'Work Sans', sans-serif; font-size: 16px; letter-spacing: 0; text-transform: none; color: var(--muted); }
+  .scanicon { position: absolute; left: 13px; top: 50%; transform: translateY(-50%); color: var(--muted); display: flex; }
+  .qr { width: 48px; height: 48px; flex: none; border-radius: 6px; border: 1px solid var(--dark); background: var(--dark); color: #fff; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+  .cam { position: absolute; inset: 0; z-index: 5; display: flex; flex-direction: column; gap: 14px; background: radial-gradient(circle at 50% 38%, #4a505a, #0b0d10 72%); color: #fff; padding-bottom: 18px; }
+  .camtop { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 14px; background: rgba(0,0,0,.55); font-weight: 600; }
+  .camx { background: rgba(255,255,255,.18); color: #fff; border: 0; border-radius: 8px; padding: 6px 12px; font: inherit; cursor: pointer; }
+  .vf { margin: auto; width: 230px; height: 230px; border: 3px solid rgba(255,255,255,.9); border-radius: 18px; position: relative; flex: none; }
+  .vf::after { content: ""; position: absolute; left: 12px; right: 12px; top: 50%; height: 2px; background: #f04438; box-shadow: 0 0 8px #f04438; }
+  .cam { overflow-y: auto; }
+  /* Task screen while picking (a 390 × 844 phone): live scanner on top (over half the screen), manual entry under it,
+     then one step at a time, then a progress bar pinned to the bottom. */
+  .device.picking { height: 844px; display: flex; flex-direction: column; }
+  .device.picking .top { flex: none; }
+  .device.picking .top.new, .progress.new { outline-offset: -3px; border-radius: 0; }
+  .livecam { position: relative; height: 390px; background: radial-gradient(circle at 50% 45%, #4a505a, #0b0d10 75%); color: #fff; display: flex; flex-direction: column; }
+  .camstep { display: flex; align-items: flex-start; gap: 10px; background: rgba(0,0,0,.6); padding: 10px 12px; font-weight: 600; font-size: 16px; line-height: 21px; }
+  .camstep span { flex: 1; min-width: 0; }
+  .livecam .vf { width: 190px; height: 190px; margin: 20px auto 0; }
+  .camfb { position: absolute; left: 10px; right: 10px; bottom: 10px; }
+  .camfb .banner { box-shadow: 0 6px 18px rgba(0,0,0,.4); }
+  .camtoggle { flex: none; background: rgba(255,255,255,.18); color: #fff; border: 0; border-radius: 8px; padding: 3px 10px; font: inherit; font-size: 12px; font-weight: 500; cursor: pointer; }
+  .stepcard { background: #fff; border: 2px solid var(--dark); border-radius: 12px; padding: 14px 16px; }
+  .sverb { font-size: 15px; font-weight: 600; color: var(--ink3); }
+  .sbig { font-size: 30px; line-height: 36px; font-weight: 700; }
+  .sfrom { font-size: 17px; margin-top: 2px; color: var(--ink2); }
+  .sfrom .mono { font-size: 22px; font-weight: 700; color: var(--ink); }
+  .sthen { margin: 8px 0 0; font-size: 15px; color: var(--ink2); }
+  .acts { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .acts .btn { height: 44px; }
+  .acts .btn[data-act=binempty] { color: #b42318; }
+  .progress { flex: none; padding: 10px 12px 14px; background: #fff; border-top: 1px solid var(--line2); font-size: 13px; line-height: 18px; color: var(--ink3); }
+  .progress b { color: var(--ink); }
+  .pbar { height: 10px; background: var(--surf3); border-radius: 999px; overflow: hidden; margin-top: 8px; }
+  .pbar span { display: block; height: 100%; background: var(--green); border-radius: 999px; transition: width .3s; }
+  .camoff { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 12px; background: var(--surf3); color: var(--ink3); font-weight: 500; }
+  .manual { display: flex; gap: 8px; padding: 10px 12px; background: #fff; border-bottom: 1px solid var(--line2); margin: 0; }
+  .manual input { flex: 1; min-width: 0; height: 44px; border: 1px solid var(--line); border-radius: 6px; padding: 0 12px; font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 18px; text-transform: uppercase; color: var(--ink); }
+  .manual input::placeholder { font-family: 'Work Sans', sans-serif; font-size: 14px; text-transform: none; color: var(--muted); }
+  .manual .btn { height: 44px; }
+  .drop { background: var(--tg); border-radius: 12px; padding: 14px 16px; text-align: center; color: var(--ink); }
+  .dropok { font-size: 12px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--otg); }
+  .dropcode { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 56px; line-height: 62px; font-weight: 700; color: var(--otg); margin: 4px 0 8px; }
+  .drop p { margin: 0; color: var(--ink2); }
+  .taskpane { flex: 1; min-height: 0; overflow-y: auto; padding: 12px; display: flex; flex-direction: column; gap: 12px; }
+  .taskpane > * { flex: none; }
+  .camsim { border: 2px dashed rgba(255,255,255,.45); background: rgba(255,255,255,.06); color: #fff; margin: 0 14px; border-radius: 12px; padding: 10px 12px; }
+  .camsim p { margin: 0 0 8px; font-size: 12px; color: rgba(255,255,255,.75); }
+  .flash { animation: flash 1.2s ease-out; }
+  @keyframes flash { from { box-shadow: 0 0 0 4px rgba(21,112,239,.55); } to { box-shadow: 0 0 0 4px rgba(21,112,239,0); } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="layout">
+    <div>
+      <h1>Assigned desks and picker items: interactive mockup</h1>
+      <p class="lead">The admin assigns each desk volunteer a desk and each picker their items in Configuration → Volunteers. Volunteers can't change these on their own screens; pickers keep Start / Pause. Change an assignment in the table and the phone on the right shows what that volunteer would see. In the real app, the phone updates within about 10 seconds. <b>The phone opens mid-task, on the new picking screen:</b> tap the "Camera sees" buttons next to it to scan, and watch each step replace the last.</p>
+      <div class="legend"><span><span class="sw"></span>New or changed</span><span>Example emails and placeholder runners only: nothing here touches the database.</span></div>
+      <p class="plabel">Admin · Configuration → Volunteers</p>
+      <div class="card" id="config"></div>
+      <div class="card notes">
+        <h2>Decisions this mockup makes (tell me if any are wrong)</h2>
+        <ol>
+          <li><b>A picker with no items can't Start.</b> They see "No items assigned yet" until the admin assigns some. (The alternative: an unassigned picker picks everything.)</li>
+          <li><b>Changes reach the phone by themselves.</b> A blue note says what changed. A task already on the picker's screen carries on; the new items apply from the next offer.</li>
+          <li><b>The 90 s overflow stays.</b> A task for an item the picker wasn't given says "Not one of your items · waiting over 90 s", so they know why.</li>
+          <li><b>A desk volunteer with no desk gets no scan box,</b> only "No desk assigned yet".</li>
+          <li><b>Two desk logins can share one desk</b> (e.g. two laptops at D1); both see D1's orders.</li>
+          <li><b>Admins previewing /v keep the desk switcher and the item ticks,</b> because admins aren't assigned and need them for testing.</li>
+          <li><b>Accept splits the task screen.</b> Top, the larger part (over half the screen): the live scanner, with what to scan now written across it, and a box right under it to type a code when the camera can't read. Below: the current step, then a progress bar pinned to the bottom ("Step 2 of 3", items picked, order → pigeonhole). The Start / Pause card is hidden while picking (Pause is greyed out during a task anyway). "Camera off" folds the scanner away and leaves the box; if the phone blocks the camera, it starts that way. After the pigeonhole scan it goes back to the normal screen.</li>
+          <li><b>One instruction at a time.</b> The bottom half shows only the current step in large type ("Take 1 × size M from bin TS-M, then scan the bin label"), with Bin is empty and Give task back under it. When a scan finishes the step, the next one replaces it. Steps: T-shirts and packs, one per bin; BIBs, open the bin, then one per BIB; last, the pigeonhole. A scan for a later step still counts; the screen then skips that step.</li>
+          <li><b>Scanning picks; there is no Picked button.</b> T-shirts and packs: take them, then scan the bin label, and that bin's items are picked. BIBs: scan the bin label, then each BIB scan picks that BIB.</li>
+          <li><b>The last step is the pigeonhole.</b> When everything is picked, the step reads "Drop everything in pigeonhole S-04" in large type; scanning (or typing) that pigeonhole's label finishes the task, and a wrong one is refused.</li>
+          <li><b>Alerts say what happened, then what to do now.</b> A bold title and one line under it, with an icon. Red for a wrong scan (bin, BIB, pigeonhole), amber for a warning (no items, not your item, bin empty, taken off your desk), blue for information, green for done. While picking, scan results show over the bottom of the camera, where the picker is looking, not further down the screen. Amber is kept for warnings: ordinary "to do" labels are grey.</li>
+        </ol>
+      </div>
+    </div>
+    <div class="side">
+      <p class="plabel">Volunteer app (/v)</p>
+      <div class="devcol"><div class="controls" id="controls"></div><div id="device"></div></div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  const KIND = { bib: 'BIB', tshirt: 'T-shirt', pack: 'Pack' };
+  const KINDS = ['bib', 'tshirt', 'pack'];
+  const DESKS = ['D1', 'D2', 'D3'];
+  const ROLE = { desk: 'Desk', picker: 'Picker', handover: 'Handover', restock: 'Restock' };
+  const ROLE_TONE = { desk: 'p-info', picker: 'p-warn', handover: 'p-green', restock: 'p-grey' };
+  const BINS = { bib: ['BIB-2101–2150'], tshirt: ['TS-M', 'TS-L'], pack: ['PACK'] };
+
+  const S = {
+    vols: [
+      { email: 'desk.one@example.com', role: 'desk', desk: 'D1' },
+      { email: 'desk.two@example.com', role: 'desk', desk: null },
+      { email: 'picker.one@example.com', role: 'picker', items: ['tshirt'] },
+      { email: 'picker.two@example.com', role: 'picker', items: ['bib', 'pack'] },
+      { email: 'picker.three@example.com', role: 'picker', items: [] },
+      { email: 'restock.one@example.com', role: 'restock' },
+    ],
+    view: 'picker.one@example.com',
+    // Opens mid-task on the new picking screen; "Picker state" shows the others.
+    pcase: { 'picker.one@example.com': 'picking' }, dcase: {}, notice: {},
+    adminDesk: 'D1', adminItems: ['bib', 'tshirt', 'pack'],
+    add: { email: '', role: 'picker', desk: '', items: [] },
+    flash: false,
+    pick: {}, fb: {}, camera: null, camOff: {},
+  };
+
+  const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const vol = (email) => S.vols.find((v) => v.email === email);
+  const list = (items) => items.map((k) => KIND[k]).join(' · ');
+  const viewable = () => S.vols.filter((v) => v.role === 'desk' || v.role === 'picker');
+
+  function assignCell(v) {
+    if (v.role === 'desk') {
+      return `<select data-act="desk" data-email="${esc(v.email)}" aria-label="Desk for ${esc(v.email)}">
+        <option value="" ${!v.desk ? 'selected' : ''}>Not assigned</option>
+        ${DESKS.map((d) => `<option value="${d}" ${v.desk === d ? 'selected' : ''}>Desk ${d}</option>`).join('')}
+      </select>`;
+    }
+    if (v.role === 'picker') {
+      return `<span class="chips">${KINDS.map((k) => `<button type="button" class="chip ${v.items.includes(k) ? 'on' : ''}" data-act="chip" data-email="${esc(v.email)}" data-kind="${k}">${KIND[k]}</button>`).join('')}
+        ${v.items.length === 0 ? '<span class="pill p-warn">Not assigned</span>' : ''}</span>`;
+    }
+    return '<span class="small">Not needed</span>';
+  }
+
+  function renderConfig() {
+    const a = S.add;
+    const addAssign = a.role === 'desk'
+      ? `<div><label class="flabel">Desk</label><select data-act="adddesk"><option value="" ${!a.desk ? 'selected' : ''}>Not assigned</option>${DESKS.map((d) => `<option value="${d}" ${a.desk === d ? 'selected' : ''}>Desk ${d}</option>`).join('')}</select></div>`
+      : a.role === 'picker'
+        ? `<div><label class="flabel">Items</label><span class="chips" style="height:36px">${KINDS.map((k) => `<button type="button" class="chip ${a.items.includes(k) ? 'on' : ''}" data-act="addchip" data-kind="${k}">${KIND[k]}</button>`).join('')}</span></div>`
+        : '<div></div>';
+    document.getElementById('config').innerHTML = `
+      <h2>Volunteers</h2>
+      <p class="desc">Volunteers open <b>/v</b> on their phone and see the screen for their role. Desk volunteers work at the desk you assign; pickers get tasks for the items you assign, plus anything waiting over 90 s.</p>
+      <form class="addform new" data-act="addform" onsubmit="return false">
+        <div><label class="flabel">Google email</label><input type="email" data-act="addemail" placeholder="volunteer@gmail.com" value="${esc(a.email)}"></div>
+        <div><label class="flabel">Role</label><select data-act="addrole">${Object.keys(ROLE).map((r) => `<option value="${r}" ${a.role === r ? 'selected' : ''}>${ROLE[r]}</option>`).join('')}</select></div>
+        ${addAssign}
+        <button type="button" class="btn dark" data-act="add">Add volunteer</button>
+      </form>
+      <table>
+        <thead><tr><th>Google email</th><th>Role</th><th><span class="new" style="padding:2px 4px">Desk or items</span><span class="newtag">NEW</span></th><th></th></tr></thead>
+        <tbody>${S.vols.map((v) => `
+          <tr class="${S.view === v.email ? 'viewing' : ''}">
+            <td style="overflow-wrap:anywhere">${esc(v.email)}
+              ${v.role === 'desk' || v.role === 'picker' ? `<br><button type="button" class="linkbtn" data-act="view" data-email="${esc(v.email)}">${S.view === v.email ? 'On screen →' : 'View screen'}</button>` : ''}</td>
+            <td><span class="pill ${ROLE_TONE[v.role]}">${ROLE[v.role]}</span></td>
+            <td>${assignCell(v)}</td>
+            <td style="text-align:right"><div class="row" style="justify-content:flex-end;flex-wrap:nowrap">
+              <select data-act="role" data-email="${esc(v.email)}" aria-label="Role">${Object.keys(ROLE).map((r) => `<option value="${r}" ${v.role === r ? 'selected' : ''}>${ROLE[r]}</option>`).join('')}</select>
+              <button type="button" class="btn sm red" data-act="remove" data-email="${esc(v.email)}">Remove</button>
+            </div></td>
+          </tr>`).join('')}</tbody>
+      </table>`;
+  }
+
+  function currentRole() {
+    if (S.view === 'admin:desk') return 'desk';
+    if (S.view === 'admin:picker') return 'picker';
+    const v = vol(S.view);
+    return v ? v.role : null;
+  }
+
+  function renderControls() {
+    const role = currentRole();
+    const opts = viewable().map((v) => `<option value="${esc(v.email)}" ${S.view === v.email ? 'selected' : ''}>${esc(v.email)} (${ROLE[v.role]})</option>`).join('')
+      + `<option value="admin:desk" ${S.view === 'admin:desk' ? 'selected' : ''}>Admin previewing the desk</option>`
+      + `<option value="admin:picker" ${S.view === 'admin:picker' ? 'selected' : ''}>Admin previewing the picker</option>`;
+    let cases = '';
+    if (role === 'picker') {
+      const items = S.view === 'admin:picker' ? S.adminItems : vol(S.view).items;
+      const assigned = items.length > 0;
+      const c = S.pcase[S.view] || 'paused';
+      const allMine = items.length === KINDS.length;
+      const btn = (id, label, dis, title) => `<button type="button" data-act="pcase" data-v="${id}" class="${c === id ? 'on' : ''}" ${dis ? 'disabled' : ''} ${title ? `title="${title}"` : ''}>${label}</button>`;
+      cases = `<div><span class="flabel">Picker state</span><span class="seg">
+        ${btn('paused', 'Paused')}${btn('waiting', 'Waiting', !assigned)}${btn('offer', 'Offer', !assigned)}
+        ${btn('overflow', 'Offer: not their item', !assigned || allMine, allMine ? 'This picker has every item, so there is no overflow case' : '')}${btn('picking', 'Picking', !assigned)}
+      </span>${assigned ? '' : '<p class="small" style="margin:6px 0 0">No items assigned: the picker can only be paused.</p>'}</div>`;
+      // Mockup only: stand-ins for what the picker's camera sees, kept off the phone so the camera area shows its real size.
+      if (c === 'picking' && S.pick[S.view]) {
+        cases += `<div><span class="flabel">Camera sees (mockup only: tap one)</span><span class="row" style="gap:6px">${expectedScans(S.view).map((o) => `<button type="button" class="btn sm ${/wrong/.test(o.label) ? '' : 'dark'}" data-act="sim" data-v="${esc(o.code)}">${esc(o.label)}</button>`).join('')}</span></div>`;
+      }
+    } else if (role === 'desk') {
+      const c = S.dcase[S.view] || 'idle';
+      cases = `<div><span class="flabel">Desk state</span><span class="seg">
+        <button type="button" data-act="dcase" data-v="idle" class="${c === 'idle' ? 'on' : ''}">Ready to scan</button>
+        <button type="button" data-act="dcase" data-v="scanned" class="${c === 'scanned' ? 'on' : ''}">Runner scanned</button>
+      </span></div>`;
+    }
+    document.getElementById('controls').innerHTML = `
+      <div><label class="flabel">Whose screen</label><select data-act="viewsel" style="width:100%">${opts}</select></div>
+      ${cases}
+      <p class="small" style="margin:0">Tip: change this person's desk or items in the table on the left and watch the screen update.</p>`;
+  }
+
+  function header(title, sub, letter, admin, which) {
+    return `<div class="vhead"><div class="vlogo"></div><div style="min-width:0"><div class="vtitle">${title}</div><div class="vsub">${sub}</div></div><div class="avatar">${letter}</div></div>
+      ${admin ? `<div class="previewbar"><span class="seg"><button class="${which === 'desk' ? 'on' : ''}" data-act="viewset" data-v="admin:desk">Desk</button><button class="${which === 'picker' ? 'on' : ''}" data-act="viewset" data-v="admin:picker">Picker</button><button disabled>Handover</button><button disabled>Restock</button></span></div>` : ''}`;
+  }
+
+  // Same icon paths as the app's Icon component (info, alert, xCircle, checkCircle).
+  const ALERT_ICON = {
+    info: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM12 11v5M12 8h.01',
+    warn: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM12 7v6M12 16h.01',
+    err: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM9 9l6 6M15 9l-6 6',
+    ok: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM8 12l3 3 5-6',
+  };
+  // One alert: what happened (bold), then what to do now.
+  function alertHtml(a, { dismiss = false, cls = '', style = '' } = {}) {
+    const role = a.tone === 'err' || a.tone === 'warn' ? 'alert' : 'status';
+    return `<div class="banner ${a.tone} ${cls}" role="${role}" ${style ? `style="${style}"` : ''}>
+      <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${ALERT_ICON[a.tone]}"/></svg>
+      <span class="msg"><span class="bt">${esc(a.title)}</span>${a.text ? `<span class="bb">${esc(a.text)}</span>` : ''}</span>
+      ${dismiss ? '<button class="x" data-act="dismiss" aria-label="Dismiss">×</button>' : ''}</div>`;
+  }
+
+  function noticeHtml(key) {
+    const n = S.notice[key];
+    return n ? alertHtml(n, { dismiss: true, cls: 'new' }) : '';
+  }
+
+  function pickerScreen() {
+    const admin = S.view === 'admin:picker';
+    const v = admin ? null : vol(S.view);
+    const items = admin ? S.adminItems : v.items;
+    const assigned = items.length > 0;
+    let c = S.pcase[S.view] || 'paused';
+    if (!assigned && c !== 'paused') c = S.pcase[S.view] = 'paused';
+    const active = c !== 'paused';
+    const hasTask = c === 'offer' || c === 'overflow' || c === 'picking';
+    const letter = admin ? 'A' : v.email[0].toUpperCase();
+
+    const sub = !active
+      ? (assigned ? 'Tap Start to receive tasks.' : 'You can start once the supervisor assigns your items.')
+      : hasTask ? 'Finish this task to get the next one.' : 'Waiting for a task · 3 in the queue';
+    const btn = active
+      ? `<button class="btn big" data-act="pause" ${c === 'picking' ? 'disabled title="Finish or give back the task first"' : ''}>Pause</button>`
+      : `<button class="btn big green" data-act="start" ${assigned ? '' : 'disabled'}>Start</button>`;
+
+    let itemsArea;
+    if (admin) {
+      itemsArea = `<p class="k">I pick</p><span class="chips">${KINDS.map((k) => `<button class="chip ${items.includes(k) ? 'on' : ''}" data-act="adminchip" data-kind="${k}">${KIND[k]}</button>`).join('')}</span>
+        <p class="small" style="margin:8px 0 0">Admin preview keeps the ticks, for testing.</p>`;
+    } else if (assigned) {
+      itemsArea = `<div class="new" style="padding:6px"><p class="k">Your items</p><span class="chips">${items.map((k) => `<span class="pill p-grey" style="font-size:13px;padding:3px 12px">${KIND[k]}</span>`).join('')}</span>
+        <p class="small" style="margin:8px 0 0">Set by the supervisor. A task waiting over 90 s can go to anyone free.</p></div>`;
+    } else {
+      itemsArea = `<div class="new" style="padding:6px"><p class="k">Your items</p>${alertHtml({ tone: 'warn', title: 'No items assigned yet', text: 'Ask the supervisor. Start unlocks once they assign some.' })}</div>`;
+    }
+
+    let task = '';
+    if (c === 'offer' || c === 'overflow') {
+      const kind = offerKind(c, items);
+      task = `<section class="offer">
+        <div class="between" style="align-items:flex-start">
+          <div><p class="k" style="color:var(--oto)">New task · O-0042</p><div class="t32">2 ${KIND[kind]}s</div><p style="margin:4px 0 0;color:var(--ink2)">From ${BINS[kind].join(', ')}</p></div>
+          <div style="text-align:right"><div class="t32 mono">52s</div><div class="small">to accept</div></div>
+        </div>
+        ${c === 'overflow' ? alertHtml({ tone: 'warn', title: 'Not one of your items', text: 'It has waited over 90 s, so any free picker can take it.' }, { cls: 'new', style: 'margin-top:12px;background:#fff' }) : ''}
+        <div class="offerbtns"><button class="btn dark xl" data-act="accept">✓ Accept</button><button class="btn xl" data-act="decline">Decline</button></div>
+      </section>`;
+    } else if (c === 'picking') {
+      if (!S.pick[S.view]) S.pick[S.view] = newPick(items[0]);
+      return pickingScreen(letter, admin);
+    }
+
+    return `<div class="device ${S.flash ? 'flash' : ''}">${header('Picker', 'LetsRun TGCG 2026', letter, admin, 'picker')}
+      <div class="vbody">
+        ${noticeHtml(S.view)}
+        <p class="hint">Tap Start to receive tasks. Scan the bin, pick, then scan the crate.</p>
+        <div class="card">
+          <div class="between"><div style="min-width:0"><div class="t18">${active ? "You're active" : "You're paused"}</div><div style="color:var(--ink3)">${sub}</div></div>${btn}</div>
+          <div class="sep">${itemsArea}</div>
+        </div>
+        ${task}
+      </div>${cameraHtml()}</div>`;
+  }
+
+  function deskScreen() {
+    const admin = S.view === 'admin:desk';
+    const v = admin ? null : vol(S.view);
+    const desk = admin ? S.adminDesk : v.desk;
+    const c = S.dcase[S.view] || 'idle';
+    const letter = admin ? 'A' : v.email[0].toUpperCase();
+    const title = `Collection desk${desk ? ' · ' + desk : ''}`;
+
+    let deskRow;
+    if (admin) {
+      deskRow = `<div class="row"><span style="font-weight:500;color:var(--ink2)">This desk</span><span class="seg">${DESKS.map((d) => `<button class="${desk === d ? 'on' : ''}" data-act="admindesk" data-v="${d}">${d}</button>`).join('')}</span><span class="small">Admin preview keeps the switcher, for testing.</span></div>`;
+    } else if (desk) {
+      deskRow = `<div class="row"><span class="new row" style="padding:4px 6px;gap:8px"><span style="font-weight:500;color:var(--ink2)">This desk</span><span class="pill p-info" style="font-size:14px;padding:3px 12px">${desk}</span><span class="small">Set by the supervisor</span></span><span style="color:var(--ink3)">Free crates: 9/10 small · 4/5 large</span></div>`;
+    }
+
+    let body;
+    if (!admin && !desk) {
+      body = `<div class="card empty new"><div class="t18">No desk assigned yet</div><div>Ask the supervisor to assign you a desk. This screen updates by itself.</div></div>`;
+    } else {
+      const newOrder = c === 'scanned' ? `<div class="card">
+          <div class="between" style="margin-bottom:6px"><h2 style="margin:0">New order</h2><button class="btn sm" data-act="dcase" data-v="idle">Clear</button></div>
+          <div class="row" style="padding:8px 0;border-bottom:1px solid var(--line2)"><span class="chip on" style="padding:2px 8px;cursor:default">&nbsp;</span><span style="flex:1;min-width:0"><b>Runner A</b><br><span class="small">21 KM Half Marathon · T-shirt M</span></span><span class="mono t18">2104</span></div>
+          <button class="btn dark big full" style="margin-top:12px" data-act="create">Create order for 1 runner</button>
+        </div>` : '';
+      body = `${deskRow || ''}
+        <div class="card">${scanHtml('Scan runner pass / BIB, or a crate label to hand over', 'deskscan')}</div>
+        ${newOrder}
+        <div class="card"><h2>Ready to hand over (1)</h2><div class="ready"><span class="mono t28" style="color:var(--otg)">S-03</span><span style="flex:1"><b>Runner B</b><br><span class="small">O-0041 · ready 1m ago</span></span><span style="color:var(--otg)">›</span></div></div>
+        <div class="card"><h2>Being picked (1)</h2><div class="row"><span class="mono t18" style="width:56px">S-04</span><span style="flex:1;min-width:0">Runner C<br><span class="small">O-0042 · 0:45</span></span><span class="pill p-green">BIB ✓</span><span class="pill p-info">T-shirt …</span><span class="pill p-grey">Pack</span></div></div>`;
+    }
+
+    return `<div class="device tablet ${S.flash ? 'flash' : ''}">${header(title, 'LetsRun TGCG 2026', letter, admin, 'desk')}
+      <div class="vbody">
+        ${noticeHtml(S.view)}
+        <p class="hint">Scan the runner's pass to start an order. When it turns Ready, scan the crate and hand over.</p>
+        ${body}
+      </div>${cameraHtml()}</div>`;
+  }
+
+  // ---- Scanning (mirrors ScanInput + CameraScanner + PickerStation.onTaskScan) ----
+  const QR_SVG = '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3h-3zM21 14v.01M14 21h.01M17 21h4v-4"/></svg>';
+  const SCAN_SVG = '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2M7 12h10"/></svg>';
+
+  function offerKind(c, items) { return c === 'offer' ? items[0] : KINDS.find((k) => !items.includes(k)); }
+
+  function newPick(kind) {
+    const bins = kind === 'tshirt'
+      ? [{ code: 'TS-M', size: 'M', count: 1 }, { code: 'TS-L', size: 'L', count: 1 }]
+      : kind === 'bib'
+        ? [{ code: 'BIB-2101-2150', count: 2, bibs: [{ n: '2104', p: false }, { n: '2117', p: false }] }]
+        : [{ code: 'PACK', count: 2 }];
+    return { kind, order: 'O-0042', crate: 'S-04', count: 2, bins: bins.map((b) => ({ picked: 0, opened: false, empty: false, ...b })) };
+  }
+  const allPicked = (p) => p.bins.every((b) => b.picked === b.count);
+
+  function scanHtml(label, act) {
+    return `<form data-act="${act}" class="scanform"><label class="flabel" style="font-size:14px;color:var(--ink2)">${esc(label)}</label>
+      <div class="scanrow"><div class="scanbox"><span class="scanicon">${SCAN_SVG}</span><input name="code" autocomplete="off" placeholder="Scan or type, then Enter"></div>
+      <button type="button" class="qr" data-act="cam" data-v="${esc(label)}" title="Scan with camera" aria-label="Scan with camera">${QR_SVG}</button></div></form>`;
+  }
+
+  // The task as a list of single steps. The bottom half shows only the first one not done yet.
+  // T-shirts / packs: one step per bin (take, then scan the bin label). BIBs: open the bin, then one step per BIB.
+  // The last step is always the pigeonhole.
+  function steps(p) {
+    const out = [];
+    p.bins.forEach((b) => {
+      if (p.kind === 'bib') {
+        out.push({ type: 'open', bin: b, done: b.opened });
+        b.bibs.forEach((x) => out.push({ type: 'bib', bin: b, bib: x, done: x.p }));
+      } else {
+        out.push({ type: 'take', bin: b, done: b.picked === b.count });
+      }
+    });
+    out.push({ type: 'drop', done: false });
+    return out;
+  }
+  function curStep(p) {
+    const all = steps(p);
+    const i = all.findIndex((s) => !s.done);
+    return { all, i, step: all[i] };
+  }
+  const qty = (p, b) => {
+    const n = b.count - b.picked;
+    return p.kind === 'tshirt' ? `${n} × size ${b.size}` : `${n} ${n === 1 ? 'pack' : 'packs'}`;
+  };
+
+  // The line across the top of the camera: what to point it at now.
+  function stepText(p) {
+    const { step } = curStep(p);
+    if (step.type === 'drop') return `Scan the label on pigeonhole ${p.crate}`;
+    if (step.type === 'open') return `Scan the label on bin ${step.bin.code}`;
+    if (step.type === 'bib') return `Scan BIB ${step.bib.n}`;
+    return `Take ${qty(p, step.bin)}, then scan the label on bin ${step.bin.code}`;
+  }
+
+  // Bottom half: one instruction at a time. When a scan finishes the step, the next one replaces it.
+  function stepCardHtml(p) {
+    const { step } = curStep(p);
+    if (step.type === 'drop') {
+      return `<section class="drop new"><div class="dropok">✓ All picked</div><div class="t18" style="margin-top:6px">Drop everything in pigeonhole</div><div class="dropcode">${p.crate}</div><p>Then scan its label (or type it above) to finish.</p></section>
+        <button class="btn full" data-act="giveback">Can't finish: give this task back</button>`;
+    }
+    const b = step.bin, i = p.bins.indexOf(b);
+    let body;
+    if (step.type === 'take') {
+      body = `<div class="sverb">Take</div><div class="sbig">${qty(p, b)}</div>
+        <div class="sfrom">from bin <span class="mono">${b.code}</span></div>
+        <p class="sthen">Then scan the bin label: that picks ${b.count - b.picked === 1 ? 'it' : 'them'}.</p>`;
+    } else if (step.type === 'open') {
+      body = `<div class="sverb">Go to bin</div><div class="sbig mono">${b.code}</div>
+        <p class="sthen">Scan its label to open it.</p>`;
+    } else {
+      body = `<div class="sverb">Take BIB</div><div class="sbig mono">${step.bib.n}</div>
+        <div class="sfrom">from bin <span class="mono">${b.code}</span></div>
+        <p class="sthen">Then scan the BIB itself.</p>`;
+    }
+    const empty = b.empty ? alertHtml({ tone: 'warn', title: 'Bin marked empty', text: 'Restock is on the way. Wait here or give the task back.' }, { style: 'margin-top:12px' }) : '';
+    return `<section class="stepcard new">${body}${empty}</section>
+      <div class="acts">${b.empty ? '' : `<button class="btn" data-act="binempty" data-i="${i}">Bin is empty</button>`}<button class="btn" data-act="giveback">Give task back</button></div>`;
+  }
+
+  // Pinned to the bottom of the screen: how far through the task the picker is.
+  function progressHtml(p) {
+    // Counts finished steps, so a scan that skips ahead still moves the bar.
+    const { all } = curStep(p);
+    const done = all.filter((s) => s.done).length;
+    const picked = p.bins.reduce((n, b) => n + b.picked, 0);
+    const pct = Math.round((done / all.length) * 100);
+    return `<div class="progress new">
+      <div class="between"><span><b>Step ${done + 1} of ${all.length}</b></span><span>${picked} of ${p.count} ${KIND[p.kind]}s picked · ${p.order} → <b class="mono">${p.crate}</b></span></div>
+      <div class="pbar" role="progressbar" aria-valuemin="0" aria-valuemax="${all.length}" aria-valuenow="${done}"><span style="width:${pct}%"></span></div>
+    </div>`;
+  }
+
+  // New: after Accept the task screen splits. Top: live scanner + manual entry. Bottom: the current step, then the progress bar.
+  function pickingScreen(letter, admin) {
+    const key = S.view, p = S.pick[key], fb = S.fb[key];
+    const off = S.camOff[key];
+    const camera = off
+      ? '<div class="camoff"><span>Camera off: type the code below</span><button class="btn sm" data-act="camtoggle">Turn camera on</button></div>'
+      : `<div class="livecam"><div class="camstep"><span>${esc(stepText(p))}</span><button class="camtoggle" data-act="camtoggle">Camera off</button></div><div class="vf"></div>
+          ${fb ? `<div class="camfb">${alertHtml(fb)}</div>` : ''}</div>`;
+    return `<div class="device picking ${S.flash ? 'flash' : ''}">${header('Picker', 'LetsRun TGCG 2026', letter, admin, 'picker')}
+      <div class="top new">${camera}
+        <form class="manual" data-act="pickscan"><input name="code" autocomplete="off" placeholder="Camera can't read it? Type the code"><button type="submit" class="btn dark">Enter</button></form>
+        ${off && fb ? `<div class="fbslot">${alertHtml(fb)}</div>` : ''}
+      </div>
+      <div class="taskpane">
+        ${noticeHtml(key)}
+        ${stepCardHtml(p)}
+      </div>
+      ${progressHtml(p)}</div>`;
+  }
+
+  // What the mock camera can "see" next: the right codes, plus one wrong one to show the error.
+  function expectedScans(key) {
+    if (currentRole() === 'desk') return [{ code: '2104', label: 'Runner pass · BIB 2104' }, { code: 'S-03', label: 'Crate S-03 label' }];
+    const p = S.pick[key];
+    if (!p) return [];
+    if (allPicked(p)) return [{ code: p.crate, label: `Pigeonhole ${p.crate}` }, { code: 'S-09', label: 'Pigeonhole S-09 (wrong)' }];
+    const out = [];
+    p.bins.forEach((b) => {
+      if (!b.opened) out.push({ code: b.code, label: `Bin ${b.code}` });
+      else if (p.kind === 'bib') b.bibs.filter((x) => !x.p).forEach((x) => out.push({ code: x.n, label: `BIB ${x.n}` }));
+    });
+    out.push(p.kind === 'bib' ? { code: '2199', label: 'BIB 2199 (wrong)' } : { code: 'TS-XL', label: 'Bin TS-XL (wrong)' });
+    return out;
+  }
+
+  // Desk only now: the QR button opens the camera full screen, as today.
+  function cameraHtml() {
+    const cam = S.camera;
+    if (!cam || cam.key !== S.view || currentRole() !== 'desk') return '';
+    const fb = S.fb[cam.key];
+    const opts = expectedScans(cam.key);
+    return `<div class="cam"><div class="camtop"><span>${esc(cam.label)}</span><button class="camx" data-act="camclose">Close</button></div>
+      <div class="vf"></div>
+      ${fb ? alertHtml(fb, { style: 'margin:0 14px' }) : ''}
+      <div class="camsim"><p>Mockup only: tap what the camera sees</p>
+        <div class="row">${opts.length ? opts.map((o) => `<button class="btn sm" data-act="sim" data-v="${esc(o.code)}">${esc(o.label)}</button>`).join('') : '<span class="small">Nothing left to scan here: use the buttons on the screen.</span>'}</div></div></div>`;
+  }
+
+  function doScan(key, raw) {
+    const v = raw.trim().toUpperCase();
+    if (!v) return;
+    if (currentRole() === 'desk') {
+      S.camera = null;
+      if (/^S-\d+/.test(v)) S.notice[key] = { tone: 'info', title: `Crate ${v} · O-0041`, text: 'Check the name and BIB with the runner, then hand over.' };
+      else S.dcase[key] = 'scanned';
+      return;
+    }
+    const p = S.pick[key];
+    if (!p) return;
+    if (allPicked(p)) {
+      if (v === p.crate) {
+        delete S.pick[key]; delete S.fb[key];
+        S.camera = null;
+        S.pcase[key] = 'waiting';
+        S.notice[key] = { tone: 'ok', title: 'Task done', text: `Dropped in pigeonhole ${p.crate}. The next task comes to this screen.` };
+      } else {
+        S.fb[key] = { tone: 'err', title: `Wrong pigeonhole: ${v}`, text: `This task goes in ${p.crate}.` };
+      }
+      return;
+    }
+    // Good scans just confirm (the next step is already on screen); errors say what to put right.
+    const bin = p.bins.find((b) => b.code.toUpperCase() === v);
+    if (bin) {
+      if (bin.picked === bin.count) { S.fb[key] = { tone: 'warn', title: `Bin ${bin.code} is already picked`, text: 'Nothing more to take from it.' }; return; }
+      bin.opened = true;
+      if (p.kind === 'bib') { S.fb[key] = { tone: 'ok', title: `Bin ${bin.code} open` }; return; }
+      // New: the bin scan picks what this task needs from it. No Picked button.
+      const n = bin.count - bin.picked;
+      bin.picked = bin.count;
+      S.fb[key] = { tone: 'ok', title: `Picked ${n} × ${p.kind === 'tshirt' ? 'size ' + bin.size : n === 1 ? 'pack' : 'packs'} from ${bin.code}` };
+      return;
+    }
+    if (p.kind === 'bib') {
+      for (const b of p.bins) {
+        const line = b.bibs.find((x) => !x.p && x.n === v);
+        if (line && !b.opened) { S.fb[key] = { tone: 'warn', title: 'Scan the bin label first', text: `Bin ${b.code}, then BIB ${v}.` }; return; }
+        if (line) { line.p = true; b.picked += 1; S.fb[key] = { tone: 'ok', title: `BIB ${v} picked` }; return; }
+      }
+      S.fb[key] = { tone: 'err', title: `Wrong BIB: ${v}`, text: "It isn't in this order. Put it back." };
+      return;
+    }
+    S.fb[key] = { tone: 'err', title: `Wrong bin: ${v}`, text: "It isn't in this task. Put back anything you took from it." };
+  }
+
+  // A green confirmation clears itself after 3 s so it doesn't sit over the camera; warnings and errors stay until the next scan.
+  function fadeOk(key) {
+    const fb = S.fb[key];
+    if (!fb || fb.tone !== 'ok') return;
+    setTimeout(() => { if (S.fb[key] === fb) { delete S.fb[key]; render(); } }, 3000);
+  }
+
+  function renderDevice() {
+    const role = currentRole();
+    document.getElementById('device').innerHTML = role === 'picker' ? pickerScreen() : role === 'desk' ? deskScreen()
+      : '<div class="card empty">Pick a desk or picker volunteer above.</div>';
+    S.flash = false;
+  }
+
+  // Device first: it creates the pick a "Picking" state needs, which the camera buttons in the controls read.
+  function render() { renderConfig(); renderDevice(); renderControls(); fitPhone(); }
+
+  // Shrink the phone (never enlarge it) so all of it, top to bottom, fits in the window.
+  function fitPhone() {
+    const box = document.getElementById('device');
+    const dev = box.firstElementChild;
+    box.style.zoom = 1;
+    if (!dev) return;
+    const top = window.matchMedia('(min-width: 1181px)').matches
+      ? 20 + document.querySelector('.side .plabel').offsetHeight + 8
+      : 16;
+    box.style.zoom = Math.min(1, Math.max(0.6, (window.innerHeight - top - 12) / dev.offsetHeight));
+  }
+  window.addEventListener('resize', fitPhone);
+
+  // A change to the person whose screen is open flashes the phone, like the real ~10 s update.
+  function touched(email) { if (S.view === email) S.flash = true; }
+
+  const itemsOf = (key) => (key === 'admin:picker' ? S.adminItems : vol(key).items);
+
+  document.addEventListener('click', (e) => {
+    const b = e.target.closest('[data-act]');
+    if (!b || b.tagName === 'SELECT' || b.tagName === 'INPUT' || b.tagName === 'FORM') return;
+    const a = b.dataset.act, em = b.dataset.email, key = S.view;
+    if (a === 'chip') {
+      const v = vol(em);
+      v.items = v.items.includes(b.dataset.kind) ? v.items.filter((k) => k !== b.dataset.kind) : KINDS.filter((k) => k === b.dataset.kind || v.items.includes(k));
+      if (v.items.length === 0) {
+        S.notice[em] = { tone: 'warn', title: 'Your items were removed', text: "You're paused until the supervisor assigns new ones." };
+        if ((S.pcase[em] || 'paused') !== 'picking') S.pcase[em] = 'paused';
+      } else {
+        S.notice[em] = { tone: 'info', title: `Your items are now ${list(v.items)}`, text: 'Changed by the supervisor. A task already on your screen carries on.' };
+      }
+      touched(em);
+    } else if (a === 'addchip') {
+      const k = b.dataset.kind;
+      S.add.items = S.add.items.includes(k) ? S.add.items.filter((x) => x !== k) : KINDS.filter((x) => x === k || S.add.items.includes(x));
+    } else if (a === 'add') {
+      const email = S.add.email.trim().toLowerCase();
+      if (!email || vol(email)) return;
+      const nv = { email, role: S.add.role };
+      if (nv.role === 'desk') nv.desk = S.add.desk || null;
+      if (nv.role === 'picker') nv.items = S.add.items.slice();
+      S.vols.push(nv);
+      S.add = { email: '', role: S.add.role, desk: '', items: [] };
+      if (nv.role === 'desk' || nv.role === 'picker') S.view = nv.email;
+    } else if (a === 'view') { S.view = em; }
+    else if (a === 'viewset') { S.view = b.dataset.v; }
+    else if (a === 'remove') {
+      S.vols = S.vols.filter((v) => v.email !== em);
+      if (S.view === em) S.view = viewable()[0] ? viewable()[0].email : 'admin:desk';
+    } else if (a === 'pcase') {
+      S.pcase[key] = b.dataset.v;
+      delete S.pick[key]; delete S.fb[key]; S.camera = null;
+      if (b.dataset.v === 'picking') { S.pick[key] = newPick(itemsOf(key)[0]); delete S.notice[key]; }
+    }
+    else if (a === 'dcase') { S.dcase[key] = b.dataset.v; }
+    else if (a === 'start') { S.pcase[key] = 'waiting'; }
+    else if (a === 'pause') { S.pcase[key] = 'paused'; }
+    else if (a === 'accept') {
+      S.pick[key] = newPick(offerKind(S.pcase[key], itemsOf(key)));
+      delete S.fb[key];
+      // New: Accept goes straight to the split task screen (live scanner on top, task below).
+      S.pcase[key] = 'picking';
+      delete S.notice[key];
+    } else if (a === 'decline') { S.pcase[key] = 'waiting'; S.notice[key] = { tone: 'info', title: 'Declined', text: 'It goes to another picker.' }; }
+    else if (a === 'giveback') {
+      if (!window.confirm('Give this task back? It goes to another picker.')) return;
+      delete S.pick[key]; delete S.fb[key]; S.camera = null;
+      S.pcase[key] = 'waiting'; S.notice[key] = { tone: 'info', title: 'Given back', text: 'It goes to another picker.' };
+    }
+    else if (a === 'cam') { S.camera = { key, label: b.dataset.v }; }
+    else if (a === 'camclose') { S.camera = null; }
+    else if (a === 'camtoggle') { S.camOff[key] = !S.camOff[key]; }
+    else if (a === 'sim') { doScan(key, b.dataset.v); fadeOk(key); }
+    else if (a === 'binempty') {
+      const bin = S.pick[key].bins[Number(b.dataset.i)];
+      bin.empty = true;
+      delete S.fb[key]; // the step itself now shows "Bin marked empty"
+    }
+    else if (a === 'dismiss') { delete S.notice[key]; }
+    else if (a === 'admindesk') { S.adminDesk = b.dataset.v; }
+    else if (a === 'adminchip') {
+      const k = b.dataset.kind;
+      S.adminItems = S.adminItems.includes(k) ? S.adminItems.filter((x) => x !== k) : KINDS.filter((x) => x === k || S.adminItems.includes(x));
+    } else if (a === 'create') { S.dcase[key] = 'idle'; S.notice[key] = { tone: 'ok', title: 'Order O-0043 created', text: 'It shows under Being picked.' }; }
+    else return;
+    render();
+  });
+
+  document.addEventListener('change', (e) => {
+    const t = e.target, a = t.dataset.act, em = t.dataset.email;
+    if (a === 'desk') {
+      const v = vol(em);
+      v.desk = t.value || null;
+      S.notice[em] = v.desk
+        ? { tone: 'info', title: `You're now at desk ${v.desk}`, text: 'Changed by the supervisor.' }
+        : { tone: 'warn', title: 'You were taken off your desk', text: 'Ask the supervisor. This screen updates by itself.' };
+      S.dcase[em] = 'idle';
+      touched(em);
+    } else if (a === 'role') {
+      const v = vol(em);
+      v.role = t.value;
+      delete v.desk; delete v.items;
+      if (v.role === 'desk') v.desk = null;
+      if (v.role === 'picker') v.items = [];
+      delete S.notice[em]; delete S.pcase[em]; delete S.dcase[em];
+      if (S.view === em && v.role !== 'desk' && v.role !== 'picker') S.view = viewable()[0] ? viewable()[0].email : 'admin:desk';
+      touched(em);
+    } else if (a === 'viewsel') { S.view = t.value; }
+    else if (a === 'addrole') { S.add.role = t.value; S.add.desk = ''; S.add.items = []; }
+    else if (a === 'adddesk') { S.add.desk = t.value; }
+    else return;
+    render();
+  });
+
+  // Typing a code + Enter in a scan field works like a hardware scanner.
+  document.addEventListener('submit', (e) => {
+    const f = e.target;
+    if (f.dataset.act !== 'pickscan' && f.dataset.act !== 'deskscan') return;
+    e.preventDefault();
+    doScan(S.view, f.code.value);
+    fadeOk(S.view);
+    render();
+    const again = document.querySelector('#device form input[name=code]');
+    if (again) again.focus();
+  });
+
+  document.addEventListener('input', (e) => { if (e.target.dataset.act === 'addemail') S.add.email = e.target.value; });
+
+  render();
+})();
+</script>
+</body>
+</html>
