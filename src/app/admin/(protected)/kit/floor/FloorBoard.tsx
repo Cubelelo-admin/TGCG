@@ -1,11 +1,11 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Button, Card, EmptyState, Icon, KpiCard, Modal, StatusPill, type StatusTone } from "@/components/ds";
 import type { ExpoKind, FloorBoard as Board, FloorOrder, FloorPicker, FloorTask } from "@/lib/expo";
 import { ResultBanner, type Banner } from "../ScanInput";
 import { CancelModal } from "../desk/DeskStation";
-import { KIND_LABEL, buzz, chime, elapsed, postExpo, usePoll } from "../expo-client";
+import { KIND_LABEL, buzz, chime, elapsed, postExpo, useLatestReply, usePoll } from "../expo-client";
 
 /** An accepted task older than this is flagged stuck (design doc: 5-min soft timeout). */
 const STUCK_ACCEPTED_S = 5 * 60;
@@ -43,26 +43,22 @@ export default function FloorBoard({ eventId }: { eventId: string }) {
   const [cancelling, setCancelling] = useState<FloorOrder | null>(null);
   const [busy, setBusy] = useState(false);
   const redKeys = useRef<Set<string> | null>(null);
+  const latest = useLatestReply();
 
   async function refresh() {
+    const ticket = latest.begin();
     const sent = Date.now();
     const res = await postExpo<{ board?: Board; now?: string }>({ action: "floor-board", eventId });
     const received = Date.now();
+    // A poll that left before the last Release / Refilled and came back after it: its board is old.
+    if (latest.isStale(ticket)) return;
     setNow(received);
     if (!res.ok || !res.board) {
       setConnError(true);
       return;
     }
     setConnError(false);
-    const off = res.now ? Date.parse(res.now) - (sent + received) / 2 : offset;
-    setOffset(off);
-    // Chime when something new turns red (not on the first load).
-    const reds = new Set(findIssues(res.board, received + off).filter((i) => i.red).map((i) => i.key));
-    if (redKeys.current && [...reds].some((k) => !redKeys.current!.has(k))) {
-      chime();
-      buzz(300);
-    }
-    redKeys.current = reds;
+    if (res.now) setOffset(Date.parse(res.now) - (sent + received) / 2);
     setBoard(res.board);
   }
   usePoll(refresh, 3000);
@@ -99,6 +95,20 @@ export default function FloorBoard({ eventId }: { eventId: string }) {
   }
 
   const issues = board ? findIssues(board, serverNow) : [];
+
+  // Chime when something new turns red (not on the first load). Runs whenever the set of red
+  // issues changes, so on the 1 s tick too: a task that goes stuck while the poll is stalled
+  // still chimes (in the dry run it turned red silently).
+  const redSig = board ? issues.filter((i) => i.red).map((i) => i.key).join("\n") : null;
+  useEffect(() => {
+    if (redSig === null) return;
+    const reds = new Set(redSig ? redSig.split("\n") : []);
+    if (redKeys.current && [...reds].some((k) => !redKeys.current!.has(k))) {
+      chime();
+      buzz(300);
+    }
+    redKeys.current = reds;
+  }, [redSig]);
 
   if (!board) {
     return (

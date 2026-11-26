@@ -4,7 +4,7 @@ import { useRef, useState } from "react";
 import { Button, Card, Checkbox, Icon, StatusPill } from "@/components/ds";
 import type { ExpoKind, PickerBin, PickerState, PickerTask } from "@/lib/expo";
 import ScanInput, { ResultBanner, type Banner } from "../ScanInput";
-import { KIND_LABEL, buzz, chime, postExpo, usePoll } from "../expo-client";
+import { KIND_LABEL, buzz, chime, postExpo, useLatestReply, usePoll } from "../expo-client";
 
 const ALL_KINDS: ExpoKind[] = ["bib", "tshirt", "pack"];
 
@@ -23,13 +23,26 @@ export default function PickerStation({ eventId }: { eventId: string }) {
   const [connError, setConnError] = useState(false);
   const lastTaskId = useRef<string | null>(null);
   const wasActive = useRef<boolean | null>(null);
+  // True while paused by their own Pause, so it never reads as "you were paused". (Setting
+  // wasActive wasn't enough: a poll sent before Pause usually lands after it and resets it.)
+  const pausedByMe = useRef(false);
   // Bins of the current task with an open "empty" alert, to announce the refill.
   const emptyBins = useRef<Set<string>>(new Set());
+  const latest = useLatestReply();
+  // When the banner was last set: a new offer clears an old banner, not one just shown.
+  const bannerAt = useRef(0);
+  function showBanner(b: Banner) {
+    bannerAt.current = Date.now();
+    setBanner(b);
+  }
 
   async function refresh() {
+    const ticket = latest.begin();
     const sent = Date.now();
     const res = await postExpo<{ state?: PickerState; now?: string }>({ action: "picker-state", eventId });
     const received = Date.now();
+    // A poll that left before the last action and came back after it: its state is old.
+    if (latest.isStale(ticket)) return;
     setNow(received);
     if (!res.ok || !res.state) {
       setConnError(true);
@@ -43,10 +56,15 @@ export default function PickerStation({ eventId }: { eventId: string }) {
     if (next.task?.status === "offered" && next.task.id !== lastTaskId.current) {
       chime();
       buzz(400);
+      // "Put away" from the last task (or any older message) doesn't belong to this offer.
+      if (Date.now() - bannerAt.current > 4000) setBanner(null);
     }
-    // Paused by the server (an offer ran out while we weren't looking).
-    if (wasActive.current && next.picker && !next.picker.active && !busy) {
-      setBanner({ ok: false, text: "You were paused: an offer ran out. Tap Start when you're ready again." });
+    // Paused by the server: an offer ran out, or the supervisor released the task.
+    if (wasActive.current && next.picker && !next.picker.active && !busy && !pausedByMe.current) {
+      showBanner({
+        ok: false,
+        text: "You were paused: an offer ran out or the supervisor took the task back. Tap Start when you're ready again.",
+      });
     }
     // Restock refilled a bin this picker flagged.
     const nowEmpty = new Set((next.task?.bins ?? []).filter((b) => b.empty).map((b) => b.code));
@@ -55,7 +73,7 @@ export default function PickerStation({ eventId }: { eventId: string }) {
       if (refilled.length > 0) {
         chime();
         buzz(300);
-        setBanner({ ok: true, text: `${refilled.join(", ")} refilled: scan it again` });
+        showBanner({ ok: true, text: `${refilled.join(", ")} refilled: scan it again` });
       }
     }
     emptyBins.current = nowEmpty;
@@ -75,14 +93,16 @@ export default function PickerStation({ eventId }: { eventId: string }) {
     const res = await postExpo(body);
     setBusy(false);
     if (!res.ok) buzz();
-    setBanner({ ok: res.ok, text: res.message ?? (res.ok ? (okText ?? "Done") : "Try again") });
+    showBanner({ ok: res.ok, text: res.message ?? (res.ok ? (okText ?? "Done") : "Try again") });
     await refresh();
     return res;
   }
 
   async function setActive(on: boolean, kinds = mySpecialties) {
-    wasActive.current = on;
-    await act({ action: "set-active", eventId, active: on, specialties: kinds });
+    if (!on) pausedByMe.current = true;
+    const res = await act({ action: "set-active", eventId, active: on, specialties: kinds });
+    // Start worked: their own pause is over. Pause refused (task accepted): they're still active.
+    if (on ? res.ok : !res.ok) pausedByMe.current = false;
   }
 
   if (!state) {
@@ -109,7 +129,9 @@ export default function PickerStation({ eventId }: { eventId: string }) {
             </p>
           </div>
           {active ? (
-            <Button onClick={() => setActive(false)} disabled={busy || task !== null} className="h-12! px-5!">
+            // With an offer on screen, Pause hands it back (0032). An accepted task is finished
+            // or given back first.
+            <Button onClick={() => setActive(false)} disabled={busy || task?.status === "accepted"} className="h-12! px-5!">
               Pause
             </Button>
           ) : (
@@ -189,7 +211,7 @@ export default function PickerStation({ eventId }: { eventId: string }) {
       }
       if (t.bins.some((b) => b.opened)) {
         buzz();
-        setBanner({ ok: false, text: `WRONG BIB: ${value} isn't in this order` });
+        showBanner({ ok: false, text: `WRONG BIB: ${value} isn't in this order` });
         return;
       }
     }

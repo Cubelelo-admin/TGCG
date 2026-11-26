@@ -4,7 +4,7 @@ import { useRef, useState } from "react";
 import { Button, Card, EmptyState, Icon, StatusPill } from "@/components/ds";
 import type { BinAlert, RestockBoard } from "@/lib/expo";
 import ScanInput, { ResultBanner, type Banner } from "../ScanInput";
-import { buzz, chime, elapsed, postExpo, usePoll } from "../expo-client";
+import { buzz, chime, elapsed, postExpo, useLatestReply, usePoll } from "../expo-client";
 
 /** Waiting longer than this turns the timer red. */
 const URGENT_SECONDS = 120;
@@ -22,11 +22,15 @@ export default function RestockStation({ eventId }: { eventId: string }) {
   const [busy, setBusy] = useState(false);
   const [connError, setConnError] = useState(false);
   const known = useRef<Set<string> | null>(null);
+  const latest = useLatestReply();
 
   async function refresh() {
+    const ticket = latest.begin();
     const sent = Date.now();
     const res = await postExpo<{ board?: RestockBoard; now?: string }>({ action: "restock-board", eventId });
     const received = Date.now();
+    // A poll that left before the last Refilled and came back after it would re-show the bin.
+    if (latest.isStale(ticket)) return;
     setNow(received);
     if (!res.ok || !res.board) {
       setConnError(true);

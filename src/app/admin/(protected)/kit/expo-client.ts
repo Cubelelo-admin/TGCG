@@ -59,6 +59,29 @@ export function usePoll(fn: () => Promise<void>, ms: number, enabled = true) {
   }, [ms, enabled]);
 }
 
+/**
+ * Drops replies that arrive out of order. A poll that left before an action (Accept, scan) can
+ * come back after the action's own refresh and paint the old state over the new one (seen in
+ * the dry run: the offer card reappeared after Accept). Call begin() when a request leaves and
+ * isStale(ticket) when it comes back: true = a newer reply was already shown, ignore this one.
+ * drop() makes every reply still in flight stale (the desk switched station, say).
+ */
+export function useLatestReply() {
+  const sent = useRef(0);
+  const shown = useRef(0);
+  return {
+    begin: () => ++sent.current,
+    isStale: (ticket: number) => {
+      if (ticket < shown.current) return true;
+      shown.current = ticket;
+      return false;
+    },
+    drop: () => {
+      shown.current = ++sent.current;
+    },
+  };
+}
+
 /** Short two-tone chime (no audio file). Browsers only allow it after the user has tapped the page once. */
 export function chime() {
   try {

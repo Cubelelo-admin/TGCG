@@ -4,7 +4,7 @@ import { useRef, useState, useSyncExternalStore } from "react";
 import { Banner, Button, Card, Checkbox, EmptyState, Icon, Modal, SegmentedControl, StatusPill, TextField } from "@/components/ds";
 import type { DeskBoard, DeskLookup, DeskOrder, DeskRunner } from "@/lib/expo";
 import ScanInput, { ResultBanner, type Banner as ScanBanner } from "../ScanInput";
-import { KIND_LABEL, buzz, chime, elapsed, postExpo, usePoll } from "../expo-client";
+import { KIND_LABEL, buzz, chime, elapsed, postExpo, useLatestReply, usePoll } from "../expo-client";
 
 const MAX_RUNNERS = 10;
 const STATION_KEY = "tgcg.desk.station";
@@ -46,10 +46,13 @@ export default function DeskStation({
   const [preview, setPreview] = useState<DeskOrder | null>(null);
   const [cancelling, setCancelling] = useState<DeskOrder | null>(null);
   const readySeen = useRef<Set<string> | null>(null);
+  const latest = useLatestReply();
 
   const stations = board?.stations.length ? board.stations : initialStations;
 
   function chooseStation(s: string) {
+    // A poll for the old desk may still be on its way: don't let it fill the new desk's board.
+    latest.drop();
     readySeen.current = null;
     setBoard(null);
     window.localStorage.setItem(STATION_KEY, s);
@@ -57,7 +60,10 @@ export default function DeskStation({
   }
 
   async function refreshBoard() {
+    const ticket = latest.begin();
     const res = await postExpo<{ board?: DeskBoard }>({ action: "desk-board", eventId, station });
+    // Left before the last create / hand-over (or a station switch) and came back after it.
+    if (latest.isStale(ticket)) return;
     setNow(Date.now());
     if (!res.ok || !res.board) {
       setBoardError(true);
