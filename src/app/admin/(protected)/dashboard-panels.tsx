@@ -14,21 +14,19 @@ import {
 const inr = (n: number) => n.toLocaleString("en-IN");
 
 /**
- * By Category card with a Bar | Pie | Table toggle. Both side-by-side cards open as the bar chart
- * so the shared toggle reads the same on first load. Pie shows each category's share of tickets.
+ * By Category card with a Pie | Table toggle (opens on Pie): each category's share of tickets.
+ * No bar view: the split is read as shares of the whole, and the table has the exact counts.
  */
 export function CategoryPanel({ rows, className = "" }: { rows: CategoryRow[]; className?: string }) {
-  const [view, setView] = useState<ChartTableView>("chart");
+  const [view, setView] = useState<ChartTableView>("pie");
   const data: BarDatum[] = rows.map((c) => ({ label: c.name, value: c.sold_count ?? 0 }));
   return (
     <Card
       title="By Category"
       className={`min-w-0 ${className}`}
-      actions={<ViewToggle value={view} onChange={setView} ariaLabel="By category view" views={["chart", "pie", "table"]} />}
+      actions={<ViewToggle value={view} onChange={setView} ariaLabel="By category view" views={["pie", "table"]} />}
     >
-      {view === "chart" ? (
-        <BarChart data={data} ariaLabel="Tickets sold per category" emptyLabel="No categories" />
-      ) : view === "pie" ? (
+      {view === "pie" ? (
         <DonutChart data={data} totalLabel="tickets" ariaLabel="Share of tickets by category" emptyLabel="No categories" />
       ) : (
         <CategoryTable rows={rows} />
@@ -38,7 +36,7 @@ export function CategoryPanel({ rows, className = "" }: { rows: CategoryRow[]; c
 }
 
 /**
- * By Group POC card with a Chart | Table toggle (defaults to Chart, like By Category).
+ * By Group POC card with a Chart | Table toggle (defaults to Chart).
  * The chart sorts by amount (largest first); each bar links to that POC's registrations, like the table.
  * Bars are orange because this money is part of the orange "Collected directly" total.
  * A POC's net can be negative (category-change refunds): the bar is then empty, so the row says so.
