@@ -2,14 +2,14 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getAdminSession, type AdminRole } from "@/lib/admin-auth";
 import { createServiceClient } from "@/lib/supabase/server";
-import { deskLookup, dispatch, findOpenOrder, loadDeskBoard, loadPickerState, loadRestockBoard } from "@/lib/expo";
+import { deskLookup, dispatch, findOpenOrder, loadDeskBoard, loadFloorBoard, loadPickerState, loadRestockBoard } from "@/lib/expo";
 
 export const runtime = "nodejs";
 
 /*
  * Expo on-demand flow (0030, bin alerts 0031). Desk actions: desk volunteers + admins.
  * Picker actions: pickers + admins. Restock actions: restock volunteers + admins.
- * Cancel: admins only (support). The picker / restocker is always the signed-in email;
+ * Cancel, floor board and release: admins only (support / supervisor). The picker / restocker is always the signed-in email;
  * it is never taken from the request body.
  */
 
@@ -28,6 +28,9 @@ const bodySchema = z.discriminatedUnion("action", [
   z.object({ action: z.literal("fulfil"), eventId, code }),
   // support
   z.object({ action: z.literal("cancel-order"), orderId: uuid, reason: z.string().trim().min(3, "A reason is required").max(200) }),
+  // supervisor
+  z.object({ action: z.literal("floor-board"), eventId }),
+  z.object({ action: z.literal("release-task"), taskId: uuid }),
   // picker
   z.object({ action: z.literal("picker-state"), eventId }),
   z.object({ action: z.literal("set-active"), eventId, active: z.boolean(), specialties: z.array(kind).min(1).max(3) }),
@@ -120,6 +123,13 @@ export async function POST(request: Request) {
 
     case "cancel-order":
       return rpc("kit_cancel_order", { p_order: body.orderId, p_reason: body.reason, p_admin: email });
+
+    case "floor-board":
+      await dispatch(body.eventId);
+      return NextResponse.json({ ok: true, board: await loadFloorBoard(body.eventId), now: new Date().toISOString() });
+
+    case "release-task":
+      return rpc("kit_release_task", { p_task: body.taskId, p_admin: email });
 
     case "picker-state":
       await dispatch(body.eventId);

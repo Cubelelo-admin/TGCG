@@ -426,3 +426,219 @@ export async function loadRestockBoard(eventId: string): Promise<RestockBoard> {
   const map = (r: Row): BinAlert => ({ id: r.id, bin: r.bin_code, raisedAt: r.raised_at, reports: r.reports, resolvedAt: r.resolved_at });
   return { open: ((open.data ?? []) as Row[]).map(map), recent: ((recent.data ?? []) as Row[]).map(map) };
 }
+
+/* ------------------------------------------------------------------ floor */
+
+export interface FloorTask {
+  id: string;
+  kind: ExpoKind;
+  status: TaskStatus;
+  queuedAt: string;
+  offeredAt: string | null;
+  offerExpiresAt: string | null;
+  acceptedAt: string | null;
+  pickerId: string | null;
+}
+
+export interface FloorOrder {
+  id: string;
+  code: string;
+  station: string;
+  status: "picking" | "ready";
+  crate: string | null;
+  createdAt: string;
+  readyAt: string | null;
+  runners: number;
+  tasks: FloorTask[];
+}
+
+export interface FloorPicker {
+  id: string;
+  name: string;
+  active: boolean;
+  specialties: ExpoKind[];
+  freeSince: string;
+  /** The task they hold (offered or accepted), with its order code. */
+  task: (FloorTask & { orderCode: string }) | null;
+}
+
+export interface FloorAlert extends BinAlert {
+  /** Picker name (or email) who first flagged it. */
+  raisedBy: string;
+  orderCode: string | null;
+}
+
+export interface FloorBoard {
+  /** Picking + ready, all desks, oldest first. */
+  orders: FloorOrder[];
+  pickers: FloorPicker[];
+  crates: { station: string; small: { free: number; total: number }; large: { free: number; total: number } }[];
+  alerts: FloorAlert[];
+  handedOver: { total: number; lastHour: number };
+  /** Average minutes over the last 20 handovers (null when there are none). */
+  avgMinutes: { toReady: number | null; toHandover: number | null };
+}
+
+/** Supervisor view (admins only): every open order, picker, crate and empty bin. */
+export async function loadFloorBoard(eventId: string): Promise<FloorBoard> {
+  const supabase = createServiceClient();
+  const hourAgo = new Date(Date.now() - 3_600_000).toISOString();
+  const fulfilled = () =>
+    supabase.from("kit_orders").select("id", { count: "exact", head: true }).eq("event_id", eventId).eq("status", "fulfilled");
+
+  const [orders, pickers, holes, total, lastHour, recent, alerts] = await Promise.all([
+    supabase
+      .from("kit_orders")
+      .select(
+        "id, code, station, status, created_at, ready_at, kit_pigeonholes!kit_orders_pigeonhole_id_fkey(label), kit_tasks!kit_tasks_order_id_fkey(id, kind, status, queued_at, offered_at, offer_expires_at, accepted_at, picker_id), kit_order_lines!kit_order_lines_order_id_fkey(registration_id, status)"
+      )
+      .eq("event_id", eventId)
+      .in("status", ["picking", "ready"])
+      .order("created_at", { ascending: true })
+      .limit(300),
+    supabase
+      .from("kit_pickers")
+      .select("id, email, name, active, specialties, current_task_id, free_since")
+      .eq("event_id", eventId)
+      .order("email"),
+    supabase.from("kit_pigeonholes").select("station, size, status").eq("event_id", eventId),
+    fulfilled(),
+    fulfilled().gte("fulfilled_at", hourAgo),
+    supabase
+      .from("kit_orders")
+      .select("created_at, ready_at, fulfilled_at")
+      .eq("event_id", eventId)
+      .eq("status", "fulfilled")
+      .order("fulfilled_at", { ascending: false })
+      .limit(20),
+    supabase
+      .from("kit_bin_alerts")
+      .select("id, bin_code, raised_at, raised_by, reports, resolved_at, task_id")
+      .eq("event_id", eventId)
+      .eq("status", "open")
+      .order("raised_at")
+      .limit(100),
+  ]);
+  for (const r of [orders, pickers, holes, total, lastHour, recent, alerts]) {
+    if (r.error) console.error("loadFloorBoard failed", r.error);
+  }
+
+  type Row = {
+    id: string;
+    code: string;
+    station: string;
+    status: "picking" | "ready";
+    created_at: string;
+    ready_at: string | null;
+    kit_pigeonholes: { label: string } | null;
+    kit_tasks: {
+      id: string;
+      kind: ExpoKind;
+      status: TaskStatus;
+      queued_at: string;
+      offered_at: string | null;
+      offer_expires_at: string | null;
+      accepted_at: string | null;
+      picker_id: string | null;
+    }[];
+    kit_order_lines: { registration_id: string; status: string }[];
+  };
+  const kindOrder: ExpoKind[] = ["bib", "tshirt", "pack"];
+  const orderList: FloorOrder[] = ((orders.data ?? []) as unknown as Row[]).map((o) => ({
+    id: o.id,
+    code: o.code,
+    station: o.station,
+    status: o.status,
+    crate: o.kit_pigeonholes?.label ?? null,
+    createdAt: o.created_at,
+    readyAt: o.ready_at,
+    runners: new Set(o.kit_order_lines.filter((l) => l.status !== "cancelled").map((l) => l.registration_id)).size,
+    tasks: o.kit_tasks
+      .filter((t) => t.status !== "cancelled")
+      .sort((a, b) => kindOrder.indexOf(a.kind) - kindOrder.indexOf(b.kind))
+      .map((t) => ({
+        id: t.id,
+        kind: t.kind,
+        status: t.status,
+        queuedAt: t.queued_at,
+        offeredAt: t.offered_at,
+        offerExpiresAt: t.offer_expires_at,
+        acceptedAt: t.accepted_at,
+        pickerId: t.picker_id,
+      })),
+  }));
+
+  const taskById = new Map<string, FloorTask & { orderCode: string }>();
+  for (const o of orderList) for (const t of o.tasks) taskById.set(t.id, { ...t, orderCode: o.code });
+
+  type PickerRow = {
+    id: string;
+    email: string;
+    name: string | null;
+    active: boolean;
+    specialties: ExpoKind[];
+    current_task_id: string | null;
+    free_since: string;
+  };
+  const pickerRows = (pickers.data ?? []) as PickerRow[];
+  const nameByEmail = new Map(pickerRows.map((p) => [p.email, p.name?.trim() || p.email]));
+  const pickerList: FloorPicker[] = pickerRows.map((p) => {
+    const task = p.current_task_id ? (taskById.get(p.current_task_id) ?? null) : null;
+    return {
+      id: p.id,
+      name: nameByEmail.get(p.email) ?? p.email,
+      active: p.active,
+      specialties: p.specialties,
+      freeSince: p.free_since,
+      task: task && (task.status === "offered" || task.status === "accepted") ? task : null,
+    };
+  });
+  // Busy first, then free, then inactive.
+  const rank = (p: FloorPicker) => (p.task ? 0 : p.active ? 1 : 2);
+  pickerList.sort((a, b) => rank(a) - rank(b) || a.name.localeCompare(b.name));
+
+  const crateMap = new Map<string, FloorBoard["crates"][number]>();
+  for (const h of (holes.data ?? []) as { station: string; size: "small" | "large"; status: string }[]) {
+    const c = crateMap.get(h.station) ?? { station: h.station, small: { free: 0, total: 0 }, large: { free: 0, total: 0 } };
+    c[h.size].total += 1;
+    if (h.status === "free") c[h.size].free += 1;
+    crateMap.set(h.station, c);
+  }
+
+  const mins = (from: string, to: string | null) => (to ? (Date.parse(to) - Date.parse(from)) / 60_000 : null);
+  const avg = (xs: (number | null)[]) => {
+    const v = xs.filter((x): x is number => x !== null && x >= 0);
+    return v.length ? Math.round((v.reduce((s, x) => s + x, 0) / v.length) * 10) / 10 : null;
+  };
+  const recentRows = (recent.data ?? []) as { created_at: string; ready_at: string | null; fulfilled_at: string | null }[];
+
+  type AlertRow = {
+    id: string;
+    bin_code: string;
+    raised_at: string;
+    raised_by: string;
+    reports: number;
+    resolved_at: string | null;
+    task_id: string | null;
+  };
+  return {
+    orders: orderList,
+    pickers: pickerList,
+    crates: [...crateMap.values()].sort((a, b) => a.station.localeCompare(b.station)),
+    // Before 0031 the alerts table doesn't exist: the rest of the board still works.
+    alerts: ((alerts.error ? [] : (alerts.data ?? [])) as AlertRow[]).map((a) => ({
+      id: a.id,
+      bin: a.bin_code,
+      raisedAt: a.raised_at,
+      raisedBy: nameByEmail.get(a.raised_by) ?? a.raised_by,
+      reports: a.reports,
+      resolvedAt: a.resolved_at,
+      orderCode: a.task_id ? (taskById.get(a.task_id)?.orderCode ?? null) : null,
+    })),
+    handedOver: { total: total.count ?? 0, lastHour: lastHour.count ?? 0 },
+    avgMinutes: {
+      toReady: avg(recentRows.map((r) => mins(r.created_at, r.ready_at))),
+      toHandover: avg(recentRows.map((r) => mins(r.created_at, r.fulfilled_at))),
+    },
+  };
+}

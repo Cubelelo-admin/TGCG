@@ -8,6 +8,7 @@ import { GenerateBoxesButton, PocTable, ResetBoxesButton } from "./KitControls";
 const STATUSES = ["open", "ready", "staged", "handed_over", "collected"] as const;
 
 const STATIONS: { href: string; label: string; icon: IconName }[] = [
+  { href: "/admin/kit/floor", label: "Floor board", icon: "eye" },
   { href: "/admin/kit/pick", label: "Pick & pack", icon: "scan" },
   { href: "/admin/kit/handover", label: "Stage / day-0 handover", icon: "handover" },
   { href: "/admin/kit/counter", label: "Expo counter", icon: "userCheck" },

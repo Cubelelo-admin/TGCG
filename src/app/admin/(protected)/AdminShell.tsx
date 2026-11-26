@@ -18,6 +18,7 @@ const NAV: NavEntry[] = [
   { key: "kit", label: "Kit", href: "/admin/kit", icon: "kit" },
   { key: "kit-desk", label: "Desk", href: "/admin/kit/desk", icon: "qr", sub: true },
   { key: "kit-picker", label: "Picker", href: "/admin/kit/picker", icon: "package", sub: true },
+  { key: "kit-floor", label: "Floor board", href: "/admin/kit/floor", icon: "eye", sub: true },
   { key: "kit-pick", label: "Pick", href: "/admin/kit/pick", icon: "box", sub: true },
   { key: "kit-handover", label: "Handover", href: "/admin/kit/handover", icon: "handover", sub: true },
   { key: "kit-counter", label: "Counter", href: "/admin/kit/counter", icon: "userCheck", sub: true },

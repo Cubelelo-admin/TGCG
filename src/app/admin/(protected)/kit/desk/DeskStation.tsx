@@ -461,12 +461,12 @@ function HandoverModal({
   );
 }
 
-function CancelModal({
+export function CancelModal({
   order,
   onClose,
   onDone,
 }: {
-  order: DeskOrder | null;
+  order: Pick<DeskOrder, "id" | "code"> | null;
   onClose: () => void;
   onDone: (text: string, ok: boolean) => void;
 }) {
