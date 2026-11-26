@@ -1,10 +1,11 @@
-import { requireStation } from "@/lib/admin-auth";
+import { requireAdmin } from "@/lib/admin-auth";
 import { getAdminEvent } from "@/lib/admin-event";
 import { Card, EmptyState, PageHeader } from "@/components/ds";
 import PickerStation from "./PickerStation";
 
 export default async function KitPickerPage() {
-  await requireStation("picker");
+  // Admins testing; volunteers use the same screen in the volunteer app (/v).
+  await requireAdmin();
   const { event } = await getAdminEvent();
   if (!event) {
     return (

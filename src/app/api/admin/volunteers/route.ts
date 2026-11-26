@@ -7,14 +7,14 @@ import { createServiceClient } from "@/lib/supabase/server";
 export const runtime = "nodejs";
 
 /*
- * Expo volunteers on admin_allowlist (role desk | picker). Full admins only. Admin rows are
+ * Volunteers on admin_allowlist (desk | picker | handover | restock, 0031). Full admins only. Admin rows are
  * never created, changed or removed here, so nobody can lock an organiser out from the UI;
  * promoting someone to admin stays a deliberate SQL change.
  */
 
 const email = z.string().trim().toLowerCase().email("Enter a valid email").max(200);
 const bodySchema = z.discriminatedUnion("action", [
-  z.object({ action: z.literal("set"), email, role: z.enum(["desk", "picker"]) }),
+  z.object({ action: z.literal("set"), email, role: z.enum(["desk", "picker", "handover", "restock"]) }),
   z.object({ action: z.literal("remove"), email }),
 ]);
 

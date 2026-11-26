@@ -276,6 +276,8 @@ export interface PickerBin {
   picked: number;
   /** Bin scanned: its lines show size/BIB. */
   opened: boolean;
+  /** An open "bin empty" alert (0031) exists for this bin: restock is on the way. */
+  empty: boolean;
   lines: PickerLine[];
 }
 
@@ -346,7 +348,7 @@ export async function loadPickerState(eventId: string, email: string): Promise<P
   const bins = new Map<string, PickerBin>();
   for (const l of (task.kit_order_lines ?? []) as unknown as LineRow[]) {
     if (l.status !== "pending") continue;
-    const bin = bins.get(l.bin_code) ?? { code: l.bin_code, count: 0, picked: 0, opened: false, lines: [] };
+    const bin = bins.get(l.bin_code) ?? { code: l.bin_code, count: 0, picked: 0, opened: false, empty: false, lines: [] };
     const opened = l.opened_at !== null;
     bin.count += 1;
     if (l.picked_at) bin.picked += 1;
@@ -362,6 +364,17 @@ export async function loadPickerState(eventId: string, email: string): Promise<P
   const binList = [...bins.values()].sort((a, b) => a.code.localeCompare(b.code));
   for (const b of binList) b.lines.sort((x, y) => (x.bib ?? "").localeCompare(y.bib ?? ""));
 
+  if (task.status === "accepted" && binList.length > 0) {
+    const { data: alerts } = await supabase
+      .from("kit_bin_alerts")
+      .select("bin_code")
+      .eq("event_id", eventId)
+      .eq("status", "open")
+      .in("bin_code", binList.map((b) => b.code));
+    const open = new Set((alerts ?? []).map((a) => a.bin_code as string));
+    for (const b of binList) b.empty = open.has(b.code);
+  }
+
   state.task = {
     id: task.id,
     kind: task.kind as ExpoKind,
@@ -374,4 +387,42 @@ export async function loadPickerState(eventId: string, email: string): Promise<P
     allPicked: binList.every((b) => b.picked === b.count),
   };
   return state;
+}
+
+/* ---------------------------------------------------------------- restock */
+
+export interface BinAlert {
+  id: string;
+  bin: string;
+  raisedAt: string;
+  /** How many times pickers flagged it while open. */
+  reports: number;
+  resolvedAt: string | null;
+}
+
+export interface RestockBoard {
+  /** Oldest first: the bin that has waited longest is refilled first. */
+  open: BinAlert[];
+  /** The last few refills, newest first. */
+  recent: BinAlert[];
+}
+
+/** Bins pickers flagged empty (0031). No runner data: bin codes and times only. */
+export async function loadRestockBoard(eventId: string): Promise<RestockBoard> {
+  const supabase = createServiceClient();
+  const cols = "id, bin_code, raised_at, reports, resolved_at";
+  const [open, recent] = await Promise.all([
+    supabase.from("kit_bin_alerts").select(cols).eq("event_id", eventId).eq("status", "open").order("raised_at").limit(100),
+    supabase
+      .from("kit_bin_alerts")
+      .select(cols)
+      .eq("event_id", eventId)
+      .eq("status", "resolved")
+      .order("resolved_at", { ascending: false })
+      .limit(8),
+  ]);
+  if (open.error) console.error("loadRestockBoard failed", open.error);
+  type Row = { id: string; bin_code: string; raised_at: string; reports: number; resolved_at: string | null };
+  const map = (r: Row): BinAlert => ({ id: r.id, bin: r.bin_code, raisedAt: r.raised_at, reports: r.reports, resolvedAt: r.resolved_at });
+  return { open: ((open.data ?? []) as Row[]).map(map), recent: ((recent.data ?? []) as Row[]).map(map) };
 }

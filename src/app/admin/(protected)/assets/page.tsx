@@ -1,4 +1,4 @@
-import { requireAdmin } from "@/lib/admin-auth";
+import { requireAdmin, VOLUNTEER_ROLES } from "@/lib/admin-auth";
 import Link from "next/link";
 import { listSiteAssets } from "@/lib/site-assets";
 import { getWaGroupSettings } from "@/lib/app-settings";
@@ -117,7 +117,7 @@ async function VolunteersTab() {
   }
   const rows = (data ?? []) as { email: string; role: string; added_at: string }[];
   const volunteers: Volunteer[] = rows
-    .filter((r) => r.role === "desk" || r.role === "picker")
+    .filter((r) => (VOLUNTEER_ROLES as readonly string[]).includes(r.role))
     .map((r) => ({ email: r.email, role: r.role as Volunteer["role"], addedAt: r.added_at }));
   return <VolunteersCard volunteers={volunteers} adminCount={rows.filter((r) => r.role === "admin").length} />;
 }

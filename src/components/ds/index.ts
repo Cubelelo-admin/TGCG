@@ -43,6 +43,7 @@ export { LineChart } from './LineChart';
 export type { ChartSeries } from './LineChart';
 export { BarChart } from './BarChart';
 export { DonutChart } from './DonutChart';
+export { InstallPrompt } from './InstallPrompt';
 export type { DonutDatum } from './DonutChart';
 export type { BarDatum } from './BarChart';
 export { SegmentedControl, ViewToggle } from './SegmentedControl';

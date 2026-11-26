@@ -2,14 +2,15 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getAdminSession, type AdminRole } from "@/lib/admin-auth";
 import { createServiceClient } from "@/lib/supabase/server";
-import { deskLookup, dispatch, findOpenOrder, loadDeskBoard, loadPickerState } from "@/lib/expo";
+import { deskLookup, dispatch, findOpenOrder, loadDeskBoard, loadPickerState, loadRestockBoard } from "@/lib/expo";
 
 export const runtime = "nodejs";
 
 /*
- * Expo on-demand flow (0030). Desk actions: desk volunteers + admins. Picker actions:
- * pickers + admins. Cancel: admins only (support). The picker is always the signed-in
- * email; it is never taken from the request body.
+ * Expo on-demand flow (0030, bin alerts 0031). Desk actions: desk volunteers + admins.
+ * Picker actions: pickers + admins. Restock actions: restock volunteers + admins.
+ * Cancel: admins only (support). The picker / restocker is always the signed-in email;
+ * it is never taken from the request body.
  */
 
 const uuid = z.string().uuid();
@@ -35,16 +36,31 @@ const bodySchema = z.discriminatedUnion("action", [
   z.object({ action: z.literal("pick-bin"), taskId: uuid, bin: code }),
   z.object({ action: z.literal("pick-item"), taskId: uuid, lineIds: z.array(uuid).min(1).max(20), scan: z.string().trim().max(60).optional() }),
   z.object({ action: z.literal("put-away"), taskId: uuid, crate: code }),
+  z.object({ action: z.literal("bin-empty"), taskId: uuid, bin: code }),
+  // restock
+  z.object({ action: z.literal("restock-board"), eventId }),
+  z.object({ action: z.literal("bin-refilled"), eventId, bin: code }),
 ]);
 
 type Body = z.infer<typeof bodySchema>;
 const DESK_ACTIONS = new Set<Body["action"]>(["desk-board", "desk-lookup", "create-order", "order-preview", "fulfil"]);
-const PICKER_ACTIONS = new Set<Body["action"]>(["picker-state", "set-active", "accept", "decline", "pick-bin", "pick-item", "put-away"]);
+const PICKER_ACTIONS = new Set<Body["action"]>([
+  "picker-state",
+  "set-active",
+  "accept",
+  "decline",
+  "pick-bin",
+  "pick-item",
+  "put-away",
+  "bin-empty",
+]);
+const RESTOCK_ACTIONS = new Set<Body["action"]>(["restock-board", "bin-refilled"]);
 
 function allowed(role: AdminRole | null, action: Body["action"]): boolean {
   if (role === "admin") return true;
   if (role === "desk") return DESK_ACTIONS.has(action);
   if (role === "picker") return PICKER_ACTIONS.has(action);
+  if (role === "restock") return RESTOCK_ACTIONS.has(action);
   return false;
 }
 
@@ -138,5 +154,14 @@ export async function POST(request: Request) {
 
     case "put-away":
       return rpc("kit_put_away", { p_task: body.taskId, p_crate: body.crate, p_email: email });
+
+    case "bin-empty":
+      return rpc("kit_bin_empty", { p_task: body.taskId, p_bin: body.bin, p_email: email });
+
+    case "restock-board":
+      return NextResponse.json({ ok: true, board: await loadRestockBoard(body.eventId), now: new Date().toISOString() });
+
+    case "bin-refilled":
+      return rpc("kit_bin_refilled", { p_event_id: body.eventId, p_bin: body.bin, p_email: email });
   }
 }

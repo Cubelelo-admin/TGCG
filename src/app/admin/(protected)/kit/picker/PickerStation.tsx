@@ -23,6 +23,8 @@ export default function PickerStation({ eventId }: { eventId: string }) {
   const [connError, setConnError] = useState(false);
   const lastTaskId = useRef<string | null>(null);
   const wasActive = useRef<boolean | null>(null);
+  // Bins of the current task with an open "empty" alert, to announce the refill.
+  const emptyBins = useRef<Set<string>>(new Set());
 
   async function refresh() {
     const sent = Date.now();
@@ -46,6 +48,17 @@ export default function PickerStation({ eventId }: { eventId: string }) {
     if (wasActive.current && next.picker && !next.picker.active && !busy) {
       setBanner({ ok: false, text: "You were paused: an offer ran out. Tap Start when you're ready again." });
     }
+    // Restock refilled a bin this picker flagged.
+    const nowEmpty = new Set((next.task?.bins ?? []).filter((b) => b.empty).map((b) => b.code));
+    if (next.task?.id === lastTaskId.current) {
+      const refilled = [...emptyBins.current].filter((c) => !nowEmpty.has(c));
+      if (refilled.length > 0) {
+        chime();
+        buzz(300);
+        setBanner({ ok: true, text: `${refilled.join(", ")} refilled: scan it again` });
+      }
+    }
+    emptyBins.current = nowEmpty;
     lastTaskId.current = next.task?.id ?? null;
     wasActive.current = next.picker?.active ?? false;
     setState(next);
@@ -141,7 +154,13 @@ export default function PickerStation({ eventId }: { eventId: string }) {
         <TaskCard
           task={task}
           busy={busy}
+          banner={banner}
           onScan={(v) => onTaskScan(task, v)}
+          onBinEmpty={(bin) => {
+            if (window.confirm(`Is ${bin.code} empty? Restock will be told to refill it.`)) {
+              void act({ action: "bin-empty", taskId: task.id, bin: bin.code });
+            }
+          }}
           onPickBulk={(bin) => act({ action: "pick-item", taskId: task.id, lineIds: bin.lines.filter((l) => !l.picked).map((l) => l.lineId) }, "Picked")}
           onGiveBack={() => {
             if (window.confirm("Give this task back? It goes to another picker.")) void act({ action: "decline", taskId: task.id });
@@ -231,14 +250,18 @@ function OfferCard({
 function TaskCard({
   task,
   busy,
+  banner,
   onScan,
   onPickBulk,
+  onBinEmpty,
   onGiveBack,
 }: {
   task: PickerTask;
   busy: boolean;
+  banner: Banner;
   onScan: (v: string) => Promise<void>;
   onPickBulk: (bin: PickerBin) => void;
+  onBinEmpty: (bin: PickerBin) => void;
   onGiveBack: () => void;
 }) {
   const openBib = task.kind === "bib" && task.bins.some((b) => b.opened && b.picked < b.count);
@@ -262,7 +285,7 @@ function TaskCard({
           </div>
         </div>
         <div className="mt-4">
-          <ScanInput label={label} onScan={onScan} disabled={busy} />
+          <ScanInput label={label} onScan={onScan} disabled={busy} continuous feedback={banner} />
         </div>
       </Card>
 
@@ -277,7 +300,7 @@ function TaskCard({
       ) : (
         <ul className="flex flex-col gap-3">
           {task.bins.map((b) => (
-            <BinRow key={b.code} bin={b} kind={task.kind} busy={busy} onPickBulk={() => onPickBulk(b)} />
+            <BinRow key={b.code} bin={b} kind={task.kind} busy={busy} onPickBulk={() => onPickBulk(b)} onEmpty={() => onBinEmpty(b)} />
           ))}
         </ul>
       )}
@@ -289,7 +312,19 @@ function TaskCard({
   );
 }
 
-function BinRow({ bin, kind, busy, onPickBulk }: { bin: PickerBin; kind: ExpoKind; busy: boolean; onPickBulk: () => void }) {
+function BinRow({
+  bin,
+  kind,
+  busy,
+  onPickBulk,
+  onEmpty,
+}: {
+  bin: PickerBin;
+  kind: ExpoKind;
+  busy: boolean;
+  onPickBulk: () => void;
+  onEmpty: () => void;
+}) {
   const done = bin.picked === bin.count;
   const left = bin.count - bin.picked;
   return (
@@ -306,6 +341,23 @@ function BinRow({ bin, kind, busy, onPickBulk }: { bin: PickerBin; kind: ExpoKin
           <StatusPill tone="pending">Scan bin · {bin.count}</StatusPill>
         )}
       </div>
+
+      {!done &&
+        (bin.empty ? (
+          <p className="mt-3 flex items-center gap-2 rounded-8 bg-tint-orange px-3 py-2 text-14 font-medium text-on-tint-orange">
+            <Icon name="clock" size={18} className="shrink-0" />
+            Marked empty: restock is on the way. Wait here or give the task back.
+          </p>
+        ) : (
+          <button
+            type="button"
+            onClick={onEmpty}
+            disabled={busy}
+            className="mt-3 text-14 font-medium text-[#B42318] underline underline-offset-2 disabled:text-ink-disabled"
+          >
+            Bin is empty
+          </button>
+        ))}
 
       {bin.opened && !done && kind !== "bib" && (
         <div className="mt-3 flex items-center justify-between gap-3">

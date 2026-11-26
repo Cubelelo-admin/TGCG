@@ -48,10 +48,11 @@ const bodySchema = z.discriminatedUnion("action", [
 ]);
 
 type RpcResult = { ok: boolean; message?: string } & Record<string, unknown>;
+const HANDOVER_ACTIONS = new Set<z.infer<typeof bodySchema>["action"]>(["groups", "stage", "handover"]);
 
 export async function POST(request: Request) {
   const session = await getAdminSession();
-  if (!session?.authorized) {
+  if (!session?.role) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -60,6 +61,10 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: parsed.error.issues[0]?.message ?? "Invalid input" }, { status: 400 });
   }
   const body = parsed.data;
+  // Admins: everything. Handover volunteers (0031): the corporate group-box actions only,
+  // which carry group names and box codes, never runner details. Everyone else: nothing.
+  const allowed = session.authorized || (session.role === "handover" && HANDOVER_ACTIONS.has(body.action));
+  if (!allowed) return NextResponse.json({ error: "Not allowed for your role" }, { status: 403 });
   const supabase = createServiceClient();
 
   // The RPCs return {ok, message, ...}; a business rejection is a 200 with ok:false

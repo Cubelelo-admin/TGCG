@@ -1,7 +1,7 @@
 import Image from "next/image";
 import { redirect } from "next/navigation";
 import { Icon } from "@/components/ds";
-import { getAdminSession, STATION_HOME } from "@/lib/admin-auth";
+import { getAdminSession, VOLUNTEER_HOME } from "@/lib/admin-auth";
 import SignOutButton from "../(protected)/SignOutButton";
 
 /** Signed in with Google, but the email isn't on admin_allowlist. Renders no data. */
@@ -9,7 +9,7 @@ export default async function AdminDeniedPage() {
   const session = await getAdminSession();
   if (!session) redirect("/admin/login");
   if (session.role === "admin") redirect("/admin");
-  if (session.role) redirect(STATION_HOME[session.role]);
+  if (session.role) redirect(VOLUNTEER_HOME);
 
   return (
     <main className="flex min-h-screen items-center justify-center bg-surface-page px-4 py-10">

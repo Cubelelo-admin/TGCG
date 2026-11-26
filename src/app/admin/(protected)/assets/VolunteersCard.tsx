@@ -2,16 +2,20 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Banner, Button, Card, DataTable, EmptyState, Select, StatusPill, TextField, type ColumnDef } from "@/components/ds";
+import { Banner, Button, Card, DataTable, EmptyState, Select, StatusPill, TextField, type ColumnDef, type StatusTone } from "@/components/ds";
+import type { VolunteerRole } from "@/lib/admin-auth";
 
-export type VolunteerRole = "desk" | "picker";
+export type { VolunteerRole };
 export type Volunteer = { email: string; role: VolunteerRole; addedAt: string };
 
-const ROLE_OPTIONS = [
+const ROLE_OPTIONS: { value: VolunteerRole; label: string }[] = [
   { value: "desk", label: "Desk (collection desk)" },
-  { value: "picker", label: "Picker (warehouse, phone)" },
+  { value: "picker", label: "Picker (warehouse)" },
+  { value: "handover", label: "Handover (corporate boxes)" },
+  { value: "restock", label: "Restock (refills bins)" },
 ];
-const ROLE_LABEL: Record<VolunteerRole, string> = { desk: "Desk", picker: "Picker" };
+const ROLE_LABEL: Record<VolunteerRole, string> = { desk: "Desk", picker: "Picker", handover: "Handover", restock: "Restock" };
+const ROLE_TONE: Record<VolunteerRole, StatusTone> = { desk: "info", picker: "warning", handover: "active", restock: "pending" };
 
 async function post(body: Record<string, string>): Promise<string | null> {
   try {
@@ -29,8 +33,9 @@ async function post(body: Record<string, string>): Promise<string | null> {
 }
 
 /**
- * Expo volunteers: Google emails with the desk or picker role. They sign in like admins but
- * only reach their station screen (no runner contact details, no registrations list).
+ * Volunteers: Google emails with a volunteer role. They use the volunteer app (/v), which
+ * shows the screen for their role; changing the role here switches their phone's screen
+ * within a few seconds. No runner contact details, no registrations list.
  */
 export default function VolunteersCard({ volunteers, adminCount }: { volunteers: Volunteer[]; adminCount: number }) {
   const router = useRouter();
@@ -57,23 +62,25 @@ export default function VolunteersCard({ volunteers, adminCount }: { volunteers:
     {
       key: "role",
       header: "Role",
-      render: (v) => <StatusPill tone={v.role === "desk" ? "info" : "warning"}>{ROLE_LABEL[v.role]}</StatusPill>,
+      render: (v) => <StatusPill tone={ROLE_TONE[v.role]}>{ROLE_LABEL[v.role]}</StatusPill>,
     },
     {
       key: "actions",
       header: "",
       align: "right",
       render: (v) => {
-        const other: VolunteerRole = v.role === "desk" ? "picker" : "desk";
         return (
-          <div className="flex justify-end gap-2">
-            <Button
-              size="sm"
+          <div className="flex items-center justify-end gap-2">
+            <Select
+              ariaLabel={`Role for ${v.email}`}
+              options={ROLE_OPTIONS.map((o) => ({ value: o.value, label: ROLE_LABEL[o.value] }))}
+              value={v.role}
               disabled={busy !== null}
-              onClick={() => run(`role:${v.email}`, { action: "set", email: v.email, role: other })}
-            >
-              Make {ROLE_LABEL[other].toLowerCase()}
-            </Button>
+              width={140}
+              onChange={(next) => {
+                if (next !== v.role) void run(`role:${v.email}`, { action: "set", email: v.email, role: next });
+              }}
+            />
             <Button
               size="sm"
               variant="red"
@@ -93,11 +100,13 @@ export default function VolunteersCard({ volunteers, adminCount }: { volunteers:
   ];
 
   return (
-    <Card title="Expo volunteers" className="max-w-3xl">
+    <Card title="Volunteers" className="max-w-3xl">
       <p className="-mt-2 mb-4 text-14 text-ink-tertiary">
-        Desk volunteers see runner name, BIB and size at their desk. Pickers see only items, sizes, BIB numbers and crate
-        labels. Neither sees phone numbers, emails or the registrations list. {adminCount} admin
-        {adminCount === 1 ? "" : "s"} not shown (admins are managed in the database).
+        Volunteers open <span className="font-medium text-ink">/v</span> on their phone (installable as an app) and see
+        the screen for their role. Desk sees runner name, BIB and size; pickers see items, sizes, BIBs and crates;
+        handover sees company groups and box codes; restock sees empty bins. Nobody sees phone numbers, emails or the
+        registrations list. {adminCount} admin{adminCount === 1 ? "" : "s"} not shown (admins are managed in the
+        database).
       </p>
 
       <form

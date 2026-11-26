@@ -5,12 +5,17 @@ import { createServerAuthClient } from "@/lib/supabase/server-auth";
 import { createServiceClient } from "@/lib/supabase/server";
 
 /**
- * admin_allowlist.role (0030). 'admin' is the full dashboard. 'desk' and 'picker' are expo
- * volunteers: they only reach their own station screen and its API actions, never runner
- * contact details or the registrations list.
+ * admin_allowlist.role (0030, widened in 0031). 'admin' is the full dashboard. Every other
+ * role is a volunteer: they only use the volunteer app (/v), which shows the screen for their
+ * role, and only that screen's API actions. Never runner contact details or the registrations list.
  */
-export type AdminRole = "admin" | "desk" | "picker";
-const ROLES: readonly AdminRole[] = ["admin", "desk", "picker"];
+export type AdminRole = "admin" | "desk" | "picker" | "handover" | "restock";
+export type VolunteerRole = Exclude<AdminRole, "admin">;
+export const VOLUNTEER_ROLES: readonly VolunteerRole[] = ["desk", "picker", "handover", "restock"];
+const ROLES: readonly AdminRole[] = ["admin", ...VOLUNTEER_ROLES];
+
+/** The volunteer app: one URL, the role decides the screen. */
+export const VOLUNTEER_HOME = "/v";
 
 export interface AdminSession {
   email: string;
@@ -19,8 +24,8 @@ export interface AdminSession {
   /** null = signed in but not on the allowlist. */
   role: AdminRole | null;
   /**
-   * Full admin (role 'admin'). Every pre-role check in the app reads this, so desk and
-   * picker volunteers are kept out of everything that existed before roles.
+   * Full admin (role 'admin'). Every pre-role check in the app reads this, so volunteers
+   * are kept out of everything that existed before roles.
    */
   authorized: boolean;
 }
@@ -66,30 +71,27 @@ export async function getAdminSession(): Promise<AdminSession | null> {
   return { email, name, role, authorized: role === "admin" };
 }
 
-/** Where each volunteer role lands; also where they are sent from any other admin page. */
-export const STATION_HOME: Record<Exclude<AdminRole, "admin">, string> = {
-  desk: "/admin/kit/desk",
-  picker: "/admin/kit/picker",
-};
+export function isVolunteer(role: AdminRole | null): role is VolunteerRole {
+  return role !== null && role !== "admin";
+}
 
 /**
  * Page guard for full-admin screens. Call it at the top of every page under (protected):
  * the layout's check alone does not stop a page from rendering into the RSC payload
- * (Next 16 docs, "Layouts and auth checks"). Volunteers are sent to their station.
+ * (Next 16 docs, "Layouts and auth checks"). Volunteers are sent to the volunteer app.
  */
 export async function requireAdmin(): Promise<AdminSession> {
   const session = await getAdminSession();
   if (!session) redirect("/admin/login");
-  if (session.role === "desk" || session.role === "picker") redirect(STATION_HOME[session.role]);
+  if (isVolunteer(session.role)) redirect(VOLUNTEER_HOME);
   if (session.role !== "admin") redirect("/admin/denied");
   return session;
 }
 
-/** Page guard for a volunteer station: that role, or a full admin (supervising / testing). */
-export async function requireStation(station: "desk" | "picker"): Promise<AdminSession> {
+/** Page guard for the volunteer app: any volunteer role, or an admin (supervising / testing). */
+export async function requireVolunteerApp(): Promise<AdminSession & { role: AdminRole }> {
   const session = await getAdminSession();
-  if (!session) redirect("/admin/login");
-  if (session.role === "admin" || session.role === station) return session;
-  if (session.role === "desk" || session.role === "picker") redirect(STATION_HOME[session.role]);
-  redirect("/admin/denied");
+  if (!session) redirect("/v/login");
+  if (!session.role) redirect("/v/denied");
+  return session as AdminSession & { role: AdminRole };
 }

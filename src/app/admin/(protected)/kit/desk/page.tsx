@@ -1,11 +1,12 @@
-import { requireStation } from "@/lib/admin-auth";
+import { requireAdmin } from "@/lib/admin-auth";
 import { getAdminEvent } from "@/lib/admin-event";
 import { listStations } from "@/lib/expo";
 import { Card, EmptyState, PageHeader } from "@/components/ds";
 import DeskStation from "./DeskStation";
 
 export default async function KitDeskPage() {
-  const session = await requireStation("desk");
+  // Admins on a laptop; volunteers use the same screen in the volunteer app (/v).
+  await requireAdmin();
   const { event } = await getAdminEvent();
   if (!event) {
     return (
@@ -25,7 +26,7 @@ export default async function KitDeskPage() {
         title="Collection desk"
         subtitle="Scan the runner's pass to start an order. When it turns Ready, scan the crate and hand the kit over."
       />
-      <DeskStation eventId={event.id} stations={stations} canCancel={session.role === "admin"} />
+      <DeskStation eventId={event.id} stations={stations} canCancel />
     </div>
   );
 }
