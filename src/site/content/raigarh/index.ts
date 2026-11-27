@@ -20,9 +20,9 @@ export const raigarh: EventConfig = {
   durationHours: 3.5, // until the last course closes (9:30 AM)
   dateLabel: "Sunday, 7 February 2027",
   dateLabelHi: "रविवार, 7 फ़रवरी 2027",
-  // registrationDeadline: "",
-  // registrationDeadlineHi: "",
-  // registrationDeadlineDate: "2027-01-31T23:59:59+05:30",
+  registrationDeadline: "31 January 2027",
+  registrationDeadlineHi: "अंतिम पंजीकरण तिथि: 31 जनवरी 2027",
+  registrationDeadlineDate: "2027-01-31T23:59:59+05:30",
   venue: {
     name: "Mini Stadium",
     nameHi: "मिनी स्टेडियम",
@@ -36,7 +36,7 @@ export const raigarh: EventConfig = {
   courseMap: "/events/raigarh/course-map/index.html",
   rules: raigarhRules,
   links: {
-    // register: "",
+    register: "https://tgcg.vercel.app/register/raigarh-2027", // the registration app's Raigarh form (events.slug raigarh-2027)
     // results: "https://<timing-partner>/results?bib={bib}",
   },
   contact: {

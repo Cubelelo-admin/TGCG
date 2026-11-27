@@ -2696,6 +2696,13 @@ html .event-card {
   letter-spacing: 0.04em;
   color: rgba(255, 255, 255, 0.92);
 }
+/* the art follows the event's registration state (a card with no photo yet) */
+.event-card-art[data-status="open"]::after {
+  content: "REGISTRATION OPEN\A पंजीकरण शुरू";
+}
+.event-card-art[data-status="closed"]::after {
+  content: "REGISTRATION CLOSED\A पंजीकरण बंद";
+}
 .event-card:hover .event-card-art {
   transform: scale(1.05);
 }

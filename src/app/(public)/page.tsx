@@ -43,7 +43,7 @@ export default function ChooseEvent() {
                   {e.images?.card ? (
                     <Image src={e.images.card} alt="" fill sizes="(max-width: 700px) 100vw, 500px" className="event-card-img" />
                   ) : (
-                    <span className="event-card-art" />
+                    <span className="event-card-art" data-status={status} />
                   )}
                   <span className="event-card-chip">
                     <DaysChip to={e.date} mode="race" />
