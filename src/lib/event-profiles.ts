@@ -27,8 +27,12 @@ export type EventProfile = {
   ticketDate: { day: string; month: string; year: string; weekday: string };
   /** null hides the "View BIB Collection Details" button. */
   bibCollection: BibCollectionInfo | null;
-  /** Whether the ticket page shows the Race Booklet button and WhatsApp group picker (both configured under Admin → Configuration, which is TGCG 2026 only for now). */
-  showRaceBooklet: boolean;
+  /**
+   * The ticket page's "Race Booklet & FAQ" link (a stable /api/assets/<id> link whose PDF is uploaded under
+   * Admin → Configuration → Race Assets), or null to hide the button.
+   */
+  raceBookletHref: string | null;
+  /** Whether the ticket page shows the WhatsApp group picker (configured under Admin → Configuration, TGCG 2026 only for now). */
   showWaGroups: boolean;
   /**
    * Names of the env vars holding this event's approved AiSensy campaign
@@ -56,23 +60,23 @@ const PROFILES: Record<string, EventProfile> = {
       venue: "Vrindavan Hall, Civil Lines, Raipur CG",
       mapsUrl: "https://maps.app.goo.gl/W2gAj4VL5e9mHaE78",
     },
-    showRaceBooklet: true,
+    raceBookletHref: "/api/assets/race-information",
     showWaGroups: true,
     aisensyRegistrationCampaignEnv: "AISENSY_REGISTRATION_CAMPAIGN",
     aisensyBookingSummaryCampaignEnv: "AISENSY_BOOKING_SUMMARY_CAMPAIGN",
   },
 
-  // ⚠ PLACEHOLDERS — replace once the organizer confirms the Raigarh details
-  // (keep in sync with supabase/migrations/0022_raigarh_2027_event.sql).
+  // Keep in sync with the events row (supabase/migrations/0034_raigarh_2027_details.sql) and the public
+  // site's src/site/content/raigarh/index.ts.
   "raigarh-2027": {
     slug: "raigarh-2027",
     shortName: "TGCG Raigarh 2027",
     fullName: "LetsRun TGCG Raigarh 2027",
-    venueShort: "Raigarh, Chhattisgarh", // TBD: exact venue
-    dateTimeLine: "February 2027", // TBD: e.g. "14 Feb 2027, 5:00 AM IST"
-    ticketDate: { day: "TBD", month: "FEB", year: "2027", weekday: "" }, // TBD
-    bibCollection: null, // TBD: schedule + venue + maps link
-    showRaceBooklet: false,
+    venueShort: "Mini Stadium, Raigarh",
+    dateTimeLine: "7 Feb 2027, 6:00 AM IST",
+    ticketDate: { day: "07", month: "FEB", year: "2027", weekday: "SUNDAY" },
+    bibCollection: null, // TODO: schedule + venue + maps link once the organiser confirms them
+    raceBookletHref: "/api/assets/raigarh-race-information", // the race-info page until its PDF is uploaded
     showWaGroups: false,
     aisensyRegistrationCampaignEnv: "AISENSY_REGISTRATION_CAMPAIGN_RAIGARH",
     aisensyBookingSummaryCampaignEnv: "AISENSY_BOOKING_SUMMARY_CAMPAIGN_RAIGARH",

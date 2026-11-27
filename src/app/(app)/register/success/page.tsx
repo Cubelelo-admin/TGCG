@@ -64,8 +64,9 @@ async function GroupTicket({ group }: { group: GroupSummary }) {
       }))
   );
 
-  // WhatsApp groups / race booklet are configured once, for TGCG 2026, under
-  // Admin → Configuration — other events hide them until they get their own.
+  // WhatsApp groups are configured once, for TGCG 2026, under Admin →
+  // Configuration — other events hide them until they get their own. The race
+  // booklet link is per event (profile.raceBookletHref).
   const waGroupLinks = profile.showWaGroups
     ? await getWaGroupLinks()
     : { group4221: null, group10: null, group6: null };
@@ -74,7 +75,7 @@ async function GroupTicket({ group }: { group: GroupSummary }) {
     <div>
       <ActionButtons
         waGroupLinks={waGroupLinks}
-        showRaceBooklet={profile.showRaceBooklet}
+        raceBookletHref={profile.raceBookletHref}
         bibCollection={profile.bibCollection}
       />
 

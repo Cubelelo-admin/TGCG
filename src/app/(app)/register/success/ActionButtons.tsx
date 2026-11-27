@@ -55,11 +55,11 @@ export type WaGroupLinks = {
  */
 export default function ActionButtons({
   waGroupLinks,
-  showRaceBooklet,
+  raceBookletHref,
   bibCollection,
 }: {
   waGroupLinks: WaGroupLinks;
-  showRaceBooklet: boolean;
+  raceBookletHref: string | null;
   bibCollection: BibCollectionInfo | null;
 }) {
   const [bibOpen, setBibOpen] = useState(false);
@@ -79,9 +79,9 @@ export default function ActionButtons({
           Join WhatsApp Group for Updates
         </button>
       )}
-      {showRaceBooklet && (
+      {raceBookletHref && (
         <a
-          href="/api/assets/race-information"
+          href={raceBookletHref}
           target="_blank"
           rel="noopener noreferrer"
           className="flex h-[50px] items-center justify-center gap-2 rounded-full text-sm font-bold"
