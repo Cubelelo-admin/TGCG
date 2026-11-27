@@ -14,6 +14,7 @@ import {
 } from "@/lib/registration-schema";
 import type { Addon, TicketCategory, TicketGroup } from "@/lib/types";
 import type {} from "@/types/razorpay";
+import { CHECKOUT_MAX_BYTES, prepareGovtIdFile } from "@/lib/govt-id-upload";
 
 const ACCENT = "#5b3fa0";
 
@@ -101,6 +102,8 @@ export default function RegisterFlow({
   const [draftCategoryId, setDraftCategoryId] = useState<string | null>(initialCategoryId ?? null);
   const [draftAddonIds, setDraftAddonIds] = useState<string[]>([]);
   const [draftGovtIdFile, setDraftGovtIdFile] = useState<File | null>(null);
+  const [govtIdBusy, setGovtIdBusy] = useState(false);
+  const [govtIdError, setGovtIdError] = useState<string | null>(null);
   const [categoryError, setCategoryError] = useState<string | null>(null);
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({
     competitive: false,
@@ -397,6 +400,7 @@ export default function RegisterFlow({
     setDraftCategoryId(null);
     setDraftAddonIds([]);
     setDraftGovtIdFile(null);
+    setGovtIdError(null);
     setCategoryError(null);
     setPhoneValue("");
     setTshirtSizeValue("");
@@ -457,6 +461,8 @@ export default function RegisterFlow({
     // Unreachable through the UI (Save isn't rendered while detailsLocked),
     // but keeps the gate from depending on markup alone.
     if (isPrimaryAttendee && data.phone !== otpVerifiedPhone) return null;
+    // The ID photo is still being resized: saving now would drop it.
+    if (govtIdBusy) return null;
     if (!draftCategory) {
       setCategoryError("Please select a ticket");
       return null;
@@ -505,6 +511,24 @@ export default function RegisterFlow({
     void handleSubmit(onSaveDraft)();
   }
 
+  /** Shrinks a picked ID photo so the checkout request stays under Vercel's 4.5 MB limit. */
+  async function handleGovtIdFile(file: File | null) {
+    setGovtIdError(null);
+    if (!file) {
+      setDraftGovtIdFile(null);
+      return;
+    }
+    setGovtIdBusy(true);
+    const result = await prepareGovtIdFile(file);
+    setGovtIdBusy(false);
+    if (result.ok) {
+      setDraftGovtIdFile(result.file);
+    } else {
+      setDraftGovtIdFile(null);
+      setGovtIdError(result.error);
+    }
+  }
+
   /** Recap-only: no draft is on screen here, so this just checks out with whatever's already saved. */
   function handleCheckoutClick() {
     void proceedToCheckout(attendees);
@@ -526,12 +550,30 @@ export default function RegisterFlow({
       finalAttendees.forEach((item, i) => {
         if (item.govtIdFile) formData.set(`govtIdFile_${i}`, item.govtIdFile);
       });
+      const idBytes = finalAttendees.reduce((sum, item) => sum + (item.govtIdFile?.size ?? 0), 0);
+      if (idBytes > CHECKOUT_MAX_BYTES) {
+        setServerError(
+          "The ID files in this booking are too large to send together. Edit a participant and upload a smaller photo of their ID."
+        );
+        setSubmitting(false);
+        return;
+      }
       if (childRunner) {
         formData.set("childRunner", JSON.stringify(childRunner));
       }
 
       const res = await fetch("/api/register", { method: "POST", body: formData });
-      const json = await res.json();
+      // Not every failure is our JSON: Vercel answers an oversized body with a plain-text 413.
+      const json = await res.json().catch(() => null);
+      if (!json) {
+        setServerError(
+          res.status === 413
+            ? "The uploaded ID file is too large. Edit the participant and upload a smaller photo of the ID."
+            : `Something went wrong (error ${res.status}). Please try again.`
+        );
+        setSubmitting(false);
+        return;
+      }
 
       if (!res.ok) {
         if (json.code === "PHONE_NOT_VERIFIED") {
@@ -631,7 +673,9 @@ export default function RegisterFlow({
         addonIds={draftAddonIds}
         onToggleAddon={toggleDraftAddon}
         govtIdFile={draftGovtIdFile}
-        onGovtIdFile={setDraftGovtIdFile}
+        onGovtIdFile={handleGovtIdFile}
+        govtIdBusy={govtIdBusy}
+        govtIdError={govtIdError}
         register={register}
         errors={errors}
         isEditing={editingIndex !== null}
@@ -716,6 +760,8 @@ function AttendeeStep({
   onToggleAddon,
   govtIdFile,
   onGovtIdFile,
+  govtIdBusy,
+  govtIdError,
   register,
   errors,
   isEditing,
@@ -773,6 +819,8 @@ function AttendeeStep({
   onToggleAddon: (id: string) => void;
   govtIdFile: File | null;
   onGovtIdFile: (file: File | null) => void;
+  govtIdBusy: boolean;
+  govtIdError: string | null;
   register: UseFormRegister<AttendeeFieldsInput>;
   errors: FieldErrors<AttendeeFieldsInput>;
   isEditing: boolean;
@@ -956,14 +1004,20 @@ function AttendeeStep({
                 className="mt-1 inline-flex cursor-pointer items-center rounded-md border px-4 py-2 text-sm font-medium"
                 style={{ borderColor: ACCENT, color: ACCENT }}
               >
-                {govtIdFile ? govtIdFile.name : "Upload File"}
+                {govtIdBusy ? "Preparing photo…" : govtIdFile ? govtIdFile.name : "Upload File"}
                 <input
                   type="file"
                   accept="image/*,.pdf"
                   className="hidden"
-                  onChange={(e) => onGovtIdFile(e.target.files?.[0] ?? null)}
+                  disabled={govtIdBusy}
+                  onChange={(e) => {
+                    void onGovtIdFile(e.target.files?.[0] ?? null);
+                    // Lets the same file be picked again after an error.
+                    e.target.value = "";
+                  }}
                 />
               </label>
+              {govtIdError && <p className={errorClass}>{govtIdError}</p>}
             </Field>
             <Field label="Bank Name and Location (for prize money please provide)" required error={errors.bankNameLocation?.message}>
               <input {...register("bankNameLocation")} className={inputClass} />

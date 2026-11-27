@@ -1,24 +1,44 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { Button, Icon, MenuItem } from "@/components/ds";
 import { createBrowserSupabaseClient } from "@/lib/supabase/browser";
 
-export default function SignOutButton({ className = "" }: { className?: string }) {
+/**
+ * Signs out of Supabase and returns to a login page (/admin/login by default).
+ * variant "outline" / "dark": a Dock Button. variant "menu": a row for the account menu.
+ */
+export default function SignOutButton({
+  className = "",
+  variant = "outline",
+  to = "/admin/login",
+}: {
+  className?: string;
+  variant?: "outline" | "dark" | "menu";
+  /** Where to go after signing out. */
+  to?: string;
+}) {
   const router = useRouter();
 
   async function signOut() {
     const supabase = createBrowserSupabaseClient();
     await supabase.auth.signOut();
-    router.push("/admin/login");
+    router.push(to);
     router.refresh();
   }
 
+  if (variant === "menu") {
+    return (
+      <MenuItem icon={<Icon name="logout" size={16} className="text-ink-tertiary" />} onClick={signOut}>
+        Sign out
+      </MenuItem>
+    );
+  }
+
   return (
-    <button
-      onClick={signOut}
-      className={`rounded-full border border-white/20 px-4 py-1.5 text-xs font-medium hover:border-white/40 ${className}`}
-    >
+    <Button type="button" variant={variant} onClick={signOut} className={className}>
+      <Icon name="logout" size={16} />
       Sign out
-    </button>
+    </Button>
   );
 }

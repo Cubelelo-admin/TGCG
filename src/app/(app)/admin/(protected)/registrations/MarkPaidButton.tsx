@@ -1,12 +1,19 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { MANUAL_PAYMENT_MODE_LABELS, MANUAL_PAYMENT_MODES, type ManualPaymentMode } from "@/lib/manual-payment";
-
-const inputClass =
-  "w-full rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2 text-sm focus:border-emerald-400 focus:outline-none";
-const optionClass = "bg-neutral-900 text-neutral-50";
+import {
+  Banner,
+  Button,
+  Checkbox,
+  FieldLabel,
+  Modal,
+  StatusPill,
+  TextField,
+  inputClass,
+  type StatusTone,
+} from "@/components/ds";
 
 type Attendee = {
   id: string;
@@ -20,6 +27,14 @@ type Attendee = {
 
 type Confirmed = { id: string; full_name: string; registration_code: string | null; bib_number: string | null };
 
+const PAYMENT_TONES: Record<string, StatusTone> = {
+  paid: "active",
+  pending: "pending",
+  failed: "expired",
+  refunded: "info",
+  cancelled: "pending",
+};
+
 /**
  * Manual payment override for a pending/failed registration whose payment
  * was collected directly (UPI to the organizer's account, cash, etc.).
@@ -27,6 +42,7 @@ type Confirmed = { id: string; full_name: string; registration_code: string | nu
  */
 export default function MarkPaidButton({ registrationId, name }: { registrationId: string; name: string }) {
   const router = useRouter();
+  const formId = useId();
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -38,6 +54,7 @@ export default function MarkPaidButton({ registrationId, name }: { registrationI
   const [note, setNote] = useState("");
   const [confirmed, setConfirmed] = useState(false);
   const [done, setDone] = useState<Confirmed[] | null>(null);
+  const errorRef = useRef<HTMLDivElement>(null);
 
   async function openDialog() {
     setOpen(true);
@@ -62,6 +79,18 @@ export default function MarkPaidButton({ registrationId, name }: { registrationI
   function close() {
     setOpen(false);
     if (done) router.refresh();
+  }
+
+  useEffect(() => {
+    if (error) errorRef.current?.scrollIntoView({ block: "nearest" });
+  }, [error]);
+
+  // Like the old dialog, this only closes from the footer Cancel/Close button
+  // (hideClose turns off ✕, Esc and overlay click), so entered amounts and the
+  // verified checkbox can't be lost to a stray click. Mid-save it stays open.
+  function requestClose() {
+    if (saving) return;
+    close();
   }
 
   const targets = (attendees ?? []).filter((a) => a.paymentStatus === "pending" || a.paymentStatus === "failed");
@@ -100,164 +129,166 @@ export default function MarkPaidButton({ registrationId, name }: { registrationI
 
   return (
     <>
-      <button
+      <Button
         type="button"
+        size="sm"
+        variant="orange"
         onClick={openDialog}
         title={`Mark ${name}'s booking as paid (payment collected directly)`}
-        className="rounded-full border border-sky-400/40 px-3 py-1 text-xs font-medium text-sky-300 hover:border-sky-300"
       >
         Mark paid
-      </button>
+      </Button>
 
-      {open && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-          <form
-            onSubmit={onSubmit}
-            className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl border border-white/10 bg-neutral-900 p-5 text-neutral-50 sm:p-6"
-          >
-            <h2 className="text-lg font-bold">Mark as paid — collected directly</h2>
-            <p className="mt-1 text-xs text-neutral-400">
-              For payments taken outside Razorpay (e.g. UPI to our account after a follow-up call). This
-              confirms the whole booking, assigns BIBs and registration IDs, and sends the usual
-              WhatsApp/email confirmation.
-            </p>
-
-            {loading && <p className="mt-4 text-sm text-neutral-400">Loading booking…</p>}
-
-            {done && (
-              <div className="mt-4 rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-3 text-sm">
-                <p className="font-semibold text-emerald-300">Marked as paid.</p>
-                <ul className="mt-2 space-y-1 text-neutral-200">
-                  {done.map((r) => (
-                    <li key={r.id}>
-                      {r.full_name} — <span className="font-mono">{r.registration_code ?? "—"}</span> · BIB{" "}
-                      <span className="font-mono">{r.bib_number ?? "—"}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
+      <Modal
+        open={open}
+        onClose={requestClose}
+        hideClose
+        icon="checkCircle"
+        title="Mark as paid — collected directly"
+        subtitle="For payments taken outside Razorpay (e.g. UPI to our account after a follow-up call). This confirms the whole booking, assigns BIBs and registration IDs, and sends the usual WhatsApp/email confirmation."
+        width={520}
+        footer={
+          <>
+            <Button type="button" size="sm" onClick={close} disabled={saving}>
+              {done ? "Close" : "Cancel"}
+            </Button>
+            {!done && (
+              <Button type="submit" form={formId} size="sm" variant="dark" disabled={!canSubmit || saving}>
+                {saving ? "Confirming…" : "Confirm payment"}
+              </Button>
             )}
-
-            {!loading && !done && attendees && (
-              <>
-                <div className="mt-4 space-y-3">
-                  {attendees.map((a) => {
-                    const isTarget = targets.includes(a);
-                    return (
-                      <div key={a.id} className="rounded-lg border border-white/10 p-3">
-                        <div className="flex flex-wrap items-baseline justify-between gap-2">
-                          <p className="font-medium">
-                            {a.fullName}
-                            <span className="ml-2 text-xs capitalize text-neutral-400">{a.paymentStatus}</span>
-                          </p>
-                          <p className="text-xs text-neutral-400">{a.category}</p>
-                        </div>
-                        {isTarget && a.missing.length > 0 && (
-                          <p className="mt-2 text-xs text-amber-400">
-                            Missing: {a.missing.join(", ")} — close this and fill them in with the edit (✎)
-                            button on {a.id === registrationId ? "this" : "that attendee's"} row first.
-                          </p>
-                        )}
-                        {isTarget && (
-                          <label className="mt-2 block">
-                            <span className="mb-1 block text-xs text-neutral-400">
-                              Amount received (₹)
-                              {a.categoryPrice !== null && a.categoryPrice !== a.amountInr && (
-                                <span className="ml-1 text-amber-400">
-                                  · current category price ₹{a.categoryPrice.toLocaleString("en-IN")}
-                                </span>
-                              )}
-                            </span>
-                            <input
-                              type="number"
-                              min={0}
-                              step="0.01"
-                              required
-                              value={amounts[a.id] ?? ""}
-                              onChange={(e) => setAmounts((m) => ({ ...m, [a.id]: e.target.value }))}
-                              className={inputClass}
-                            />
-                          </label>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-
-                <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                  <label className="block">
-                    <span className="mb-1 block text-xs text-neutral-400">Payment mode</span>
-                    <select
-                      value={mode}
-                      onChange={(e) => setMode(e.target.value as ManualPaymentMode)}
-                      className={inputClass}
-                    >
-                      {MANUAL_PAYMENT_MODES.map((m) => (
-                        <option key={m} value={m} className={optionClass}>
-                          {MANUAL_PAYMENT_MODE_LABELS[m]}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  <label className="block">
-                    <span className="mb-1 block text-xs text-neutral-400">
-                      UPI txn ID / UTR {needsRef ? "(required)" : "(optional)"}
-                    </span>
-                    <input
-                      value={reference}
-                      onChange={(e) => setReference(e.target.value)}
-                      required={needsRef}
-                      className={inputClass}
-                    />
-                  </label>
-                </div>
-                <label className="mt-3 block">
-                  <span className="mb-1 block text-xs text-neutral-400">Note (optional)</span>
-                  <input
-                    value={note}
-                    onChange={(e) => setNote(e.target.value)}
-                    placeholder="e.g. Collected on follow-up call by Ravi"
-                    className={inputClass}
-                  />
-                </label>
-
-                <label className="mt-4 flex items-start gap-2 text-sm text-neutral-300">
-                  <input
-                    type="checkbox"
-                    checked={confirmed}
-                    onChange={(e) => setConfirmed(e.target.checked)}
-                    className="mt-0.5 h-4 w-4 rounded border-white/20 bg-white/[0.04]"
-                  />
-                  I&apos;ve verified ₹{total.toLocaleString("en-IN")} was received in our account for{" "}
-                  {targets.length} attendee{targets.length === 1 ? "" : "s"}.
-                </label>
-              </>
-            )}
-
-            {error && <p className="mt-3 text-sm text-red-400">{error}</p>}
-
-            <div className="mt-6 flex flex-wrap justify-end gap-3">
-              <button
-                type="button"
-                onClick={close}
-                disabled={saving}
-                className="rounded-full border border-white/20 px-4 py-2 text-sm font-medium hover:border-white/40 disabled:opacity-50"
-              >
-                {done ? "Close" : "Cancel"}
-              </button>
-              {!done && (
-                <button
-                  type="submit"
-                  disabled={!canSubmit || saving}
-                  className="rounded-full bg-sky-400 px-4 py-2 text-sm font-semibold text-neutral-950 hover:bg-sky-300 disabled:opacity-40"
-                >
-                  {saving ? "Confirming..." : "Confirm payment"}
-                </button>
-              )}
+          </>
+        }
+      >
+        <form id={formId} onSubmit={onSubmit} className="pt-4">
+          {/* Top of the scroll area (and scrolled to) so a failed confirm is never below the fold. */}
+          {error && (
+            <div ref={errorRef} className="mb-4">
+              <Banner tone="danger">{error}</Banner>
             </div>
-          </form>
-        </div>
-      )}
+          )}
+
+          {loading &&<p className="text-14 text-ink-muted">Loading booking…</p>}
+
+          {done && (
+            <div className="rounded-8 border border-line-secondary p-4">
+              <StatusPill tone="active">Marked as paid.</StatusPill>
+              <ul className="mt-3 space-y-1.5 text-14 text-ink">
+                {done.map((r) => (
+                  <li key={r.id}>
+                    {r.full_name} — <span className="font-mono">{r.registration_code ?? "—"}</span> · BIB{" "}
+                    <span className="font-mono">{r.bib_number ?? "—"}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {!loading && !done && attendees && (
+            <>
+              <div className="space-y-3">
+                {attendees.map((a) => {
+                  const isTarget = targets.includes(a);
+                  const amountId = `${formId}-amount-${a.id}`;
+                  return (
+                    <div key={a.id} className="rounded-8 border border-line-secondary p-3">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <p className="flex flex-wrap items-center gap-2 text-14 font-medium text-ink">
+                          {a.fullName}
+                          <span className="capitalize">
+                            <StatusPill tone={PAYMENT_TONES[a.paymentStatus] ?? "pending"}>{a.paymentStatus}</StatusPill>
+                          </span>
+                        </p>
+                        <p className="text-12 text-ink-tertiary">{a.category}</p>
+                      </div>
+                      {isTarget && a.missing.length > 0 && (
+                        <p className="mt-2 text-12 text-on-tint-orange">
+                          Missing: {a.missing.join(", ")} — close this and fill them in with the edit (✎)
+                          button on {a.id === registrationId ? "this" : "that attendee's"} row first.
+                        </p>
+                      )}
+                      {isTarget && (
+                        <div className="mt-3">
+                          <label
+                            htmlFor={amountId}
+                            className="mb-1.5 flex flex-wrap items-center gap-1 text-12 font-medium text-ink-secondary"
+                          >
+                            Amount received (₹)
+                            <span className="text-[#D92D20]">*</span>
+                            {a.categoryPrice !== null && a.categoryPrice !== a.amountInr && (
+                              <span className="ml-1 font-normal text-on-tint-orange">
+                                · current category price ₹{a.categoryPrice.toLocaleString("en-IN")}
+                              </span>
+                            )}
+                          </label>
+                          <input
+                            id={amountId}
+                            type="number"
+                            min={0}
+                            step="0.01"
+                            required
+                            value={amounts[a.id] ?? ""}
+                            onChange={(e) => setAmounts((m) => ({ ...m, [a.id]: e.target.value }))}
+                            className={inputClass}
+                          />
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+
+              <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                <div className="min-w-0">
+                  <FieldLabel label="Payment mode" htmlFor={`${formId}-mode`} />
+                  <select
+                    id={`${formId}-mode`}
+                    value={mode}
+                    onChange={(e) => setMode(e.target.value as ManualPaymentMode)}
+                    className={inputClass}
+                  >
+                    {MANUAL_PAYMENT_MODES.map((m) => (
+                      <option key={m} value={m}>
+                        {MANUAL_PAYMENT_MODE_LABELS[m]}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <TextField
+                  id={`${formId}-reference`}
+                  label={`UPI txn ID / UTR ${needsRef ? "(required)" : "(optional)"}`}
+                  className="min-w-0"
+                  value={reference}
+                  onChange={(e) => setReference(e.target.value)}
+                  required={needsRef}
+                />
+              </div>
+              <TextField
+                id={`${formId}-note`}
+                label="Note (optional)"
+                className="mt-4"
+                value={note}
+                onChange={(e) => setNote(e.target.value)}
+                placeholder="e.g. Collected on follow-up call by Ravi"
+              />
+
+              <div className="mt-4">
+                <Checkbox
+                  checked={confirmed}
+                  onChange={setConfirmed}
+                  label={
+                    <>
+                      I&apos;ve verified ₹{total.toLocaleString("en-IN")} was received in our account for{" "}
+                      {targets.length} attendee{targets.length === 1 ? "" : "s"}.
+                    </>
+                  }
+                />
+              </div>
+            </>
+          )}
+
+        </form>
+      </Modal>
     </>
   );
 }

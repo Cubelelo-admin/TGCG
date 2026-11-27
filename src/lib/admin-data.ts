@@ -116,33 +116,23 @@ export type TshirtCount = { size: string; count: number };
 /**
  * T-shirts to order: paid registrations per size, in size-chart order, plus
  * an "Other" bucket for any value outside the standard list (e.g. a typo
- * from an older import) so the total always matches. Each size is a
- * head-only exact count, so this stays correct past PostgREST's 1000-row
- * response cap without a dedicated RPC. Child Runner has no T-shirt
- * (tshirt_size is null) and isn't counted.
+ * from an older import) so the total always matches. One grouped count in
+ * Postgres (0026_tshirt_counts.sql), exact past PostgREST's 1000-row cap.
+ * Child Runner has no T-shirt (tshirt_size is null) and isn't counted.
  */
 export async function getTshirtCounts(eventId: string): Promise<TshirtCount[]> {
   const supabase = createServiceClient();
-  const base = () =>
-    supabase
-      .from("registrations")
-      .select("id", { count: "exact", head: true })
-      .eq("event_id", eventId)
-      .eq("payment_status", "paid");
+  const { data, error } = await supabase.rpc("tshirt_counts", { p_event_id: eventId });
+  if (error) console.error("tshirt_counts failed", error);
 
-  const [sized, other] = await Promise.all([
-    Promise.all(TSHIRT_SIZES.map((size) => base().eq("tshirt_size", size))),
-    base()
-      .not("tshirt_size", "is", null)
-      .not("tshirt_size", "in", `(${TSHIRT_SIZES.join(",")})`),
-  ]);
-
-  const counts: TshirtCount[] = TSHIRT_SIZES.map((size, i) => {
-    if (sized[i].error) console.error("tshirt count failed", size, sized[i].error);
-    return { size, count: sized[i].count ?? 0 };
-  });
-  if (other.error) console.error("tshirt count failed (other)", other.error);
-  if (other.count) counts.push({ size: "Other", count: other.count });
+  const bySize = new Map<string, number>();
+  for (const r of (data ?? []) as { tshirt_size: string; paid_count: number }[]) {
+    bySize.set(r.tshirt_size, Number(r.paid_count));
+  }
+  const counts: TshirtCount[] = TSHIRT_SIZES.map((size) => ({ size, count: bySize.get(size) ?? 0 }));
+  const known = new Set<string>(TSHIRT_SIZES);
+  const other = [...bySize.entries()].filter(([size]) => !known.has(size)).reduce((n, [, c]) => n + c, 0);
+  if (other) counts.push({ size: "Other", count: other });
   return counts;
 }
 
@@ -165,6 +155,205 @@ export async function getDashboardStats(eventId: string) {
     pocTotals,
     tshirtCounts,
     categories: categories ?? [],
+  };
+}
+
+/** One movement of money collected outside Razorpay (see getDirectCollections). */
+export interface DirectPayment {
+  /** Unique across both sources: `reg:<registration id>` or `adj:<adjustment id>`. */
+  key: string;
+  kind: "manual" | "bulk_import" | "category_change";
+  registrationId: string;
+  registrationCode: string | null;
+  fullName: string;
+  /** The registration's current category. */
+  category: string | null;
+  /** Category changes only: the move this difference was settled for. */
+  fromCategory: string | null;
+  toCategory: string | null;
+  /** upi / cash / bank_transfer / other (null for bulk import or when not recorded). */
+  mode: string | null;
+  reference: string | null;
+  note: string | null;
+  pocName: string | null;
+  /** Admin email that recorded it: manual_paid_by / adjustment created_by. Bulk import stores none. */
+  recordedBy: string | null;
+  /** When it was recorded: manual_paid_at (manual), created_at (bulk import / adjustment). */
+  at: string;
+  /** ₹; negative for a category-change refund. */
+  amount: number;
+}
+
+export interface DirectCollections {
+  /** Every direct payment, newest first. Sums exactly to payment_totals' direct amount. */
+  payments: DirectPayment[];
+  /**
+   * Razorpay-paid registrations that carry a POC name. poc_totals (the dashboard's
+   * By Group POC table) counts these too, although the money is not "collected directly".
+   */
+  razorpayPocTagged: { pocName: string; count: number; amount: number }[];
+  /** First load error, if any (the lists are then incomplete). */
+  error: string | null;
+}
+
+type PageResult = { data: unknown[] | null; error: { message: string } | null };
+
+/**
+ * Reads every row of a query, 1000 at a time (PostgREST's response cap). Advances by
+ * the rows actually returned and stops on an empty page, so a lower server cap can't
+ * silently truncate the result. `build` must apply a stable, unique ordering.
+ */
+async function fetchAllRows<T>(build: (from: number, to: number) => PromiseLike<PageResult>) {
+  const rows: T[] = [];
+  for (let from = 0; ; ) {
+    const { data, error } = await build(from, from + 999);
+    if (error) return { rows, error: error.message };
+    if (!data || data.length === 0) return { rows, error: null };
+    rows.push(...(data as T[]));
+    from += data.length;
+  }
+}
+
+type DirectRegistrationRow = {
+  id: string;
+  registration_code: string | null;
+  full_name: string;
+  amount_inr: number | string;
+  payment_method: "manual" | "bulk_import";
+  manual_payment_mode: string | null;
+  manual_payment_ref: string | null;
+  manual_payment_note: string | null;
+  manual_paid_by: string | null;
+  manual_paid_at: string | null;
+  poc_name: string | null;
+  created_at: string;
+  ticket_categories: { name: string } | null;
+};
+
+type AdjustmentWithRegistrationRow = {
+  id: string;
+  registration_id: string;
+  from_category_name: string | null;
+  to_category_name: string | null;
+  amount_inr: number | string;
+  mode: string | null;
+  reference: string | null;
+  note: string | null;
+  poc_name: string | null;
+  created_by: string | null;
+  created_at: string;
+  registrations: {
+    registration_code: string | null;
+    full_name: string;
+    ticket_categories: { name: string } | null;
+  } | null;
+};
+
+/**
+ * Row-level detail behind payment_totals' "direct" figure (0019 / 0024): every paid
+ * manual-override and bulk-import registration, plus every category-change adjustment
+ * on a registration that is currently paid. Same filters as the RPC, so the amounts
+ * add up to getPaymentTotals().direct.amount. Paged past PostgREST's 1000-row cap.
+ */
+export async function getDirectCollections(eventId: string): Promise<DirectCollections> {
+  const supabase = createServiceClient();
+
+  const [registrations, adjustments, razorpayTagged] = await Promise.all([
+    fetchAllRows<DirectRegistrationRow>((from, to) =>
+      supabase
+        .from("registrations")
+        .select(
+          "id, registration_code, full_name, amount_inr, payment_method, manual_payment_mode, manual_payment_ref, manual_payment_note, manual_paid_by, manual_paid_at, poc_name, created_at, ticket_categories(name)"
+        )
+        .eq("event_id", eventId)
+        .eq("payment_status", "paid")
+        .neq("payment_method", "razorpay")
+        .order("created_at", { ascending: true })
+        .order("id", { ascending: true })
+        .range(from, to)
+    ),
+    // !inner + the payment_status filter = payment_totals' `join registrations ... status = 'paid'`.
+    fetchAllRows<AdjustmentWithRegistrationRow>((from, to) =>
+      supabase
+        .from("registration_adjustments")
+        .select(
+          "id, registration_id, from_category_name, to_category_name, amount_inr, mode, reference, note, poc_name, created_by, created_at, registrations!inner(registration_code, full_name, payment_status, ticket_categories(name))"
+        )
+        .eq("event_id", eventId)
+        .eq("registrations.payment_status", "paid")
+        .order("created_at", { ascending: true })
+        .order("id", { ascending: true })
+        .range(from, to)
+    ),
+    fetchAllRows<{ id: string; poc_name: string; amount_inr: number | string }>((from, to) =>
+      supabase
+        .from("registrations")
+        .select("id, poc_name, amount_inr")
+        .eq("event_id", eventId)
+        .eq("payment_status", "paid")
+        .eq("payment_method", "razorpay")
+        .not("poc_name", "is", null)
+        .order("id", { ascending: true })
+        .range(from, to)
+    ),
+  ]);
+
+  const error = registrations.error ?? adjustments.error ?? razorpayTagged.error;
+  if (error) console.error("getDirectCollections failed", error);
+
+  const payments: DirectPayment[] = [
+    ...registrations.rows.map(
+      (r): DirectPayment => ({
+        key: `reg:${r.id}`,
+        kind: r.payment_method === "manual" ? "manual" : "bulk_import",
+        registrationId: r.id,
+        registrationCode: r.registration_code,
+        fullName: r.full_name,
+        category: r.ticket_categories?.name ?? null,
+        fromCategory: null,
+        toCategory: null,
+        mode: r.manual_payment_mode,
+        reference: r.manual_payment_ref,
+        note: r.manual_payment_note,
+        pocName: r.poc_name,
+        recordedBy: r.manual_paid_by,
+        at: (r.payment_method === "manual" && r.manual_paid_at) || r.created_at,
+        amount: Number(r.amount_inr),
+      })
+    ),
+    ...adjustments.rows.map(
+      (a): DirectPayment => ({
+        key: `adj:${a.id}`,
+        kind: "category_change",
+        registrationId: a.registration_id,
+        registrationCode: a.registrations?.registration_code ?? null,
+        fullName: a.registrations?.full_name ?? "—",
+        category: a.registrations?.ticket_categories?.name ?? null,
+        fromCategory: a.from_category_name,
+        toCategory: a.to_category_name,
+        mode: a.mode,
+        reference: a.reference,
+        note: a.note,
+        pocName: a.poc_name,
+        recordedBy: a.created_by,
+        at: a.created_at,
+        amount: Number(a.amount_inr),
+      })
+    ),
+  ].sort((x, y) => Date.parse(y.at) - Date.parse(x.at) || x.key.localeCompare(y.key));
+
+  const tagged = new Map<string, { pocName: string; count: number; paise: number }>();
+  for (const r of razorpayTagged.rows) {
+    const t = tagged.get(r.poc_name) ?? { pocName: r.poc_name, count: 0, paise: 0 };
+    t.count += 1;
+    t.paise += Math.round(Number(r.amount_inr) * 100);
+    tagged.set(r.poc_name, t);
+  }
+
+  return {
+    payments,
+    razorpayPocTagged: [...tagged.values()].map((t) => ({ pocName: t.pocName, count: t.count, amount: t.paise / 100 })),
+    error,
   };
 }
 

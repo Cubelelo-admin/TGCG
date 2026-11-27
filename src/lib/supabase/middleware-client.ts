@@ -29,9 +29,11 @@ export async function getSessionInMiddleware(request: NextRequest) {
     }
   );
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  // getClaims() verifies the JWT locally against cached signing keys (and still
+  // refreshes an expired session), instead of a network call to the Auth server
+  // on every admin request the way getUser() does.
+  const { data } = await supabase.auth.getClaims();
+  const user = data?.claims?.sub ? { id: data.claims.sub } : null;
 
   return { response, user };
 }

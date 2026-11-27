@@ -1,11 +1,23 @@
+import { requireAdmin } from "@/lib/admin-auth";
 import Link from "next/link";
+import type { ReactNode } from "react";
 import { getAdminEvent } from "@/lib/admin-event";
 import { getDashboardStats } from "@/lib/admin-data";
+import { Card, EmptyState, Icon, KpiCard, KpiRow, PageHeader } from "@/components/ds";
+import { CategoryPanel, PocPanel } from "./dashboard-panels";
 
 export default async function AdminDashboardPage() {
+  await requireAdmin();
   const { event } = await getAdminEvent();
   if (!event) {
-    return <p className="text-neutral-400">No active event found.</p>;
+    return (
+      <div>
+        <PageHeader title="Dashboard" />
+        <Card>
+          <EmptyState title="No active event found." />
+        </Card>
+      </div>
+    );
   }
 
   const stats = await getDashboardStats(event.id);
@@ -13,122 +25,91 @@ export default async function AdminDashboardPage() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold">{event.name}</h1>
-      <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard label="Paid Registrations" value={totals.paidCount.toLocaleString("en-IN")} />
-        <StatCard label="Total Revenue" value={`₹${totals.revenue.toLocaleString("en-IN")}`} />
-        <StatCard
-          label="Via Razorpay"
-          value={`₹${totals.razorpay.amount.toLocaleString("en-IN")}`}
-          sub={`${totals.razorpay.count.toLocaleString("en-IN")} paid`}
-        />
+      <PageHeader title={event.name} subtitle="Registrations, collections and kit sizes for this event" />
+
+      <KpiRow>
+        <KpiSlot>
+          <KpiCard
+            tone="green"
+            label="Paid Registrations"
+            value={totals.paidCount.toLocaleString("en-IN")}
+            caption={`${totals.razorpay.count.toLocaleString("en-IN")} Razorpay · ${totals.direct.count.toLocaleString("en-IN")} direct`}
+          />
+        </KpiSlot>
+        <KpiSlot>
+          <KpiCard
+            tone="green"
+            label="Total Revenue"
+            value={`₹${totals.revenue.toLocaleString("en-IN")}`}
+            caption="Razorpay + collected directly"
+          />
+        </KpiSlot>
+        <KpiSlot>
+          <KpiCard
+            tone="green"
+            label="Via Razorpay"
+            value={`₹${totals.razorpay.amount.toLocaleString("en-IN")}`}
+            caption={`${totals.razorpay.count.toLocaleString("en-IN")} paid`}
+          />
+        </KpiSlot>
         <Link
-          href={{ pathname: "/admin/registrations", query: { method: "direct", status: "paid" } }}
-          className="block rounded-xl border border-sky-500/30 bg-sky-500/[0.06] p-5 hover:border-sky-400/60"
+          href="/admin/collections"
+          title="See the breakup of money collected directly"
+          className="group flex min-w-[220px] flex-1 rounded-16 transition-shadow hover:shadow-dock-xl focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
         >
-          <p className="text-sm text-sky-300">Collected directly (not Razorpay)</p>
-          <p className="mt-1 text-2xl font-bold text-sky-300">₹{totals.direct.amount.toLocaleString("en-IN")}</p>
-          <p className="mt-1 text-xs text-neutral-400">
-            {totals.direct.count} paid · ₹{totals.manual.amount.toLocaleString("en-IN")} manual override · ₹
-            {totals.bulkImport.amount.toLocaleString("en-IN")} bulk import
-            {totals.categoryAdjustments.count > 0 &&
-              ` · ₹${totals.categoryAdjustments.amount.toLocaleString("en-IN")} category changes`}
-          </p>
+          <KpiCard
+            tone="orange"
+            label={
+              <span className="flex w-full items-center justify-between gap-2">
+                Collected directly (not Razorpay)
+                <Icon name="chevronRight" size={16} className="shrink-0 text-ink-muted group-hover:text-ink" />
+              </span>
+            }
+            value={`₹${totals.direct.amount.toLocaleString("en-IN")}`}
+            caption={`${totals.direct.count.toLocaleString("en-IN")} paid · see breakup`}
+          />
         </Link>
-      </div>
+      </KpiRow>
 
-      <TshirtSummary counts={stats.tshirtCounts} />
+      <div className="flex flex-col gap-4">
+        <TshirtSummary counts={stats.tshirtCounts} />
 
-      {stats.pocTotals.length > 0 && (
-        <>
-          <h2 className="mt-10 font-semibold text-lg">By Group POC</h2>
-          <p className="mt-1 text-sm text-neutral-400">
-            Bulk-imported registrations and category-change differences, grouped by the POC responsible for collecting the money.
-          </p>
-          <div className="mt-4 overflow-x-auto rounded-xl border border-white/10">
-            <table className="w-full text-sm">
-              <thead className="bg-white/[0.04] text-left text-neutral-400">
-                <tr>
-                  <th className="px-4 py-3 font-medium">POC</th>
-                  <th className="px-4 py-3 font-medium">Registrations</th>
-                  <th className="px-4 py-3 font-medium">Amount</th>
-                </tr>
-              </thead>
-              <tbody>
-                {stats.pocTotals.map((p) => (
-                  <tr key={p.pocName} className="border-t border-white/10">
-                    <td className="px-4 py-3">
-                      <Link
-                        href={{ pathname: "/admin/registrations", query: { q: p.pocName, field: "poc" } }}
-                        className="underline decoration-white/30 hover:decoration-white"
-                      >
-                        {p.pocName}
-                      </Link>
-                    </td>
-                    <td className="px-4 py-3">{p.count.toLocaleString("en-IN")}</td>
-                    <td className="px-4 py-3">₹{p.amount.toLocaleString("en-IN")}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </>
-      )}
-
-      <h2 className="mt-10 font-semibold text-lg">By Category</h2>
-      <div className="mt-4 overflow-x-auto rounded-xl border border-white/10">
-        <table className="w-full text-sm">
-          <thead className="bg-white/[0.04] text-left text-neutral-400">
-            <tr>
-              <th className="px-4 py-3 font-medium">Category</th>
-              <th className="px-4 py-3 font-medium">Sold</th>
-            </tr>
-          </thead>
-          <tbody>
-            {stats.categories.map((c) => (
-              <tr key={c.id} className="border-t border-white/10">
-                <td className="px-4 py-3">{c.name}</td>
-                <td className="px-4 py-3">{c.sold_count}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        {/* Side by side from lg up (grid rows stretch, so both cards match height); stacked below.
+            With no POC rows the Category card is the only item and takes the full width. */}
+        <div className={`grid grid-cols-1 gap-4 ${stats.pocTotals.length > 0 ? "lg:grid-cols-2" : ""}`}>
+          <CategoryPanel rows={stats.categories} />
+          {stats.pocTotals.length > 0 && <PocPanel rows={stats.pocTotals} />}
+        </div>
       </div>
     </div>
   );
+}
+
+/** Lets a KpiCard wrap onto its own line on narrow screens instead of squeezing. */
+function KpiSlot({ children }: { children: ReactNode }) {
+  return <div className="flex min-w-[220px] flex-1">{children}</div>;
 }
 
 function TshirtSummary({ counts }: { counts: { size: string; count: number }[] }) {
   const total = counts.reduce((sum, c) => sum + c.count, 0);
   return (
-    <>
-      <div className="mt-10 flex flex-wrap items-baseline justify-between gap-2">
-        <h2 className="font-semibold text-lg">T-Shirt Sizes</h2>
-        <p className="text-sm text-neutral-400">
+    <Card
+      title="T-Shirt Sizes"
+      actions={
+        <p className="text-14 text-ink-tertiary">
           {total.toLocaleString("en-IN")} T-shirts · paid registrations only (Child Runner excluded)
         </p>
-      </div>
-      <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-8">
+      }
+    >
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-8">
         {counts.map((c) => (
-          <div key={c.size} className="rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3">
-            <p className="text-xs font-semibold uppercase tracking-wide text-neutral-400">{c.size}</p>
-            <p className="mt-0.5 text-2xl font-bold text-emerald-400">{c.count.toLocaleString("en-IN")}</p>
-            <p className="text-xs text-neutral-500">
-              {total > 0 ? `${Math.round((c.count / total) * 100)}%` : "—"}
-            </p>
+          <div key={c.size} className="rounded-12 border border-line-secondary bg-surface-secondary px-4 py-3">
+            <p className="text-12 font-medium uppercase tracking-wide text-ink-tertiary">{c.size}</p>
+            <p className="mt-1 text-24 font-semibold tabular-nums text-ink">{c.count.toLocaleString("en-IN")}</p>
+            <p className="text-12 text-ink-muted">{total > 0 ? `${Math.round((c.count / total) * 100)}%` : "—"}</p>
           </div>
         ))}
       </div>
-    </>
-  );
-}
-
-function StatCard({ label, value, sub }: { label: string; value: string; sub?: string }) {
-  return (
-    <div className="rounded-xl border border-white/10 bg-white/[0.03] p-5">
-      <p className="text-sm text-neutral-400">{label}</p>
-      <p className="mt-1 text-2xl font-bold text-emerald-400">{value}</p>
-      {sub && <p className="mt-1 text-xs text-neutral-400">{sub}</p>}
-    </div>
+    </Card>
   );
 }

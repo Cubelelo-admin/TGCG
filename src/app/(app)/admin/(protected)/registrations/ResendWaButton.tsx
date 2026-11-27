@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { Button, Icon } from "@/components/ds";
 
 export default function ResendWaButton({ registrationId }: { registrationId: string }) {
   const [state, setState] = useState<"idle" | "sending" | "sent" | "error">("idle");
@@ -19,16 +20,65 @@ export default function ResendWaButton({ registrationId }: { registrationId: str
     }
   }
 
+  const status =
+    state === "sending"
+      ? "Sending confirmation…"
+      : state === "sent"
+        ? "Confirmation sent"
+        : state === "error"
+          ? "Confirmation failed to send"
+          : "";
+
   return (
-    <button
-      onClick={resend}
+    <>
+      <span role="status" aria-live="polite" className="sr-only">
+        {status}
+      </span>
+      <ResendButtonBody state={state} onClick={resend} />
+    </>
+  );
+}
+
+function ResendButtonBody({
+  state,
+  onClick,
+}: {
+  state: "idle" | "sending" | "sent" | "error";
+  onClick: () => void;
+}) {
+  return (
+    <Button
+      type="button"
+      size="sm"
+      variant={state === "error" ? "red" : "green"}
+      onClick={onClick}
       disabled={state === "sending"}
-      className="rounded-full border border-white/20 px-3 py-1 text-xs font-medium hover:border-white/40 disabled:opacity-50"
+      className="min-w-[168px]"
     >
-      {state === "idle" && "Resend confirmation"}
-      {state === "sending" && "Sending..."}
-      {state === "sent" && "Sent"}
-      {state === "error" && "Failed — retry"}
-    </button>
+      {state === "idle" && (
+        <>
+          <Icon name="whatsapp" size={14} />
+          Resend confirmation
+        </>
+      )}
+      {state === "sending" && (
+        <>
+          <Icon name="clock" size={14} />
+          Sending…
+        </>
+      )}
+      {state === "sent" && (
+        <>
+          <Icon name="check" size={14} />
+          Sent
+        </>
+      )}
+      {state === "error" && (
+        <>
+          <Icon name="refresh" size={14} />
+          Failed — retry
+        </>
+      )}
+    </Button>
   );
 }

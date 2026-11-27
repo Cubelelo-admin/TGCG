@@ -1,0 +1,204 @@
+import { NextResponse } from "next/server";
+import { z } from "zod";
+import { getAdminSession } from "@/lib/admin-auth";
+import { createServiceClient } from "@/lib/supabase/server";
+import { loadBox, loadGroupBoxes, lookupRunner, searchDeskRunners } from "@/lib/kit";
+import { TSHIRT_SIZES } from "@/lib/registration-schema";
+
+export const runtime = "nodejs";
+
+const code = z.string().trim().min(1).max(60);
+const eventId = z.string().uuid();
+
+const bodySchema = z.discriminatedUnion("action", [
+  z.object({ action: z.literal("generate"), eventId, boxSize: z.number().int().min(5).max(60).optional() }),
+  z.object({
+    action: z.literal("set-channel"),
+    eventId,
+    pocName: z.string().trim().min(1).max(200),
+    channel: z.enum(["expo", "corporate"]),
+  }),
+  z.object({ action: z.literal("reset"), eventId, pocName: z.string().trim().min(1).max(200).optional() }),
+  z.object({ action: z.literal("box"), boxCode: code }),
+  z.object({ action: z.literal("scan"), boxCode: code, code }),
+  z.object({ action: z.literal("stage"), boxCode: code }),
+  z.object({ action: z.literal("groups"), eventId }),
+  z.object({
+    action: z.literal("handover"),
+    eventId,
+    group: z.string().trim().min(1).max(200),
+    receiverName: z.string().trim().min(2).max(120),
+    receiverMobile: z.string().trim().regex(/^\d{10}$/, "Enter a 10-digit mobile number"),
+    boxCodes: z.array(code).min(1).max(200),
+  }),
+  z.object({ action: z.literal("lookup"), eventId, code }),
+  z.object({ action: z.literal("collect"), bagCode: code, registrationId: z.string().uuid() }),
+  z.object({ action: z.literal("desk-search"), eventId, term: z.string().trim().min(2, "Type at least 2 characters").max(100) }),
+  z.object({
+    action: z.literal("swap-size"),
+    registrationId: z.string().uuid(),
+    size: z.enum(TSHIRT_SIZES),
+    reason: z.string().trim().max(200).optional(),
+  }),
+  z.object({
+    action: z.literal("desk-collect"),
+    registrationId: z.string().uuid(),
+    reason: z.string().trim().min(3, "A reason is required").max(200),
+  }),
+]);
+
+type RpcResult = { ok: boolean; message?: string } & Record<string, unknown>;
+const HANDOVER_ACTIONS = new Set<z.infer<typeof bodySchema>["action"]>(["groups", "stage", "handover"]);
+
+export async function POST(request: Request) {
+  const session = await getAdminSession();
+  if (!session?.role) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const parsed = bodySchema.safeParse(await request.json().catch(() => null));
+  if (!parsed.success) {
+    return NextResponse.json({ error: parsed.error.issues[0]?.message ?? "Invalid input" }, { status: 400 });
+  }
+  const body = parsed.data;
+  // Admins: everything. Handover volunteers (0031): the corporate group-box actions only,
+  // which carry group names and box codes, never runner details. Everyone else: nothing.
+  const allowed = session.authorized || (session.role === "handover" && HANDOVER_ACTIONS.has(body.action));
+  if (!allowed) return NextResponse.json({ error: "Not allowed for your role" }, { status: 403 });
+  const supabase = createServiceClient();
+
+  // The RPCs return {ok, message, ...}; a business rejection is a 200 with ok:false
+  // so the scan screens can show the reason in their banner without special-casing.
+  async function rpc(fn: string, args: Record<string, unknown>) {
+    const { data, error } = await supabase.rpc(fn, args);
+    if (error) {
+      console.error(`${fn} failed`, error);
+      return NextResponse.json({ ok: false, message: "Server error, scan again" }, { status: 500 });
+    }
+    return NextResponse.json(data as RpcResult);
+  }
+
+  switch (body.action) {
+    case "generate": {
+      const { data, error } = await supabase.rpc("kit_generate_boxes", {
+        p_event_id: body.eventId,
+        p_box_size: body.boxSize ?? 20,
+      });
+      if (error) {
+        console.error("kit_generate_boxes failed", error);
+        return NextResponse.json({ ok: false, message: "Could not generate boxes" }, { status: 500 });
+      }
+      return NextResponse.json({ ok: true, ...(data as { bags: number; groupBoxes: number }) });
+    }
+
+    case "set-channel": {
+      // Only runners with no box yet: once a runner is boxed, changing channel would orphan their items.
+      const { data: candidates, error: readError } = await supabase
+        .from("registrations")
+        .select("id")
+        .eq("event_id", body.eventId)
+        .eq("payment_status", "paid")
+        .eq("poc_name", body.pocName)
+        .limit(1000);
+      if (readError) return NextResponse.json({ ok: false, message: "Could not read registrations" }, { status: 500 });
+
+      const ids = (candidates ?? []).map((r) => r.id as string);
+      const { data: boxed } = await supabase.from("kit_items").select("registration_id").in("registration_id", ids);
+      const boxedIds = new Set((boxed ?? []).map((r) => r.registration_id as string));
+      const free = ids.filter((id) => !boxedIds.has(id));
+
+      if (free.length > 0) {
+        const { error } = await supabase
+          .from("registrations")
+          .update({
+            kit_channel: body.channel,
+            kit_group: body.channel === "corporate" ? body.pocName : null,
+          })
+          .in("id", free);
+        if (error) {
+          console.error("set-channel failed", error);
+          return NextResponse.json({ ok: false, message: "Could not update channel" }, { status: 500 });
+        }
+      }
+      return NextResponse.json({
+        ok: true,
+        updated: free.length,
+        skipped: ids.length - free.length,
+        message:
+          ids.length - free.length > 0
+            ? `${free.length} updated, ${ids.length - free.length} already boxed (unchanged)`
+            : `${free.length} updated`,
+      });
+    }
+
+    case "reset":
+      return rpc("kit_reset_unscanned", {
+        p_event_id: body.eventId,
+        p_poc: body.pocName ?? null,
+        p_admin: session.email,
+      });
+
+    case "box": {
+      const box = await loadBox(body.boxCode);
+      if (!box) return NextResponse.json({ ok: false, message: "Unknown box label" });
+      return NextResponse.json({ ok: true, box });
+    }
+
+    case "scan": {
+      const res = await supabase.rpc("kit_scan", {
+        p_box_code: body.boxCode,
+        p_code: body.code,
+        p_admin: session.email,
+      });
+      if (res.error) {
+        console.error("kit_scan failed", res.error);
+        return NextResponse.json({ ok: false, message: "Server error, scan again" }, { status: 500 });
+      }
+      const box = await loadBox(body.boxCode);
+      return NextResponse.json({ ...(res.data as RpcResult), box });
+    }
+
+    case "stage":
+      return rpc("kit_stage", { p_box_code: body.boxCode, p_admin: session.email });
+
+    case "groups":
+      return NextResponse.json({ ok: true, groups: await loadGroupBoxes(body.eventId) });
+
+    case "handover":
+      return rpc("kit_handover", {
+        p_event_id: body.eventId,
+        p_group: body.group,
+        p_name: body.receiverName,
+        p_mobile: body.receiverMobile,
+        p_codes: body.boxCodes,
+        p_admin: session.email,
+      });
+
+    case "lookup": {
+      const runner = await lookupRunner(body.eventId, body.code);
+      if (!runner) return NextResponse.json({ ok: false, message: "No paid runner found for that pass or BIB" });
+      return NextResponse.json({ ok: true, runner });
+    }
+
+    case "desk-search":
+      return NextResponse.json({ ok: true, runners: await searchDeskRunners(body.eventId, body.term) });
+
+    case "swap-size":
+      return rpc("kit_swap_size", {
+        p_reg_id: body.registrationId,
+        p_size: body.size,
+        p_reason: body.reason ?? null,
+        p_admin: session.email,
+      });
+
+    case "desk-collect":
+      return rpc("kit_desk_collect", {
+        p_reg_id: body.registrationId,
+        p_reason: body.reason,
+        p_admin: session.email,
+      });
+
+    case "collect":
+      return rpc("kit_collect", { p_bag_code: body.bagCode, p_reg_id: body.registrationId, p_admin: session.email });
+  }
+}

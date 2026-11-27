@@ -12,6 +12,104 @@
   --font-display: var(--font-display);
 }
 
+/*
+ * Cubelelo "Dock" design-system tokens (used by /admin via src/components/ds).
+ * Translated from design-system-app/tailwind.config.ts. Every name here was checked
+ * against src/: none of the utilities they generate (text-ink, bg-dark, rounded-4,
+ * text-14, shadow-card, ...) were in use before, so the public site is unaffected.
+ * Tailwind's own shadow-xl is left alone; the Dock xl shadow is shadow-dock-xl.
+ */
+@theme {
+  /* Text */
+  --color-ink: #111927;
+  --color-ink-secondary: #384250;
+  --color-ink-tertiary: #4d5761;
+  --color-ink-muted: #6c737f;
+  --color-ink-disabled: #9da4ae;
+
+  /* Borders */
+  --color-line: #d2d6db;
+  --color-line-secondary: #e5e7eb;
+
+  /* Surfaces */
+  --color-surface-secondary: #f9fafb;
+  --color-surface-tertiary: #f3f4f6;
+  --color-surface-filter: #f8f9fb;
+  --color-surface-page: #f8f9fc;
+
+  --color-dark: #0d121c;
+  --color-link: #1570ef;
+
+  /* Translucent near-black: row borders, active nav, modal overlay */
+  --color-alpha-4: rgba(23, 23, 28, 0.04);
+  --color-alpha-8: rgba(23, 23, 28, 0.08);
+  --color-alpha-64: rgba(23, 23, 28, 0.64);
+
+  /* Soft-tint pairs: bg-tint-x with text-on-tint-x */
+  --color-tint-orange: #fdead7;
+  --color-tint-red: #fee4e2;
+  --color-tint-green: #dcfae6;
+  --color-tint-blue: #d1e9ff;
+  --color-tint-grey: #f3f4f6;
+  --color-on-tint-orange: #772917;
+  --color-on-tint-red: #7a271a;
+  --color-on-tint-green: #074d31;
+  --color-on-tint-blue: #194185;
+  --color-on-tint-grey: #384250;
+
+  /* Dock type scale: each size carries its own fixed line-height */
+  --text-10: 10px;
+  --text-10--line-height: 14px;
+  --text-12: 12px;
+  --text-12--line-height: 16px;
+  --text-14: 14px;
+  --text-14--line-height: 18px;
+  --text-16: 16px;
+  --text-16--line-height: 20px;
+  --text-18: 18px;
+  --text-18--line-height: 24px;
+  --text-20: 20px;
+  --text-20--line-height: 26px;
+  --text-24: 24px;
+  --text-24--line-height: 30px;
+  --text-28: 28px;
+  --text-28--line-height: 36px;
+  --text-32: 32px;
+  --text-32--line-height: 40px;
+  --text-36: 36px;
+  --text-36--line-height: 46px;
+
+  --radius-4: 4px;
+  --radius-6: 6px;
+  --radius-8: 8px;
+  --radius-12: 12px;
+  --radius-16: 16px;
+
+  --shadow-card: 0 2px 8px rgba(0, 0, 0, 0.04);
+  --shadow-dock-xl: 0 8px 16px 0 rgba(16, 24, 40, 0.08), 0 16px 32px 0 rgba(16, 24, 40, 0.08);
+}
+
+/*
+ * Brand accent. `inline` so utilities read var(--accent) where they are used: the
+ * value is set per subtree by <BrandProvider> (Cubelelo orange for /admin).
+ */
+@theme inline {
+  --color-accent: var(--accent);
+  --color-accent-soft: var(--accent-soft);
+  --color-accent-strong: var(--accent-strong);
+}
+
+/*
+ * Tailwind v4 dropped v3's pointer cursor on buttons; the Dock components were
+ * measured with it. Scoped to the admin's .ds wrapper so the public site is unchanged.
+ */
+@layer base {
+  .ds button:not(:disabled),
+  .ds [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
+}
+
 body {
   background: var(--background);
   color: var(--foreground);

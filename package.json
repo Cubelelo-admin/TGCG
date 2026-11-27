@@ -12,6 +12,7 @@
     "@hookform/resolvers": "^5.9.1",
     "@supabase/ssr": "^0.12.7",
     "@supabase/supabase-js": "^2.116.0",
+    "barcode-detector": "^3.2.5",
     "googleapis": "^180.0.0",
     "jszip": "^3.10.2",
     "next": "16.3.5",
