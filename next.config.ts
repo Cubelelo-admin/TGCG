@@ -4,11 +4,6 @@ const nextConfig: NextConfig = {
   images: {
     formats: ["image/avif", "image/webp"],
   },
-  experimental: {
-    // The public site (app/(public)) and the registration/admin app (app/(app)) have separate root
-    // layouts, so unmatched URLs need a global 404 (app/global-not-found.tsx).
-    globalNotFound: true,
-  },
   async redirects() {
     return [
       // The standalone rules page was merged into /policies.
