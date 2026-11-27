@@ -1,7 +1,7 @@
 import "server-only";
 import { createServiceClient } from "@/lib/supabase/server";
 
-export const SITE_ASSET_IDS = ["race-information", "rules-faq", "race-day-information"] as const;
+export const SITE_ASSET_IDS = ["race-information", "rules-faq", "race-day-information", "raigarh-race-information"] as const;
 export type SiteAssetId = (typeof SITE_ASSET_IDS)[number];
 
 export function isSiteAssetId(id: string): id is SiteAssetId {
