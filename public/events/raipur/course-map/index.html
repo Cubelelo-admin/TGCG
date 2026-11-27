@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Course Guide</title>
+  <meta name="description" content="Interactive course map, elevation and water stations.">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="top">
+    <div class="wrap">
+      <img id="logo" class="logo" alt="" hidden>
+      <div class="eyebrow" id="tagline"></div>
+      <h1 id="eventName"></h1>
+      <div class="meta">
+        <span id="eventDate"></span>
+        <a id="venue" target="_blank" rel="noopener"></a>
+      </div>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <nav class="pills" id="racePills" aria-label="Choose distance"></nav>
+
+    <section class="stats" id="stats"></section>
+
+    <section class="card map-card" id="mapCard">
+      <div class="map-toolbar">
+        <label><input type="checkbox" id="tglRoute" checked> Route</label>
+        <label><input type="checkbox" id="tglStations" checked> Water stations</label>
+        <label><input type="checkbox" id="tglKm" checked> Km markers</label>
+        <label><input type="checkbox" id="tglPlaces" checked> Parking &amp; facilities</label>
+        <button id="expandBtn" class="ghost">Expand map</button>
+      </div>
+      <div id="map"></div>
+      <div class="legend" id="legend"></div>
+    </section>
+
+    <section class="card">
+      <div class="card-head">
+        <h2>Elevation</h2>
+        <div class="readout" id="readout"></div>
+      </div>
+      <div id="elev" class="elev"></div>
+      <input type="range" id="slider" min="0" max="1000" value="0" aria-label="Slide to explore the course">
+      <div class="slider-hint"><span>Start</span><span>Slide to explore the course</span><span id="sliderEnd">Finish</span></div>
+      <p class="summary" id="elevSummary"></p>
+    </section>
+
+    <section class="card">
+      <div class="card-head">
+        <h2>Km-by-km guide</h2>
+        <button id="csvBtn" class="ghost">Download all races (CSV)</button>
+      </div>
+      <div id="kmList" class="table-scroll"></div>
+    </section>
+
+    <section class="card">
+      <div class="card-head"><h2>Water &amp; aid stations</h2></div>
+      <div id="stationList"></div>
+    </section>
+
+    <p class="note" id="footerNote"></p>
+  </main>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="data/config.js"></script>
+  <script src="data/routes.js"></script>
+  <script src="data/km-facilities.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

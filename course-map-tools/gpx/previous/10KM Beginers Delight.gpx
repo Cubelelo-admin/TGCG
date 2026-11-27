@@ -1,0 +1,136 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no" ?>
+<gpx xmlns="http://www.topografix.com/GPX/1/1" creator="www.plotaroute.com" version="1.1"  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.topografix.com/GPX/1/1 http://www.topografix.com/GPX/1/1/gpx.xsd">
+<metadata>
+<desc>Route created on plotaroute.com</desc>
+</metadata>
+<wpt lat="21.16556" lon="81.774464">
+<time>2026-11-25T00:00:00Z</time>
+<name>Start on </name>
+<cmt>Start on </cmt>
+<desc>Start on </desc>
+<sym>Flag, Blue</sym>
+<type>Waypoint</type>
+</wpt>
+<wpt lat="21.162048" lon="81.785226">
+<time>2026-11-25T00:07:06Z</time>
+<name>Keep left</name>
+<cmt>Keep left</cmt>
+<desc>Keep left</desc>
+<sym>Straight</sym>
+<type>Waypoint</type>
+</wpt>
+<wpt lat="21.168886" lon="81.789154">
+<time>2026-11-25T00:12:38Z</time>
+<name>Keep right</name>
+<cmt>Keep right</cmt>
+<desc>Keep right</desc>
+<sym>Straight</sym>
+<type>Waypoint</type>
+</wpt>
+<wpt lat="21.16556" lon="81.774464">
+<time>2026-11-25T01:00:00Z</time>
+<name>FINISH</name>
+<cmt>FINISH</cmt>
+<desc>FINISH</desc>
+<sym>Flag, Blue</sym>
+<type>Waypoint</type>
+</wpt>
+<trk>
+<name>TGCG 2026 - 10K</name>
+<trkseg>
+<trkpt lat="21.1655600" lon="81.7744640">
+<ele>313</ele>
+<time>2026-11-25T00:00:00Z</time></trkpt>
+<trkpt lat="21.1655600" lon="81.7744640">
+<ele>313</ele>
+<time>2026-11-25T00:00:00Z</time></trkpt>
+<trkpt lat="21.1620480" lon="81.7852260">
+<ele>310</ele>
+<time>2026-11-25T00:07:06Z</time></trkpt>
+<trkpt lat="21.1620350" lon="81.7854530">
+<ele>310</ele>
+<time>2026-11-25T00:07:15Z</time></trkpt>
+<trkpt lat="21.1620570" lon="81.7856910">
+<ele>310</ele>
+<time>2026-11-25T00:07:24Z</time></trkpt>
+<trkpt lat="21.1621170" lon="81.7859530">
+<ele>310</ele>
+<time>2026-11-25T00:07:34Z</time></trkpt>
+<trkpt lat="21.1621980" lon="81.7861640">
+<ele>310</ele>
+<time>2026-11-25T00:07:42Z</time></trkpt>
+<trkpt lat="21.1623240" lon="81.7864040">
+<ele>311</ele>
+<time>2026-11-25T00:07:52Z</time></trkpt>
+<trkpt lat="21.1626220" lon="81.7868280">
+<ele>311</ele>
+<time>2026-11-25T00:08:12Z</time></trkpt>
+<trkpt lat="21.1688860" lon="81.7891540">
+<ele>311</ele>
+<time>2026-11-25T00:12:38Z</time></trkpt>
+<trkpt lat="21.1817930" lon="81.7939540">
+<ele>301</ele>
+<time>2026-11-25T00:21:45Z</time></trkpt>
+<trkpt lat="21.1817930" lon="81.7939540">
+<ele>301</ele>
+<time>2026-11-25T00:21:45Z</time></trkpt>
+<trkpt lat="21.1817930" lon="81.7939540">
+<ele>301</ele>
+<time>2026-11-25T00:21:45Z</time></trkpt>
+<trkpt lat="21.1817930" lon="81.7939540">
+<ele>301</ele>
+<time>2026-11-25T00:21:45Z</time></trkpt>
+<trkpt lat="21.1817930" lon="81.7939540">
+<ele>301</ele>
+<time>2026-11-25T00:21:45Z</time></trkpt>
+<trkpt lat="21.1935010" lon="81.7983075">
+<ele>305</ele>
+<time>2026-11-25T00:30:00Z</time></trkpt>
+<trkpt lat="21.1817930" lon="81.7939540">
+<ele>301</ele>
+<time>2026-11-25T00:38:15Z</time></trkpt>
+<trkpt lat="21.1817930" lon="81.7939540">
+<ele>301</ele>
+<time>2026-11-25T00:38:15Z</time></trkpt>
+<trkpt lat="21.1817930" lon="81.7939540">
+<ele>301</ele>
+<time>2026-11-25T00:38:15Z</time></trkpt>
+<trkpt lat="21.1817930" lon="81.7939540">
+<ele>301</ele>
+<time>2026-11-25T00:38:15Z</time></trkpt>
+<trkpt lat="21.1817930" lon="81.7939540">
+<ele>301</ele>
+<time>2026-11-25T00:38:15Z</time></trkpt>
+<trkpt lat="21.1688860" lon="81.7891540">
+<ele>311</ele>
+<time>2026-11-25T00:47:22Z</time></trkpt>
+<trkpt lat="21.1626220" lon="81.7868280">
+<ele>311</ele>
+<time>2026-11-25T00:51:48Z</time></trkpt>
+<trkpt lat="21.1623240" lon="81.7864040">
+<ele>311</ele>
+<time>2026-11-25T00:52:08Z</time></trkpt>
+<trkpt lat="21.1621980" lon="81.7861640">
+<ele>310</ele>
+<time>2026-11-25T00:52:18Z</time></trkpt>
+<trkpt lat="21.1621170" lon="81.7859530">
+<ele>310</ele>
+<time>2026-11-25T00:52:26Z</time></trkpt>
+<trkpt lat="21.1620570" lon="81.7856910">
+<ele>310</ele>
+<time>2026-11-25T00:52:36Z</time></trkpt>
+<trkpt lat="21.1620350" lon="81.7854530">
+<ele>310</ele>
+<time>2026-11-25T00:52:45Z</time></trkpt>
+<trkpt lat="21.1620480" lon="81.7852260">
+<ele>310</ele>
+<time>2026-11-25T00:52:54Z</time></trkpt>
+<trkpt lat="21.1655600" lon="81.7744640">
+<ele>313</ele>
+<time>2026-11-25T01:00:00Z</time></trkpt>
+<trkpt lat="21.1655600" lon="81.7744640">
+<ele>313</ele>
+<time>2026-11-25T01:00:00Z</time></trkpt>
+</trkseg>
+</trk>
+</gpx>

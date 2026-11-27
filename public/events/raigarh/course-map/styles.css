@@ -1,0 +1,163 @@
+:root {
+  --bg: #f5f4f0;
+  --card: #ffffff;
+  --text: #1b1d21;
+  --muted: #6b7078;
+  --line: #e3e1db;
+  --accent: #e4572e;
+  --water: #1f8fd6;
+  --shadow: 0 1px 2px rgba(0,0,0,.05), 0 4px 16px rgba(0,0,0,.05);
+}
+:root[data-theme="dark"] {
+  --bg: #111317; --card: #1a1d23; --text: #eceef2; --muted: #9aa1ab; --line: #2b3038;
+  --shadow: 0 1px 2px rgba(0,0,0,.4);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #111317; --card: #1a1d23; --text: #eceef2; --muted: #9aa1ab; --line: #2b3038;
+    --shadow: 0 1px 2px rgba(0,0,0,.4);
+  }
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body {
+  background: var(--bg); color: var(--text);
+  font: 15px/1.5 Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+}
+.wrap { max-width: 1100px; margin: 0 auto; padding: 0 16px; }
+
+/* Header */
+.top { padding: 28px 0 8px; }
+.top .wrap { position: relative; }
+.eyebrow { text-transform: uppercase; letter-spacing: .12em; font-size: 12px; color: var(--accent-text, var(--accent)); font-weight: 600; }
+h1 { margin: 4px 0 6px; font-size: clamp(28px, 5vw, 44px); font-weight: 800; letter-spacing: -.02em; line-height: 1.1; }
+.logo { display: block; width: clamp(180px, 34vw, 280px); height: auto; margin-bottom: 14px; }
+.logo[hidden] { display: none; }
+/* Black logo on dark theme: sit it on a light plate so brand colours stay true */
+:root[data-theme="dark"] .logo:not(.has-dark) { background: #f5f4f0; padding: 10px 14px; border-radius: 12px; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .logo:not(.has-dark) { background: #f5f4f0; padding: 10px 14px; border-radius: 12px; } }
+h1.with-logo { font-size: clamp(20px, 3vw, 26px); }
+.meta { display: flex; flex-wrap: wrap; gap: 6px 18px; color: var(--muted); font-size: 14px; }
+.meta a { color: inherit; }
+.meta a:not([href]) { text-decoration: none; }
+.theme { position: absolute; top: 0; right: 16px; display: flex; border: 1px solid var(--line); border-radius: 999px; overflow: hidden; }
+.theme button { border: 0; background: transparent; color: var(--muted); padding: 4px 10px; font: inherit; font-size: 12px; cursor: pointer; }
+.theme button.on { background: var(--text); color: var(--bg); }
+
+/* Distance pills */
+.pills { display: flex; flex-wrap: wrap; gap: 8px; margin: 18px 0 14px; }
+.pill {
+  border: 1.5px solid var(--line); background: var(--card); color: var(--text);
+  padding: 8px 16px; border-radius: 999px; font: inherit; font-weight: 600; cursor: pointer;
+  display: flex; gap: 8px; align-items: center;
+}
+.pill small { font-weight: 400; color: var(--muted); }
+.pill .dot { width: 10px; height: 10px; border-radius: 50%; }
+.pill.on { border-color: var(--c); background: var(--c); color: var(--ink, #fff); }
+.pill.on small { color: var(--ink, #fff); opacity: .85; }
+.pill.on .dot { background: var(--ink, #fff) !important; }
+
+/* Stats */
+.stats { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin-bottom: 14px; }
+.badges { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 8px; }
+.badge { display: inline-flex; align-items: baseline; gap: 6px; padding: 5px 12px; border-radius: 999px; font-size: 13px; font-weight: 600; border: 1.5px solid var(--line); background: var(--card); }
+.badge small { font-weight: 400; color: var(--muted); }
+.badge.track { background: var(--text); color: var(--bg); border-color: var(--text); letter-spacing: .03em; }
+.badge.comp { border-color: #d9a400; background: color-mix(in srgb, #f2c230 18%, var(--card)); }
+.schedule { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; background: var(--card); border-radius: 12px; padding: 10px 14px; box-shadow: var(--shadow); font-size: 13px; color: var(--muted); }
+.schedule span { display: inline-flex; gap: 6px; align-items: baseline; }
+.schedule span + span::before { content: "→"; margin-right: 6px; color: var(--line); }
+.schedule em { font-style: normal; font-weight: 700; color: var(--text); font-variant-numeric: tabular-nums; }
+.stat { min-width: 0; background: var(--card); border-radius: 12px; padding: 12px 14px; box-shadow: var(--shadow); }
+.stat .k { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
+.stat .v { font-size: 24px; font-weight: 800; letter-spacing: -.01em; }
+@media (max-width: 800px) { .stats { grid-template-columns: repeat(3, 1fr); } }
+@media (max-width: 640px) { .stats { grid-template-columns: repeat(2, 1fr); } .theme { position: static; margin-top: 10px; width: max-content; } }
+
+/* Cards */
+.card { background: var(--card); border-radius: 14px; box-shadow: var(--shadow); padding: 14px; margin-bottom: 14px; }
+.card-head { display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+h2 { margin: 0; font-size: 17px; }
+.ghost { margin-left: auto; border: 1px solid var(--line); background: transparent; color: var(--text); border-radius: 8px; padding: 4px 10px; font: inherit; font-size: 13px; cursor: pointer; }
+
+/* Map */
+.map-toolbar { display: flex; flex-wrap: wrap; gap: 6px 16px; align-items: center; margin-bottom: 10px; font-size: 14px; }
+.map-toolbar label { display: flex; gap: 6px; align-items: center; cursor: pointer; }
+#map { height: 520px; border-radius: 10px; z-index: 0; }
+@media (max-width: 640px) { #map { height: 400px; } }
+.map-card.full { position: fixed; inset: 0; z-index: 1000; margin: 0; border-radius: 0; display: flex; flex-direction: column; }
+.map-card.full #map { flex: 1; height: auto; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 16px; margin-top: 10px; font-size: 13px; color: var(--muted); }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.legend i { display: inline-block; width: 22px; height: 4px; border-radius: 2px; }
+.legend b { display: inline-grid; place-items: center; width: 18px; height: 18px; border-radius: 50%; font-size: 11px; color: #fff; font-style: normal; }
+
+:root[data-theme="dark"] .leaflet-tile-pane { filter: none; }
+.leaflet-popup-content { font: 13px/1.45 Inter, system-ui, sans-serif; }
+.leaflet-popup-content h3 { margin: 0 0 4px; font-size: 14px; }
+.leaflet-popup-content .tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+.tag { background: #eef5fb; color: #145f8f; border-radius: 999px; padding: 1px 8px; font-size: 12px; }
+
+/* Map icons */
+.km-icon { background: #fff; border: 2px solid var(--c); color: #222; border-radius: 50%; width: 24px; height: 24px; display: grid; place-items: center; font: 700 10px Inter, sans-serif; box-shadow: 0 1px 3px rgba(0,0,0,.3); }
+.km-wrap { width: auto !important; height: auto !important; }
+.km-multi { width: auto; min-width: 24px; padding: 0 7px; border-radius: 12px; white-space: nowrap; }
+.pop-sep { border: 0; border-top: 1px solid #ddd; margin: 8px 0; }
+.arrow-icon { width: 14px; height: 14px; display: grid; place-items: center; }
+.arrow-icon svg { filter: drop-shadow(0 0 1px rgba(0,0,0,.6)); }
+.st-icon { width: 30px; height: 30px; border-radius: 50% 50% 50% 0; transform: rotate(-45deg); display: grid; place-items: center; border: 2px solid #fff; box-shadow: 0 2px 5px rgba(0,0,0,.35); }
+.st-icon span { transform: rotate(45deg); font-size: 14px; line-height: 1; }
+.pl-icon { width: 30px; height: 30px; border-radius: 8px; border: 2px solid #fff; display: grid; place-items: center; font-size: 15px; box-shadow: 0 2px 5px rgba(0,0,0,.35); }
+.ut-icon { background: #111; color: #fff; border: 2px solid var(--c); border-radius: 6px; padding: 2px 7px; font: 700 11px Inter, sans-serif; white-space: nowrap; box-shadow: 0 2px 5px rgba(0,0,0,.35); }
+tr.ut-row td { background: color-mix(in srgb, var(--accent) 12%, transparent); }
+.sf-icon { background: #111; color: #fff; border: 2px solid #fff; border-radius: 6px; padding: 2px 6px; font: 700 11px Inter, sans-serif; white-space: nowrap; box-shadow: 0 2px 5px rgba(0,0,0,.35); }
+.runner-icon { width: 18px; height: 18px; border-radius: 50%; background: #fff; border: 4px solid var(--accent); box-shadow: 0 0 0 4px rgba(0,0,0,.15); }
+
+/* Elevation */
+.readout { font-size: 14px; font-variant-numeric: tabular-nums; color: var(--muted); }
+.readout strong { color: var(--text); }
+.elev { width: 100%; height: 200px; position: relative; }
+.elev svg { width: 100%; height: 100%; display: block; overflow: visible; }
+.elev .axis text { fill: var(--muted); font-size: 11px; }
+.elev .grid { stroke: var(--line); }
+#slider { width: 100%; margin: 10px 0 0; accent-color: var(--accent); }
+.slider-hint { display: flex; justify-content: space-between; font-size: 12px; color: var(--muted); }
+.summary { margin: 8px 0 0; font-size: 13px; color: var(--muted); }
+
+/* Station list */
+table { width: 100%; border-collapse: collapse; font-size: 14px; }
+th, td { text-align: left; padding: 8px 6px; border-bottom: 1px solid var(--line); }
+th { font-size: 12px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); font-weight: 600; }
+tr.clickable { cursor: pointer; }
+tr.clickable:hover { background: color-mix(in srgb, var(--accent) 8%, transparent); }
+.table-scroll { max-height: 460px; overflow: auto; }
+.table-scroll thead th { position: sticky; top: 0; background: var(--card); }
+td a { color: var(--accent-text, var(--accent)); text-decoration: none; white-space: nowrap; }
+td a:hover { text-decoration: underline; }
+td .tags { display: flex; flex-wrap: wrap; gap: 4px; }
+.tba { color: var(--muted); font-style: italic; font-size: 13px; }
+.empty { color: var(--muted); font-size: 14px; margin: 0; }
+.note { text-align: center; color: var(--muted); font-size: 13px; margin: 18px 0 32px; }
+
+/* ---------- Embedded in the website (/raipur/course-map) ---------- */
+.embed .top { display: none; }               /* the site's own header is used instead */
+.embed body { background: transparent; }
+.embed .wrap { padding: 0; }
+.embed .pills { margin-top: 0; }
+.embed .note { margin-bottom: 4px; }
+.map-card:fullscreen { background: var(--card); }
+
+/* ---------- Phones ---------- */
+@media (max-width: 640px) {
+  /* map first, right under the distance buttons */
+  main.wrap { display: flex; flex-direction: column; }
+  main.wrap > * { order: 4; }
+  #racePills { order: 1; }
+  #mapCard { order: 2; }
+  #stats { order: 3; }
+  #map { height: 460px; }
+  .stat .v { font-size: 20px; }
+  /* coordinates column doesn't fit; each row still links to Google Maps from the map popup */
+  #kmList th:nth-child(4), #kmList td:nth-child(4) { display: none; }
+}
