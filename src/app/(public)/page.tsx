@@ -16,7 +16,7 @@ export default function ChooseEvent() {
         <header className="chooser-head container reveal">
           <Image src="/shared/letsrun-logo.png" alt="LetsRun" width={72} height={72} className="chooser-logo" priority />
           <p className="eyebrow">
-            The Great Chhattisgarh Run <span className="hi-inline">· द ग्रेट छत्तीसगढ़ रन</span>
+            The Great Chhattisgarh Run <span className="hi-inline" style={{ whiteSpace: "nowrap" }}>· द ग्रेट छत्तीसगढ़ रन</span>
           </p>
           <h1>
             Choose your run

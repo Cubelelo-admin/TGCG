@@ -1,8 +1,28 @@
 import Link from "next/link";
 import type { Race } from "@/site/content/types";
 
-type Prices = Record<string, { from: number; competitive?: number; tax?: string }>;
+type Prices = Record<string, { from: number; competitive?: number; tax?: string; noPrizes?: boolean }>;
 const inr = (n: number) => `₹${n.toLocaleString("en-IN")}`;
+
+// "Entry from" only when the competitive entry really costs more (Raipur ₹1,450 / ₹1,750); when both cost the
+// same (Raigarh ₹500 + tax) the card gives one fee and says the competitive entry is the one with prizes.
+function RacePrice({ p }: { p: Prices[string] }) {
+  const dearer = p.competitive !== undefined && p.competitive > p.from;
+  return (
+    <p className="race-price">
+      <span className="race-price-label">{dearer ? "Entry from" : "Entry fee"}</span>
+      <span className="race-price-amount">
+        <strong>{inr(p.from)}</strong>
+        {p.tax && ` ${p.tax}`}
+      </span>
+      {p.competitive !== undefined ? (
+        <small>{dearer ? `Competitive ${inr(p.competitive)} · cash prizes` : "Competitive entries race for cash prizes"}</small>
+      ) : (
+        p.noPrizes && <small>Non-competitive · no cash prizes</small>
+      )}
+    </p>
+  );
+}
 
 export default function RaceCards({
   races,
@@ -55,13 +75,7 @@ export default function RaceCards({
             </div>
           </dl>
           {r.motto && <p className="race-motto">{r.motto}</p>}
-          {prices?.[r.slug] && (
-            <p className="race-price">
-              <span>{prices[r.slug].competitive ? "from" : "Fee"}</span> <strong>{inr(prices[r.slug].from)}</strong>
-              {prices[r.slug].tax && <span> {prices[r.slug].tax}</span>}
-              {prices[r.slug].competitive && <small>Competitive {inr(prices[r.slug].competitive!)} · cash prizes</small>}
-            </p>
-          )}
+          {prices?.[r.slug] && <RacePrice p={prices[r.slug]} />}
           <span className="race-card-cta">
             {canRegister ? "Register" : "Details"} <span aria-hidden="true">→</span>
           </span>

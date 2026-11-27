@@ -112,7 +112,13 @@ export default function HomeView({ e }: { e: EventConfig }) {
           <div className="section-head reveal">
             <p className="eyebrow">Choose your distance</p>
             <h2>{e.races.length ? `${e.races.length} races. One river of runners.` : "Race categories"}</h2>
-            {e.races.length > 0 && <p className="muted">Tap a race to register. दौड़ चुनें और पंजीकरण करें।</p>}
+            {e.races.length > 0 && (
+              <p className="muted">
+                {canRegister
+                  ? "Tap a race to register. दौड़ चुनें और पंजीकरण करें।"
+                  : "Tap a race for its timings, fees and route. समय, शुल्क और रूट के लिए दौड़ चुनें।"}
+              </p>
+            )}
           </div>
           <RaceCards races={e.races} basePath={e.basePath} canRegister={canRegister} prices={racePrices(e)} />
           {e.races.length > 0 && (
@@ -217,7 +223,7 @@ export default function HomeView({ e }: { e: EventConfig }) {
             />
             <div className="reveal">
               <p className="eyebrow">Every runner gets</p>
-              <h2>Medal, chip timing, dry-fit tee &amp; hot breakfast</h2>
+              <h2>Medal, chip timing, dry&#8209;fit tee &amp; hot breakfast</h2>
               <p className="lead">
                 Every category includes a finisher medal, a chip-timed BIB, a dry-fit T-shirt, a bag, a bottle, warm-up
                 Zumba, physio support and a globally recognised online timing certificate.
@@ -239,7 +245,9 @@ export default function HomeView({ e }: { e: EventConfig }) {
             <p className="eyebrow">Be the first to know</p>
             <h2>Registration for {e.city} opens soon</h2>
             <p className="lead">
-              Get a WhatsApp message the moment registration opens, along with race categories, route and fees.
+              {e.races.length
+                ? "Get a WhatsApp message the moment registration opens."
+                : "Get a WhatsApp message the moment registration opens, along with race categories, route and fees."}
               <span className="hi">पंजीकरण शुरू होते ही WhatsApp पर सूचना पाएँ।</span>
             </p>
             <a href={notify} target="_blank" rel="noopener noreferrer" className="btn btn-primary btn-lg">

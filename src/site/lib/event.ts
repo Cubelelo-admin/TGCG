@@ -38,14 +38,15 @@ export function clockToMin(t?: string) {
 // Price per race, from the fee tables: lowest price, plus the competitive price if that race has one.
 // Matches fee categories like "42 KM Marathon" to races by whole km.
 export function racePrices(e: EventConfig) {
-  const out: Record<string, { from: number; competitive?: number; tax?: string }> = {};
+  // noPrizes: the race has no competitive entry at all (only the non-competitive fee lists it)
+  const out: Record<string, { from: number; competitive?: number; tax?: string; noPrizes?: boolean }> = {};
   for (const r of e.races) {
     const key = `${Math.floor(raceKm(r))} KM`;
     const fees = e.fees.filter((f) => f.categories.some((c) => c.startsWith(key)));
     if (!fees.length) continue;
     const comp = fees.find((f) => /^competitive/i.test(f.title));
     const from = Math.min(...fees.map((f) => f.price));
-    out[r.slug] = { from, competitive: comp && fees.length > 1 ? comp.price : undefined, tax: fees.find((f) => f.price === from)?.tax };
+    out[r.slug] = { from, competitive: comp && fees.length > 1 ? comp.price : undefined, tax: fees.find((f) => f.price === from)?.tax, noPrizes: !comp };
   }
   return out;
 }

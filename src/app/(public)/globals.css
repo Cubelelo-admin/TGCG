@@ -1006,6 +1006,7 @@ html.reveal-ready .contact-card.is-visible:hover {
   text-decoration: none;
   color: inherit;
   position: relative;
+  --pad: 22px; /* one inset for every part of the card */
 }
 html .race-card {
   transition:
@@ -1018,7 +1019,7 @@ html .race-card {
   box-shadow: var(--shadow-lg);
 }
 .race-card-top {
-  padding: 22px 22px 14px;
+  padding: var(--pad) var(--pad) 14px;
   background: linear-gradient(180deg, color-mix(in srgb, var(--race) 14%, white), white);
 }
 .race-card h3 {
@@ -1034,7 +1035,7 @@ html .race-card {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   margin: 0;
-  padding: 0 22px;
+  padding: 0 var(--pad) 16px;
   gap: 8px;
 }
 .race-facts dt {
@@ -1050,22 +1051,23 @@ html .race-card {
   white-space: nowrap;
 }
 .race-motto {
-  margin: auto 0 0;
-  padding: 16px 22px 8px;
+  margin: 0;
+  padding: 0 var(--pad) 16px;
   font-style: italic;
   color: color-mix(in srgb, var(--race) 80%, black);
   font-weight: 600;
 }
 .race-card-cta {
   margin: auto 0 0;
-  padding: 12px 22px 18px;
+  padding: 12px var(--pad) 18px;
   font-weight: 800;
   color: color-mix(in srgb, var(--race) 80%, black);
   display: flex;
   align-items: center;
   gap: 6px;
 }
-.race-motto + .race-card-cta {
+/* the price sits at the foot of the card (so prices line up across a row) and the CTA follows it */
+.race-price + .race-card-cta {
   margin-top: 0;
 }
 .race-card-cta span {
@@ -2877,9 +2879,14 @@ iframe {
   }
   .race-card {
     border-top-width: 5px;
+    --pad: 14px;
+  }
+  /* an odd last card (Raigarh's third run) takes the whole row instead of leaving a hole beside it */
+  .race-grid > .race-card:last-child:nth-child(odd) {
+    grid-column: 1 / -1;
   }
   .race-card-top {
-    padding: 12px 12px 8px;
+    padding: 12px var(--pad) 8px;
   }
   .race-distance {
     font-size: 1.3rem;
@@ -2894,7 +2901,7 @@ iframe {
   .race-grid .race-facts {
     grid-template-columns: 1fr;
     gap: 2px;
-    padding: 0 12px;
+    padding: 0 var(--pad) 12px;
   }
   .race-facts > div {
     display: flex;
@@ -2913,8 +2920,17 @@ iframe {
     display: none;
   }
   .race-card-cta {
-    padding: 8px 12px 12px;
+    padding: 8px var(--pad) 12px;
     font-size: 0.88rem;
+  }
+  .race-grid .race-price {
+    padding-top: 10px;
+  }
+  .race-grid .race-price strong {
+    font-size: 1.2rem;
+  }
+  .race-grid .race-price small {
+    font-size: 0.7rem;
   }
 }
 
@@ -3394,19 +3410,9 @@ iframe {
   .quote-card {
     padding: 22px;
   }
-  .race-card-top {
-    padding: 18px 18px 12px;
-  }
-  .race-facts {
-    padding: 0 18px;
-  }
+  /* race card insets: the phone block above sets them (--pad) */
   .race-facts dd {
     white-space: normal;
-  }
-  .race-motto,
-  .race-card-cta {
-    padding-left: 18px;
-    padding-right: 18px;
   }
   .price {
     font-size: 2.2rem;
@@ -4394,23 +4400,36 @@ iframe {
 }
 
 /* ---------- Home: race card price ---------- */
+/* inset like the rest of the card, above a hairline, pinned to the card's foot (margin-top: auto) so the
+   prices of one row sit on one line however long the facts and tagline above them run */
 .race-price {
-  margin: 4px 0 10px;
+  margin: auto var(--pad, 22px) 0;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
   line-height: 1.2;
 }
-.race-price > span {
-  font-size: 0.78rem;
+.race-price-label {
+  display: block;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--muted);
+}
+.race-price-amount {
+  display: block;
+  margin-top: 3px;
+  font-size: 0.8rem;
   color: var(--muted);
 }
 .race-price strong {
   font-family: var(--font-display);
-  font-size: 1.35rem;
+  font-size: 1.45rem;
   color: var(--race, var(--brand));
 }
 .race-price small {
   display: block;
-  margin-top: 2px;
-  font-size: 0.74rem;
+  margin-top: 4px;
+  font-size: 0.76rem;
   color: var(--muted);
 }
 
