@@ -1,0 +1,62 @@
+﻿<?xml version="1.0" encoding="UTF-8" standalone="no" ?>
+<gpx creator="WTracks"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://www.topografix.com/GPX/1/1" version="1.1" xsi:schemaLocation="http://www.topografix.com/GPX/1/1 http://www.topografix.com/GPX/1/1/gpx.xsd">
+<metadata>
+  <name>42new</name>
+  <desc></desc>
+  <author><name>WTracks</name></author>
+  <link href='https://opoto.github.io/wtracks/'>
+    <text>WTracks</text>
+    <type>text/html</type>
+  </link>
+  <time>2026-11-25T16:15:38.406Z</time>
+  <bounds minlat="21.206879" minlon="81.802878" maxlat="21.207825" maxlon="81.804938"/>
+</metadata>
+<trk>
+  <trkseg>
+    <trkpt lat="21.165654" lon="81.774223"></trkpt>
+    <trkpt lat="21.164408" lon="81.778032"></trkpt>
+    <trkpt lat="21.161896" lon="81.785692"></trkpt>
+    <trkpt lat="21.161846" lon="81.786014"></trkpt>
+    <trkpt lat="21.161901" lon="81.786293"></trkpt>
+    <trkpt lat="21.162057" lon="81.786566"></trkpt>
+    <trkpt lat="21.162837" lon="81.786931"></trkpt>
+    <trkpt lat="21.16979" lon="81.789501"></trkpt>
+    <trkpt lat="21.177127" lon="81.792226"></trkpt>
+    <trkpt lat="21.183113" lon="81.794447"></trkpt>
+    <trkpt lat="21.188728" lon="81.796539"></trkpt>
+    <trkpt lat="21.195474" lon="81.799049"></trkpt>
+    <trkpt lat="21.210191" lon="81.804583"></trkpt>
+    <trkpt lat="21.209883" lon="81.805538"></trkpt>
+    <trkpt lat="21.20958" lon="81.806476"></trkpt>
+    <trkpt lat="21.208975" lon="81.80833"></trkpt>
+    <trkpt lat="21.20868" lon="81.81024"></trkpt>
+    <trkpt lat="21.208779" lon="81.811634"></trkpt>
+    <trkpt lat="21.209102" lon="81.81301"></trkpt>
+    <trkpt lat="21.209309" lon="81.813769"></trkpt>
+    <trkpt lat="21.209429" lon="81.814606"></trkpt>
+    <trkpt lat="21.209419" lon="81.81628"></trkpt>
+    <trkpt lat="21.209359" lon="81.817997"></trkpt>
+    <trkpt lat="21.209319" lon="81.818908"></trkpt>
+    <trkpt lat="21.209299" lon="81.819284"></trkpt>
+    <trkpt lat="21.209234" lon="81.819456"></trkpt>
+    <trkpt lat="21.209194" lon="81.819537"></trkpt>
+    <trkpt lat="21.209145" lon="81.819606"></trkpt>
+    <trkpt lat="21.208009" lon="81.819863"></trkpt>
+    <trkpt lat="21.207405" lon="81.819968"></trkpt>
+    <trkpt lat="21.206769" lon="81.819981"></trkpt>
+    <trkpt lat="21.206088" lon="81.820024"></trkpt>
+    <trkpt lat="21.205398" lon="81.81996"></trkpt>
+    <trkpt lat="21.204533" lon="81.819871"></trkpt>
+    <trkpt lat="21.203678" lon="81.81967"></trkpt>
+    <trkpt lat="21.202838" lon="81.819434"></trkpt>
+    <trkpt lat="21.201997" lon="81.81908"></trkpt>
+    <trkpt lat="21.200017" lon="81.818125"></trkpt>
+    <trkpt lat="21.199519" lon="81.817881"></trkpt>
+    <trkpt lat="21.199013" lon="81.817692"></trkpt>
+    <trkpt lat="21.197997" lon="81.817342"></trkpt>
+    <trkpt lat="21.193453" lon="81.816205"></trkpt>
+    <trkpt lat="21.193153" lon="81.816108"></trkpt>
+    <trkpt lat="21.192946" lon="81.816044"></trkpt>
+  </trkseg>
+</trk></gpx>
