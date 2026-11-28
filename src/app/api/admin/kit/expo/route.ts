@@ -11,7 +11,11 @@ export const runtime = "nodejs";
  * Picker actions: pickers + admins. Restock actions: restock volunteers + admins.
  * Cancel, floor board and release: admins only (support / supervisor). The picker / restocker is always the signed-in email;
  * it is never taken from the request body.
+ * Assignments (0033): a desk volunteer works at the desk the admin assigned, and a picker on the items the admin assigned;
+ * the station or specialties their screen sends are ignored. Admins are not restricted.
  */
+
+const NO_DESK = "No desk assigned yet: ask the supervisor";
 
 const uuid = z.string().uuid();
 const eventId = uuid;
@@ -33,7 +37,7 @@ const bodySchema = z.discriminatedUnion("action", [
   z.object({ action: z.literal("release-task"), taskId: uuid }),
   // picker
   z.object({ action: z.literal("picker-state"), eventId }),
-  z.object({ action: z.literal("set-active"), eventId, active: z.boolean(), specialties: z.array(kind).min(1).max(3) }),
+  z.object({ action: z.literal("set-active"), eventId, active: z.boolean(), specialties: z.array(kind).min(1).max(3).optional() }),
   z.object({ action: z.literal("accept"), taskId: uuid }),
   z.object({ action: z.literal("decline"), taskId: uuid }),
   z.object({ action: z.literal("pick-bin"), taskId: uuid, bin: code }),
@@ -82,6 +86,15 @@ export async function POST(request: Request) {
 
   const supabase = createServiceClient();
   const email = session.email.toLowerCase();
+  const role = session.role;
+  const myDesk = session.desk;
+
+  /** Desk volunteers see and hand over only their own desk's orders (0033). Returns the refusal, or null. */
+  function otherDesk(order: { code: string; station: string }): string | null {
+    if (role !== "desk") return null;
+    if (!myDesk) return NO_DESK;
+    return order.station === myDesk ? null : `${order.code} is at desk ${order.station}: send the runner there`;
+  }
 
   // Business rejections come back as 200 {ok:false, message} so the screens show them in the banner.
   async function rpc(fn: string, args: Record<string, unknown>) {
@@ -94,9 +107,16 @@ export async function POST(request: Request) {
   }
 
   switch (body.action) {
-    case "desk-board":
+    case "desk-board": {
       await dispatch(body.eventId);
-      return NextResponse.json({ ok: true, board: await loadDeskBoard(body.eventId, body.station) });
+      if (role !== "desk") {
+        return NextResponse.json({ ok: true, board: await loadDeskBoard(body.eventId, body.station) });
+      }
+      // The assigned desk, whatever the screen asked for. A desk that isn't one of this event's counts as none.
+      const board = await loadDeskBoard(body.eventId, myDesk);
+      const assignedDesk = myDesk && board.stations.includes(myDesk) ? myDesk : null;
+      return NextResponse.json({ ok: true, board, assignedDesk });
+    }
 
     case "desk-lookup": {
       const found = await deskLookup(body.eventId, body.code);
@@ -104,22 +124,33 @@ export async function POST(request: Request) {
       return NextResponse.json({ ok: true, lookup: found });
     }
 
-    case "create-order":
+    case "create-order": {
+      const station = role === "desk" ? myDesk : body.station;
+      if (!station) return NextResponse.json({ ok: false, message: NO_DESK });
       return rpc("kit_create_order", {
         p_event_id: body.eventId,
         p_reg_ids: body.registrationIds,
-        p_station: body.station,
+        p_station: station,
         p_admin: email,
       });
+    }
 
     case "order-preview": {
       const order = await findOpenOrder(body.eventId, body.code);
       if (!order) return NextResponse.json({ ok: false, message: `No open order for ${body.code.toUpperCase()}` });
+      const refused = otherDesk(order);
+      if (refused) return NextResponse.json({ ok: false, message: refused });
       return NextResponse.json({ ok: true, order });
     }
 
-    case "fulfil":
+    case "fulfil": {
+      if (role === "desk") {
+        const order = await findOpenOrder(body.eventId, body.code);
+        const refused = order ? otherDesk(order) : myDesk ? null : NO_DESK;
+        if (refused) return NextResponse.json({ ok: false, message: refused });
+      }
       return rpc("kit_fulfil_order", { p_event_id: body.eventId, p_code: body.code, p_photo: null, p_admin: email });
+    }
 
     case "cancel-order":
       return rpc("kit_cancel_order", { p_order: body.orderId, p_reason: body.reason, p_admin: email });
@@ -138,16 +169,25 @@ export async function POST(request: Request) {
         state: await loadPickerState(body.eventId, email),
         // Lets the phone correct its clock for the 60 s offer countdown.
         now: new Date().toISOString(),
+        // Volunteer pickers: the items the admin assigned (0033). null = an admin, who ticks them on the screen.
+        assigned: role === "picker" ? session.items : null,
       });
 
-    case "set-active":
+    case "set-active": {
+      // A volunteer picker works on the items the admin assigned (0033); only an admin's ticks count.
+      if (role === "picker" && body.active && session.items.length === 0) {
+        return NextResponse.json({ ok: false, message: "No items assigned yet: ask the supervisor" });
+      }
+      const specialties =
+        role === "picker" ? (session.items.length > 0 ? session.items : null) : (body.specialties ?? null);
       return rpc("kit_picker_set_active", {
         p_event_id: body.eventId,
         p_email: email,
         p_name: session.name,
         p_active: body.active,
-        p_specialties: body.specialties,
+        p_specialties: specialties,
       });
+    }
 
     case "accept":
       return rpc("kit_accept_task", { p_task: body.taskId, p_email: email });

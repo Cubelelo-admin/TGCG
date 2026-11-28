@@ -7,6 +7,8 @@ import UploadAssetCard from "./UploadAssetCard";
 import WhatsAppGroupsCard from "./WhatsAppGroupsCard";
 import VolunteersCard, { type Volunteer } from "./VolunteersCard";
 import { createServiceClient } from "@/lib/supabase/server";
+import { getAdminEvent } from "@/lib/admin-event";
+import { listStations } from "@/lib/expo";
 import type { IconName } from "@/components/ds";
 
 const TABS = [
@@ -103,10 +105,13 @@ async function WaGroupTab() {
 }
 
 async function VolunteersTab() {
-  const { data, error } = await createServiceClient()
-    .from("admin_allowlist")
-    .select("email, role, added_at")
-    .order("added_at", { ascending: true });
+  const [{ data, error }, { event }] = await Promise.all([
+    createServiceClient()
+      .from("admin_allowlist")
+      .select("email, role, added_at, desk, picker_items")
+      .order("added_at", { ascending: true }),
+    getAdminEvent(),
+  ]);
   if (error) {
     console.error("volunteers load failed", error);
     return (
@@ -115,9 +120,29 @@ async function VolunteersTab() {
       </Banner>
     );
   }
-  const rows = (data ?? []) as { email: string; role: string; added_at: string }[];
+  // The desks a desk volunteer can be given: this event's pigeonhole stations.
+  const stations = event ? await listStations(event.id) : [];
+  const rows = (data ?? []) as {
+    email: string;
+    role: string;
+    added_at: string;
+    desk: string | null;
+    picker_items: string[] | null;
+  }[];
   const volunteers: Volunteer[] = rows
     .filter((r) => (VOLUNTEER_ROLES as readonly string[]).includes(r.role))
-    .map((r) => ({ email: r.email, role: r.role as Volunteer["role"], addedAt: r.added_at }));
-  return <VolunteersCard volunteers={volunteers} adminCount={rows.filter((r) => r.role === "admin").length} />;
+    .map((r) => ({
+      email: r.email,
+      role: r.role as Volunteer["role"],
+      addedAt: r.added_at,
+      desk: r.desk,
+      items: (r.picker_items ?? []) as Volunteer["items"],
+    }));
+  return (
+    <VolunteersCard
+      volunteers={volunteers}
+      stations={stations}
+      adminCount={rows.filter((r) => r.role === "admin").length}
+    />
+  );
 }

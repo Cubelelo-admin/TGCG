@@ -130,6 +130,8 @@ export type TaskStatus = "queued" | "offered" | "accepted" | "done" | "cancelled
 export interface DeskOrder {
   id: string;
   code: string;
+  /** The desk (pigeonhole station) the order belongs to, e.g. D1. */
+  station: string;
   status: OrderStatus;
   crate: string | null;
   createdAt: string;
@@ -151,6 +153,7 @@ export interface DeskBoard {
 type OrderRow = {
   id: string;
   code: string;
+  station: string;
   status: OrderStatus;
   created_at: string;
   ready_at: string | null;
@@ -164,7 +167,7 @@ type OrderRow = {
   }[];
 };
 const ORDER_COLS =
-  "id, code, status, created_at, ready_at, fulfilled_at, kit_pigeonholes!kit_orders_pigeonhole_id_fkey(label), kit_tasks!kit_tasks_order_id_fkey(kind, status), kit_order_lines!kit_order_lines_order_id_fkey(registration_id, status, registrations(full_name, bib_number, tshirt_size, ticket_categories(name)))";
+  "id, code, station, status, created_at, ready_at, fulfilled_at, kit_pigeonholes!kit_orders_pigeonhole_id_fkey(label), kit_tasks!kit_tasks_order_id_fkey(kind, status), kit_order_lines!kit_order_lines_order_id_fkey(registration_id, status, registrations(full_name, bib_number, tshirt_size, ticket_categories(name)))";
 
 function toDeskOrder(o: OrderRow): DeskOrder {
   const seen = new Set<string>();
@@ -183,6 +186,7 @@ function toDeskOrder(o: OrderRow): DeskOrder {
   return {
     id: o.id,
     code: o.code,
+    station: o.station,
     status: o.status,
     crate: o.kit_pigeonholes?.label ?? null,
     createdAt: o.created_at,
