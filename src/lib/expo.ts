@@ -6,7 +6,8 @@ import { createServiceClient } from "@/lib/supabase/server";
  * through the 0030 RPCs. What each role may see is decided HERE, not in the UI:
  *  - desk:   runner name, BIB, category, T-shirt size, booking group. No phone/email/ID.
  *  - picker: item kinds, sizes, BIB numbers, bin and crate labels. No names at all, and a
- *            line's size/BIB only once its source bin has been scanned (opened_at set).
+ *            line's size/BIB only once its source bin has been scanned (opened_at set). A T-shirt
+ *            bin's size shows from the start: its code (TS-M) says it anyway.
  */
 
 export type ExpoKind = "bib" | "tshirt" | "pack";
@@ -276,6 +277,8 @@ export interface PickerLine {
 
 export interface PickerBin {
   code: string;
+  /** T-shirt bins: the size, from the start (the code TS-M already says it). null otherwise. */
+  size: string | null;
   count: number;
   picked: number;
   /** Bin scanned: its lines show size/BIB. */
@@ -303,6 +306,23 @@ export interface PickerState {
   /** Tasks waiting for any picker (shown so an idle picker knows the floor is quiet). */
   queued: number;
 }
+
+/**
+ * What one scan during a task did (kit_task_scan, 0035). picked / opened / bib / done moved the
+ * task on (ok); already / bin-first / not-all-picked are warnings; wrong-* are wrong scans. A
+ * refusal (task not found, not accepted) has no result.
+ */
+export type TaskScanResult =
+  | "picked"
+  | "opened"
+  | "bib"
+  | "done"
+  | "already"
+  | "bin-first"
+  | "not-all-picked"
+  | "wrong-pigeonhole"
+  | "wrong-bib"
+  | "wrong-bin";
 
 export async function loadPickerState(eventId: string, email: string): Promise<PickerState> {
   const supabase = createServiceClient();
@@ -352,7 +372,15 @@ export async function loadPickerState(eventId: string, email: string): Promise<P
   const bins = new Map<string, PickerBin>();
   for (const l of (task.kit_order_lines ?? []) as unknown as LineRow[]) {
     if (l.status !== "pending") continue;
-    const bin = bins.get(l.bin_code) ?? { code: l.bin_code, count: 0, picked: 0, opened: false, empty: false, lines: [] };
+    const bin = bins.get(l.bin_code) ?? {
+      code: l.bin_code,
+      size: task.kind === "tshirt" ? l.size : null,
+      count: 0,
+      picked: 0,
+      opened: false,
+      empty: false,
+      lines: [],
+    };
     const opened = l.opened_at !== null;
     bin.count += 1;
     if (l.picked_at) bin.picked += 1;
