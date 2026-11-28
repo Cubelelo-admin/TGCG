@@ -24,7 +24,7 @@ export default async function KitDeskPage() {
     <div>
       <PageHeader
         title="Collection desk"
-        subtitle="Scan the runner's pass to start an order. When it turns Ready, scan the crate and hand the kit over."
+        subtitle="Scan the runner's pass to start an order. When it turns Ready, scan the pigeonhole and hand the kit over."
       />
       <DeskStation eventId={event.id} stations={stations} canCancel />
     </div>

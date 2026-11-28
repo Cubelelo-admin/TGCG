@@ -26,9 +26,9 @@ export const ROLE_TITLE: Record<VolunteerRole, string> = {
 };
 
 const ROLE_HINT: Record<VolunteerRole, string> = {
-  desk: "Scan the runner's pass to start an order. When it turns Ready, scan the crate and hand over.",
+  desk: "Scan the runner's pass to start an order. When it turns Ready, scan the pigeonhole and hand over.",
   picker:
-    "Tap Start to receive tasks. Scan the bin, pick, then scan the crate.",
+    "Tap Start to receive tasks. Scan each bin or BIB as you pick, then scan the pigeonhole.",
   handover:
     "Stage each ready group box. On day 0, scan every box of a group out to the company rep.",
   restock: "Refill bins pickers flag as empty, then scan the bin label.",

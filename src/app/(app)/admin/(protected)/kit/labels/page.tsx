@@ -54,7 +54,8 @@ export default async function KitLabelsPage({
       labels.push({
         code: c.label,
         title: c.label,
-        lines: [`Desk ${c.station}`, c.size === "small" ? "Small crate: one runner" : "Large crate: group order"],
+        // Short lines: the label prints at text-14 and truncates anything longer.
+        lines: [`Desk ${c.station} pigeonhole`, c.size === "small" ? "Small: one runner" : "Large: group order"],
         qr: await qr(c.label),
       });
     }
@@ -109,7 +110,7 @@ export default async function KitLabelsPage({
       <div className="print:hidden">
         <PageHeader
           title={
-            type === "bins" ? "Bin labels" : type === "crates" ? "Crate labels" : type === "groups" ? "Group-box labels" : "Expo bag labels"
+            type === "bins" ? "Bin labels" : type === "crates" ? "Pigeonhole labels" : type === "groups" ? "Group-box labels" : "Expo bag labels"
           }
           subtitle={
             <>

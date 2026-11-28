@@ -3,14 +3,23 @@
 import { useRef, useState, useSyncExternalStore } from "react";
 import { Banner, Button, Card, Checkbox, EmptyState, Icon, Modal, SegmentedControl, StatusPill, TextField } from "@/components/ds";
 import type { DeskBoard, DeskLookup, DeskOrder, DeskRunner } from "@/lib/expo";
-import ScanInput, { ResultBanner, type Banner as ScanBanner } from "../ScanInput";
+import ScanInput, { ResultBanner, alertFrom, type Alert } from "../ScanInput";
 import { KIND_LABEL, buzz, chime, elapsed, postExpo, useLatestReply, usePoll } from "../expo-client";
-import { AssignmentNote, type Note } from "../AssignmentNote";
 
 const MAX_RUNNERS = 10;
 const STATION_KEY = "tgcg.desk.station";
 /** Crate label (D1-S2 / D1-L1) or order code (O-0012): the handover path. Anything else is a runner pass / BIB. */
 const HANDOVER_CODE = /^(D\d+-[SL]\d+|O-\d+)$/i;
+
+/**
+ * kit_create_order (0030) still says "crate" when the desk is full: "No free [large ]crate at D1:
+ * wait for one to be handed over". Changing it would mean replacing the function, so the desk
+ * recognises it and words it itself (spec §4.4).
+ */
+function noFreePigeonhole(message: string): Alert | null {
+  const m = /^No free (large )?crate at ([^\s:]+)/.exec(message);
+  return m ? { tone: "warn", title: `No free ${m[1] ?? ""}pigeonhole at ${m[2]}`, text: "Wait for one to be handed over." } : null;
+}
 
 // Station choice in localStorage, read through useSyncExternalStore (null on the server).
 const STATION_EVENT = "tgcg-desk-station";
@@ -46,7 +55,7 @@ export default function DeskStation({
   const [assigned, setAssigned] = useState<string | null>(assignedDesk ?? null);
   // What the last poll said, to spot the admin's changes. undefined = no poll back yet.
   const assignedSeen = useRef<string | null | undefined>(undefined);
-  const [note, setNote] = useState<Note>(null);
+  const [note, setNote] = useState<Alert | null>(null);
   // An admin's choice of desk sticks to this browser (one laptop per desk).
   const saved = useSyncExternalStore(subscribeStation, readStation, () => null);
   const chosen =
@@ -55,7 +64,7 @@ export default function DeskStation({
   const [board, setBoard] = useState<DeskBoard | null>(null);
   const [boardError, setBoardError] = useState(false);
   const [now, setNow] = useState(() => Date.now());
-  const [banner, setBanner] = useState<ScanBanner>(null);
+  const [banner, setBanner] = useState<Alert | null>(null);
   const [busy, setBusy] = useState(false);
   const [lookup, setLookup] = useState<DeskLookup | null>(null);
   const [selected, setSelected] = useState<string[]>([]);
@@ -95,7 +104,7 @@ export default function DeskStation({
         if (before !== undefined) {
           setNote(
             next
-              ? { tone: "info", title: `You're now at desk ${next}`, text: "Set by the supervisor." }
+              ? { tone: "note", title: `You're now at desk ${next}`, text: "Set by the supervisor." }
               : { tone: "warn", title: "You were taken off your desk", text: "Ask the supervisor. This screen updates by itself." }
           );
           readySeen.current = null;
@@ -125,7 +134,7 @@ export default function DeskStation({
       const res = await postExpo<{ order?: DeskOrder }>({ action: "order-preview", eventId, code: value });
       setBusy(false);
       if (!res.ok || !res.order) {
-        setBanner({ ok: false, text: res.message ?? "No open order" });
+        setBanner(alertFrom(false, res.message ?? "No open order"));
         buzz();
         return;
       }
@@ -137,14 +146,16 @@ export default function DeskStation({
     const res = await postExpo<{ lookup?: DeskLookup }>({ action: "desk-lookup", eventId, code: value });
     setBusy(false);
     if (!res.ok || !res.lookup) {
-      setBanner({ ok: false, text: res.message ?? "Runner not found" });
+      setBanner(alertFrom(false, res.message ?? "Runner not found"));
       setLookup(null);
       buzz();
       return;
     }
     setLookup(res.lookup);
     setSelected(res.lookup.scanned.blocker ? [] : [res.lookup.scanned.registrationId]);
-    setBanner(res.lookup.scanned.blocker ? { ok: false, text: `${res.lookup.scanned.name}: ${res.lookup.scanned.blocker}` } : null);
+    // A runner who can't be collected now (already collected, in another order, corporate): a warning.
+    const { name, blocker } = res.lookup.scanned;
+    setBanner(blocker ? { tone: "warn", title: name, text: blocker } : null);
   }
 
   async function createOrder() {
@@ -158,11 +169,13 @@ export default function DeskStation({
     });
     setBusy(false);
     if (!res.ok) {
-      setBanner({ ok: false, text: res.message ?? "Could not create the order" });
+      // A refusal here is a warning (desk full, runner already in an order), not a wrong scan.
+      const message = res.message ?? "Could not create the order";
+      setBanner(noFreePigeonhole(message) ?? { ...alertFrom(false, message), tone: "warn" });
       buzz();
       return;
     }
-    setBanner({ ok: true, text: `Order ${res.code} → crate ${res.crate}. Ask the runner to wait; it turns Ready on the right.` });
+    setBanner({ tone: "done", title: `Order ${res.code} → pigeonhole ${res.crate}`, text: "Ask the runner to wait; it turns Ready on the right." });
     setLookup(null);
     setSelected([]);
     void refreshBoard();
@@ -173,15 +186,15 @@ export default function DeskStation({
     const res = await postExpo({ action: "fulfil", eventId, code: order.code });
     setBusy(false);
     setPreview(null);
-    setBanner({ ok: res.ok, text: res.message ?? (res.ok ? "Handed over" : "Could not hand over") });
+    setBanner(alertFrom(res.ok, res.message ?? (res.ok ? "Handed over" : "Could not hand over")));
     if (!res.ok) buzz();
     void refreshBoard();
   }
 
   if (initialStations.length === 0) {
     return (
-      <Banner tone="danger" title="No crates set up for this event">
-        Seed the desk crates first (kit_seed_pigeonholes in 0030), then reload this page.
+      <Banner tone="danger" title="No pigeonholes set up for this event">
+        Seed the desk pigeonholes first (kit_seed_pigeonholes in 0030), then reload this page.
       </Banner>
     );
   }
@@ -191,7 +204,7 @@ export default function DeskStation({
 
   return (
     <div className="flex flex-col gap-4">
-      <AssignmentNote note={note} onDismiss={() => setNote(null)} />
+      <ResultBanner banner={note} onDismiss={() => setNote(null)} />
       <div className="flex flex-wrap items-center gap-3">
         {fixed ? (
           station && (
@@ -215,7 +228,7 @@ export default function DeskStation({
         )}
         {board && station && (
           <span className="text-14 text-ink-tertiary">
-            Free crates: {board.crates.free.small}/{board.crates.total.small} small · {board.crates.free.large}/
+            Free pigeonholes: {board.crates.free.small}/{board.crates.total.small} small · {board.crates.free.large}/
             {board.crates.total.large} large
           </span>
         )}
@@ -238,7 +251,7 @@ export default function DeskStation({
           <div className="flex min-w-0 flex-col gap-4">
             <Card>
               <ScanInput
-                label="Scan runner pass / BIB, or a crate label to hand over"
+                label="Scan runner pass / BIB, or a pigeonhole label to hand over"
                 onScan={onScan}
                 disabled={busy || preview !== null}
               />
@@ -354,7 +367,7 @@ export default function DeskStation({
         onClose={() => setCancelling(null)}
         onDone={(text, ok) => {
           setCancelling(null);
-          setBanner({ ok, text });
+          setBanner(alertFrom(ok, text));
           void refreshBoard();
         }}
       />
@@ -453,7 +466,7 @@ function NewOrderCard({
       <Button variant="dark" className="mt-4 h-12! w-full text-16!" disabled={busy || selected.length === 0} onClick={onCreate}>
         {busy ? "Creating…" : `Create order for ${selected.length} runner${selected.length === 1 ? "" : "s"}`}
       </Button>
-      {selected.length > 1 && <p className="mt-2 text-12 text-ink-tertiary">Groups go in a large crate.</p>}
+      {selected.length > 1 && <p className="mt-2 text-12 text-ink-tertiary">Groups go in a large pigeonhole.</p>}
     </Card>
   );
 }
@@ -478,7 +491,7 @@ function HandoverModal({
   return (
     <Modal
       open
-      title={`Crate ${order.crate ?? "—"} · ${order.code}`}
+      title={`Pigeonhole ${order.crate ?? "—"} · ${order.code}`}
       subtitle={isReady ? "Check the name and BIB with the runner, then hand over." : "Still being picked: not ready yet."}
       icon="handover"
       width={560}
@@ -516,7 +529,7 @@ function HandoverModal({
         <div className="mt-3 flex flex-wrap gap-1">
           {order.tasks.map((t) => (
             <StatusPill key={t.kind} tone={t.status === "done" ? "active" : "pending"}>
-              {KIND_LABEL[t.kind]} {t.status === "done" ? "in crate" : "being picked"}
+              {KIND_LABEL[t.kind]} {t.status === "done" ? "in pigeonhole" : "being picked"}
             </StatusPill>
           ))}
         </div>
@@ -557,7 +570,7 @@ export function CancelModal({
     <Modal
       open
       title={`Cancel ${order.code}?`}
-      subtitle="Frees the crate and stops any picking. Items already in the crate go back to their bins."
+      subtitle="Frees the pigeonhole and stops any picking. Items already in the pigeonhole go back to their bins."
       icon="warning"
       onClose={onClose}
       footer={

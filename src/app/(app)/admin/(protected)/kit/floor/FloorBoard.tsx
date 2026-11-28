@@ -166,7 +166,7 @@ export default function FloorBoard({ eventId }: { eventId: string }) {
 
       <Card title={issues.length ? `Needs attention (${issues.length})` : "Needs attention"}>
         {issues.length === 0 ? (
-          <EmptyState title="Nothing stuck. Tasks, crates and bins are all moving." />
+          <EmptyState title="Nothing stuck. Tasks, pigeonholes and bins are all moving." />
         ) : (
           <ul className="flex flex-col gap-2">
             {issues.map((i) => (
@@ -237,7 +237,7 @@ export default function FloorBoard({ eventId }: { eventId: string }) {
       >
         <ul className="flex list-disc flex-col gap-1.5 pl-5 text-14 text-ink-secondary">
           <li>{releasing?.picker ?? "The picker"} is paused: they tap Active on their phone to get tasks again.</li>
-          <li>Anything they already took for this task goes back to its bin. Items already in the crate stay.</li>
+          <li>Anything they already took for this task goes back to its bin. Items already in the pigeonhole stay.</li>
         </ul>
       </Modal>
 
@@ -267,7 +267,7 @@ function findIssues(board: Board, now: number): Issue[] {
           key: `stuck:${t.id}`,
           red: true,
           title: `${o.code} · ${KIND_LABEL[t.kind]} stuck with ${(t.pickerId && name.get(t.pickerId)) || "a picker"}`,
-          detail: `Desk ${o.station}, crate ${o.crate ?? "–"}. Accepted`,
+          detail: `Desk ${o.station}, pigeonhole ${o.crate ?? "–"}. Accepted`,
           since: t.acceptedAt!,
           action: { kind: "release", task: t, orderCode: o.code },
         });
@@ -291,7 +291,7 @@ function findIssues(board: Board, now: number): Issue[] {
       out.push({
         key: `ready:${o.id}`,
         red: false,
-        title: `${o.code} ready in crate ${o.crate ?? "–"}, not handed over`,
+        title: `${o.code} ready in pigeonhole ${o.crate ?? "–"}, not handed over`,
         detail: `Desk ${o.station}: is the runner still there? Ready`,
         since: o.readyAt,
       });
@@ -316,7 +316,7 @@ function findIssues(board: Board, now: number): Issue[] {
       out.push({
         key: `crates:${c.station}`,
         red: false,
-        title: `Desk ${c.station} has no free crate`,
+        title: `Desk ${c.station} has no free pigeonhole`,
         detail: "New orders there are refused until one is handed over. Oldest order",
         since: oldest?.createdAt ?? new Date(now).toISOString(),
       });
@@ -340,7 +340,7 @@ function taskText(t: FloorTask, pickerName: Map<string, string>) {
   if (t.status === "queued") return "waiting";
   if (t.status === "offered") return `offered${who ? ` to ${who}` : ""}`;
   if (t.status === "accepted") return who ?? "picking";
-  return "in crate";
+  return "in pigeonhole";
 }
 
 function OrdersCard({
@@ -366,7 +366,7 @@ function OrdersCard({
             <thead className="border-b border-line-secondary text-12 text-ink-tertiary">
               <tr>
                 <th className="px-5 py-2 font-medium">Order</th>
-                <th className="px-2 py-2 font-medium">Crate</th>
+                <th className="px-2 py-2 font-medium">Pigeonhole</th>
                 <th className="px-2 py-2 font-medium">Tasks</th>
                 <th className="px-2 py-2 text-right font-medium">Age</th>
                 <th className="px-5 py-2" />
@@ -482,9 +482,9 @@ function PickersCard({
 
 function CratesCard({ crates }: { crates: Board["crates"] }) {
   return (
-    <Card title="Crates free">
+    <Card title="Pigeonholes free">
       {crates.length === 0 ? (
-        <EmptyState title="No crates set up." />
+        <EmptyState title="No pigeonholes set up." />
       ) : (
         <ul className="divide-y divide-line-secondary">
           {crates.map((c) => {

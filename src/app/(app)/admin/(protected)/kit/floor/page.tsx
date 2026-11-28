@@ -12,7 +12,7 @@ export default async function KitFloorPage() {
     <div>
       <PageHeader
         title="Floor board"
-        subtitle="Every open order, picker, crate and empty bin. Anything stuck shows at the top: release a task a picker has gone quiet on."
+        subtitle="Every open order, picker, pigeonhole and empty bin. Anything stuck shows at the top: release a task a picker has gone quiet on."
       />
       {event ? (
         <FloorBoard eventId={event.id} />

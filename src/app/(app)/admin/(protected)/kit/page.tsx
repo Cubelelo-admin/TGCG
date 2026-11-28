@@ -19,7 +19,7 @@ const LABEL_LINKS: { href: string; label: string }[] = [
   { href: "/admin/kit/labels?type=bags", label: "Print bag labels" },
   { href: "/admin/kit/labels?type=groups", label: "Print group-box labels" },
   { href: "/admin/kit/labels?type=bins", label: "Print bin labels" },
-  { href: "/admin/kit/labels?type=crates", label: "Print crate labels" },
+  { href: "/admin/kit/labels?type=crates", label: "Print pigeonhole labels" },
 ];
 
 export default async function KitPage() {
