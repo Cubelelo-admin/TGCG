@@ -5,6 +5,7 @@ import { Button, Card, Checkbox, Icon, StatusPill } from "@/components/ds";
 import type { ExpoKind, PickerBin, PickerState, PickerTask } from "@/lib/expo";
 import ScanInput, { ResultBanner, type Banner } from "../ScanInput";
 import { KIND_LABEL, buzz, chime, postExpo, useLatestReply, usePoll } from "../expo-client";
+import { AssignmentNote, type Note } from "../AssignmentNote";
 
 const ALL_KINDS: ExpoKind[] = ["bib", "tshirt", "pack"];
 
@@ -21,6 +22,11 @@ export default function PickerStation({ eventId }: { eventId: string }) {
   const [busy, setBusy] = useState(false);
   const [specialties, setSpecialties] = useState<ExpoKind[] | null>(null);
   const [connError, setConnError] = useState(false);
+  // Volunteer pickers: the items the admin assigned (0033). null = an admin, who ticks items here.
+  const [assigned, setAssigned] = useState<ExpoKind[] | null>(null);
+  // What the last poll said, to spot the admin's changes. undefined = no poll back yet.
+  const assignedSeen = useRef<ExpoKind[] | null | undefined>(undefined);
+  const [note, setNote] = useState<Note>(null);
   const lastTaskId = useRef<string | null>(null);
   const wasActive = useRef<boolean | null>(null);
   // True while paused by their own Pause, so it never reads as "you were paused". (Setting
@@ -39,7 +45,10 @@ export default function PickerStation({ eventId }: { eventId: string }) {
   async function refresh() {
     const ticket = latest.begin();
     const sent = Date.now();
-    const res = await postExpo<{ state?: PickerState; now?: string }>({ action: "picker-state", eventId });
+    const res = await postExpo<{ state?: PickerState; now?: string; assigned?: ExpoKind[] | null }>({
+      action: "picker-state",
+      eventId,
+    });
     const received = Date.now();
     // A poll that left before the last action and came back after it: its state is old.
     if (latest.isStale(ticket)) return;
@@ -53,14 +62,39 @@ export default function PickerStation({ eventId }: { eventId: string }) {
     if (res.now) setOffset(Date.parse(res.now) - (sent + received) / 2);
 
     const next = res.state;
+    // The admin changed this picker's items (0033). Not on the first poll: that's just loading.
+    const nextAssigned = res.assigned ?? null;
+    const before = assignedSeen.current;
+    const itemsRemoved = Array.isArray(before) && before.length > 0 && nextAssigned !== null && nextAssigned.length === 0;
+    if (Array.isArray(before) && nextAssigned !== null && before.join() !== nextAssigned.join()) {
+      setNote(
+        nextAssigned.length === 0
+          ? {
+              tone: "warn",
+              title: "Your items were removed",
+              text:
+                next.task?.status === "accepted"
+                  ? "Finish the task on your screen. After that you're paused until the supervisor assigns new ones."
+                  : "You're paused until the supervisor assigns new ones.",
+            }
+          : {
+              tone: "info",
+              title: `Your items are now ${nextAssigned.map((k) => KIND_LABEL[k]).join(" · ")}`,
+              text: "Set by the supervisor. A task already on your screen carries on.",
+            }
+      );
+    }
+    assignedSeen.current = nextAssigned;
+    setAssigned(nextAssigned);
     if (next.task?.status === "offered" && next.task.id !== lastTaskId.current) {
       chime();
       buzz(400);
       // "Put away" from the last task (or any older message) doesn't belong to this offer.
       if (Date.now() - bannerAt.current > 4000) setBanner(null);
     }
-    // Paused by the server: an offer ran out, or the supervisor released the task.
-    if (wasActive.current && next.picker && !next.picker.active && !busy && !pausedByMe.current) {
+    // Paused by the server: an offer ran out, or the supervisor released the task. (Items removed:
+    // the note says so instead.)
+    if (wasActive.current && next.picker && !next.picker.active && !busy && !pausedByMe.current && !itemsRemoved) {
       showBanner({
         ok: false,
         text: "You were paused: an offer ran out or the supervisor took the task back. Tap Start when you're ready again.",
@@ -86,7 +120,9 @@ export default function PickerStation({ eventId }: { eventId: string }) {
   usePoll(async () => setNow(Date.now()), 1000, state?.task?.status === "offered");
 
   const active = state?.picker?.active ?? false;
-  const mySpecialties = specialties ?? state?.picker?.specialties ?? ALL_KINDS;
+  // A volunteer picks the items the admin assigned; an admin previewing ticks their own.
+  const isVolunteer = assigned !== null;
+  const mySpecialties = assigned ?? specialties ?? state?.picker?.specialties ?? ALL_KINDS;
 
   async function act(body: Record<string, unknown>, okText?: string) {
     setBusy(true);
@@ -100,7 +136,8 @@ export default function PickerStation({ eventId }: { eventId: string }) {
 
   async function setActive(on: boolean, kinds = mySpecialties) {
     if (!on) pausedByMe.current = true;
-    const res = await act({ action: "set-active", eventId, active: on, specialties: kinds });
+    // A volunteer's items come from the server (0033); only an admin sends ticks.
+    const res = await act({ action: "set-active", eventId, active: on, ...(isVolunteer ? {} : { specialties: kinds }) });
     // Start worked: their own pause is over. Pause refused (task accepted): they're still active.
     if (on ? res.ok : !res.ok) pausedByMe.current = false;
   }
@@ -116,6 +153,7 @@ export default function PickerStation({ eventId }: { eventId: string }) {
   const task = state.task;
   return (
     <div className="flex flex-col gap-4">
+      <AssignmentNote note={note} onDismiss={() => setNote(null)} />
       <Card>
         <div className="flex items-center justify-between gap-3">
           <div className="min-w-0">
@@ -141,24 +179,52 @@ export default function PickerStation({ eventId }: { eventId: string }) {
           )}
         </div>
         <div className="mt-4 border-t border-line-secondary pt-3">
-          <p className="mb-2 text-12 font-medium uppercase tracking-wide text-ink-tertiary">I pick</p>
-          <div className="flex flex-wrap gap-4">
-            {ALL_KINDS.map((k) => (
-              <Checkbox
-                key={k}
-                label={KIND_LABEL[k]}
-                checked={mySpecialties.includes(k)}
-                disabled={busy}
-                onChange={(on) => {
-                  const next = on ? [...mySpecialties, k] : mySpecialties.filter((x) => x !== k);
-                  setSpecialties(next);
-                  // Saved straight away while active; otherwise on Start.
-                  if (active && next.length > 0) void setActive(true, next);
-                }}
-              />
-            ))}
-          </div>
-          <p className="mt-2 text-12 text-ink-muted">A task waiting over 90 s can go to anyone free.</p>
+          {isVolunteer ? (
+            <>
+              <p className="mb-2 text-12 font-medium uppercase tracking-wide text-ink-tertiary">Your items</p>
+              {mySpecialties.length > 0 ? (
+                <>
+                  <div className="flex flex-wrap gap-2">
+                    {mySpecialties.map((k) => (
+                      <StatusPill key={k} tone="pending">
+                        {KIND_LABEL[k]}
+                      </StatusPill>
+                    ))}
+                  </div>
+                  <p className="mt-2 text-12 text-ink-muted">
+                    Set by the supervisor. A task waiting over 90 s can go to anyone free.
+                  </p>
+                </>
+              ) : (
+                <AssignmentNote
+                  note={{ tone: "warn", title: "No items assigned yet", text: "Ask the supervisor. Start unlocks once they assign some." }}
+                />
+              )}
+            </>
+          ) : (
+            <>
+              <p className="mb-2 text-12 font-medium uppercase tracking-wide text-ink-tertiary">I pick</p>
+              <div className="flex flex-wrap gap-4">
+                {ALL_KINDS.map((k) => (
+                  <Checkbox
+                    key={k}
+                    label={KIND_LABEL[k]}
+                    checked={mySpecialties.includes(k)}
+                    disabled={busy}
+                    onChange={(on) => {
+                      const next = on ? [...mySpecialties, k] : mySpecialties.filter((x) => x !== k);
+                      setSpecialties(next);
+                      // Saved straight away while active; otherwise on Start.
+                      if (active && next.length > 0) void setActive(true, next);
+                    }}
+                  />
+                ))}
+              </div>
+              <p className="mt-2 text-12 text-ink-muted">
+                Admin preview: tick items to test. A task waiting over 90 s can go to anyone free.
+              </p>
+            </>
+          )}
         </div>
         {connError && (
           <p className="mt-3">
@@ -170,7 +236,7 @@ export default function PickerStation({ eventId }: { eventId: string }) {
       <ResultBanner banner={banner} />
 
       {task?.status === "offered" && (
-        <OfferCard task={task} secondsLeft={secondsLeft(task.offerExpiresAt, now + offset)} busy={busy} onAccept={() => act({ action: "accept", taskId: task.id }, "Accepted")} onDecline={() => act({ action: "decline", taskId: task.id })} />
+        <OfferCard task={task} notMine={!mySpecialties.includes(task.kind)} secondsLeft={secondsLeft(task.offerExpiresAt, now + offset)} busy={busy} onAccept={() => act({ action: "accept", taskId: task.id }, "Accepted")} onDecline={() => act({ action: "decline", taskId: task.id })} />
       )}
       {task?.status === "accepted" && (
         <TaskCard
@@ -232,12 +298,15 @@ function itemsText(task: PickerTask) {
 
 function OfferCard({
   task,
+  notMine,
   secondsLeft,
   busy,
   onAccept,
   onDecline,
 }: {
   task: PickerTask;
+  /** Overflow: a task for an item this picker wasn't given, sent because it waited over 90 s. */
+  notMine: boolean;
   secondsLeft: number;
   busy: boolean;
   onAccept: () => void;
@@ -256,6 +325,15 @@ function OfferCard({
           <p className="text-12 text-ink-tertiary">to accept</p>
         </div>
       </div>
+      {notMine && (
+        <p className="mt-3 flex items-start gap-2 rounded-8 border border-[#F7B27A] bg-white px-3 py-2 text-14 text-on-tint-orange">
+          <Icon name="alert" size={18} className="mt-px shrink-0" />
+          <span>
+            <span className="font-semibold">Not one of your items.</span> It has waited over 90 s, so any free picker can
+            take it.
+          </span>
+        </p>
+      )}
       <div className="mt-5 grid grid-cols-[2fr_1fr] gap-2">
         <Button variant="dark" onClick={onAccept} disabled={busy || secondsLeft === 0} className="h-14! text-18!">
           <Icon name="check" size={20} />

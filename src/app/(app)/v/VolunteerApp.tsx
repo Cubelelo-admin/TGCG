@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import {
@@ -46,6 +46,7 @@ export default function VolunteerApp({
   eventId,
   eventName,
   stations,
+  assignedDesk,
 }: {
   email: string;
   /** The signed-in user's real role. */
@@ -55,9 +56,13 @@ export default function VolunteerApp({
   eventId: string | null;
   eventName: string;
   stations: string[];
+  /** Desk volunteers: the desk the admin assigned (0033), null = none yet. */
+  assignedDesk: string | null;
 }) {
   const router = useRouter();
   const isAdmin = role === "admin";
+  // Kept up to date by the desk screen's poll, for the header.
+  const [desk, setDesk] = useState(assignedDesk);
   const roleRef = useRef(role);
 
   usePoll(async () => {
@@ -92,7 +97,10 @@ export default function VolunteerApp({
             className="h-8 w-8 rounded-8"
           />
           <div className="min-w-0 flex-1">
-            <p className="truncate text-16 font-semibold">{ROLE_TITLE[view]}</p>
+            <p className="truncate text-16 font-semibold">
+              {ROLE_TITLE[view]}
+              {view === "desk" && !isAdmin && desk ? ` · ${desk}` : ""}
+            </p>
             <p className="truncate text-12 text-white/60">{eventName}</p>
           </div>
           <Popover
@@ -162,6 +170,8 @@ export default function VolunteerApp({
                 eventId={eventId}
                 stations={stations}
                 canCancel={isAdmin}
+                assignedDesk={isAdmin ? undefined : assignedDesk}
+                onDeskChange={setDesk}
               />
             )}
             {view === "picker" && (

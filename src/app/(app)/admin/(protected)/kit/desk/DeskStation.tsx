@@ -5,6 +5,7 @@ import { Banner, Button, Card, Checkbox, EmptyState, Icon, Modal, SegmentedContr
 import type { DeskBoard, DeskLookup, DeskOrder, DeskRunner } from "@/lib/expo";
 import ScanInput, { ResultBanner, type Banner as ScanBanner } from "../ScanInput";
 import { KIND_LABEL, buzz, chime, elapsed, postExpo, useLatestReply, usePoll } from "../expo-client";
+import { AssignmentNote, type Note } from "../AssignmentNote";
 
 const MAX_RUNNERS = 10;
 const STATION_KEY = "tgcg.desk.station";
@@ -27,15 +28,30 @@ export default function DeskStation({
   eventId,
   stations: initialStations,
   canCancel,
+  assignedDesk,
+  onDeskChange,
 }: {
   eventId: string;
   stations: string[];
   canCancel: boolean;
+  /**
+   * Desk volunteers (0033): the desk the admin assigned, null = none yet. The server decides it;
+   * this screen only shows it. Left out for admins, who choose the desk here.
+   */
+  assignedDesk?: string | null;
+  /** Called when the admin moves this desk volunteer, or takes them off their desk. */
+  onDeskChange?: (desk: string | null) => void;
 }) {
-  // The desk's station sticks to this browser (one laptop per desk).
+  const fixed = assignedDesk !== undefined;
+  const [assigned, setAssigned] = useState<string | null>(assignedDesk ?? null);
+  // What the last poll said, to spot the admin's changes. undefined = no poll back yet.
+  const assignedSeen = useRef<string | null | undefined>(undefined);
+  const [note, setNote] = useState<Note>(null);
+  // An admin's choice of desk sticks to this browser (one laptop per desk).
   const saved = useSyncExternalStore(subscribeStation, readStation, () => null);
-  const station =
+  const chosen =
     saved && initialStations.includes(saved) ? saved : initialStations.length === 1 ? initialStations[0] : null;
+  const station = fixed ? assigned : chosen;
   const [board, setBoard] = useState<DeskBoard | null>(null);
   const [boardError, setBoardError] = useState(false);
   const [now, setNow] = useState(() => Date.now());
@@ -61,7 +77,7 @@ export default function DeskStation({
 
   async function refreshBoard() {
     const ticket = latest.begin();
-    const res = await postExpo<{ board?: DeskBoard }>({ action: "desk-board", eventId, station });
+    const res = await postExpo<{ board?: DeskBoard; assignedDesk?: string | null }>({ action: "desk-board", eventId, station });
     // Left before the last create / hand-over (or a station switch) and came back after it.
     if (latest.isStale(ticket)) return;
     setNow(Date.now());
@@ -70,13 +86,36 @@ export default function DeskStation({
       return;
     }
     setBoardError(false);
+    if (fixed) {
+      const next = res.assignedDesk ?? null;
+      const before = assignedSeen.current;
+      assignedSeen.current = next;
+      if (before !== next) {
+        // The admin moved them or took them off (not the first poll): what was on screen belonged to the old desk.
+        if (before !== undefined) {
+          setNote(
+            next
+              ? { tone: "info", title: `You're now at desk ${next}`, text: "Set by the supervisor." }
+              : { tone: "warn", title: "You were taken off your desk", text: "Ask the supervisor. This screen updates by itself." }
+          );
+          readySeen.current = null;
+          setLookup(null);
+          setSelected([]);
+          setPreview(null);
+          setBanner(null);
+        }
+        setAssigned(next);
+        onDeskChange?.(next);
+      }
+    }
     // Chime once for each order that turns Ready while the desk is watching.
     const ready = res.board.open.filter((o) => o.status === "ready").map((o) => o.id);
     if (readySeen.current && ready.some((id) => !readySeen.current!.has(id))) chime();
     readySeen.current = new Set(ready);
     setBoard(res.board);
   }
-  usePoll(refreshBoard, 3000, station !== null);
+  // A desk volunteer keeps polling with no desk, to notice when the admin assigns one.
+  usePoll(refreshBoard, 3000, fixed || station !== null);
 
   async function onScan(raw: string) {
     if (!station) return;
@@ -152,15 +191,28 @@ export default function DeskStation({
 
   return (
     <div className="flex flex-col gap-4">
+      <AssignmentNote note={note} onDismiss={() => setNote(null)} />
       <div className="flex flex-wrap items-center gap-3">
-        <span className="text-14 font-medium text-ink-secondary">This desk</span>
-        <SegmentedControl
-          size="md"
-          ariaLabel="Desk station"
-          options={stations.map((s) => ({ value: s, label: s }))}
-          value={station ?? ""}
-          onChange={chooseStation}
-        />
+        {fixed ? (
+          station && (
+            <>
+              <span className="text-14 font-medium text-ink-secondary">This desk</span>
+              <StatusPill tone="info">{station}</StatusPill>
+              <span className="text-12 text-ink-muted">Set by the supervisor</span>
+            </>
+          )
+        ) : (
+          <>
+            <span className="text-14 font-medium text-ink-secondary">This desk</span>
+            <SegmentedControl
+              size="md"
+              ariaLabel="Desk station"
+              options={stations.map((s) => ({ value: s, label: s }))}
+              value={station ?? ""}
+              onChange={chooseStation}
+            />
+          </>
+        )}
         {board && station && (
           <span className="text-14 text-ink-tertiary">
             Free crates: {board.crates.free.small}/{board.crates.total.small} small · {board.crates.free.large}/
@@ -172,7 +224,13 @@ export default function DeskStation({
 
       {!station ? (
         <Card>
-          <EmptyState title="Choose which desk this is to start." />
+          {fixed ? (
+            <EmptyState title="No desk assigned yet">
+              <p className="text-14 text-ink-tertiary">Ask the supervisor to assign you a desk. This screen updates by itself.</p>
+            </EmptyState>
+          ) : (
+            <EmptyState title="Choose which desk this is to start." />
+          )}
         </Card>
       ) : (
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">

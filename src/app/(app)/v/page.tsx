@@ -23,6 +23,8 @@ export default async function VolunteerAppPage({
       : session.role;
 
   const stations = view === "desk" && event ? await listStations(event.id) : [];
+  // A desk volunteer's desk (0033). One that isn't a desk of this event counts as none.
+  const assignedDesk = session.role === "desk" && session.desk && stations.includes(session.desk) ? session.desk : null;
 
   return (
     <VolunteerApp
@@ -32,6 +34,7 @@ export default async function VolunteerAppPage({
       eventId={event?.id ?? null}
       eventName={event?.name ?? ""}
       stations={stations}
+      assignedDesk={assignedDesk}
     />
   );
 }
